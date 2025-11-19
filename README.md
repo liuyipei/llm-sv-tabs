@@ -62,7 +62,39 @@ npm run electron:dev
 # Build for production
 npm run build
 npm start
+
+# Run tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
 ```
+
+## Testing
+
+Comprehensive test suite with **Vitest** and **Svelte Testing Library**:
+
+- **6 test files** covering stores, components, and IPC bridge
+- **~160 total tests** with focus on fast execution
+- **< 10 second** test runs optimized for CI/CD
+- **GitHub Actions** integration for automated testing on PRs
+
+See [TESTING.md](./TESTING.md) for detailed testing guide.
+
+### Quick Test Run
+```bash
+npm test
+```
+
+Test coverage includes:
+- ✅ Store logic and reactivity
+- ✅ Component rendering and interactions
+- ✅ IPC bridge (mock and Electron modes)
+- ✅ User interactions (clicks, inputs)
+- ✅ State management (tabs, config, UI)
 
 ## Migration Benefits
 
