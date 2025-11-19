@@ -2,16 +2,7 @@ import { defineConfig } from 'vitest/config';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 
 export default defineConfig({
-  plugins: [
-    svelte({
-      hot: !process.env.VITEST,
-      compilerOptions: {
-        // Ensure Svelte compiles for browser, not SSR
-        generate: 'dom',
-        hydratable: false,
-      },
-    }),
-  ],
+  plugins: [svelte({ hot: !process.env.VITEST })],
   test: {
     globals: true,
     environment: 'happy-dom',
@@ -42,5 +33,6 @@ export default defineConfig({
       '$components': '/src/ui/components',
       '$lib': '/src/ui/lib',
     },
+    conditions: ['browser'],
   },
 });
