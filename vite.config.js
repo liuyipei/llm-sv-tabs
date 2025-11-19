@@ -4,10 +4,17 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 export default defineConfig({
   plugins: [svelte()],
   build: {
-    outDir: 'dist',
+    outDir: '../../dist',
     rollupOptions: {
-      input: 'src/ui/index.html',
+      input: 'index.html',
+      output: {
+        assetFileNames: 'assets/[name]-[hash][extname]',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js',
+      },
     },
+    // Ensure the HTML file is output to the root of dist
+    emptyOutDir: true,
   },
   resolve: {
     alias: {
@@ -17,4 +24,6 @@ export default defineConfig({
     },
   },
   base: './',
+  // Configure the root to be src/ui so that index.html is at the root
+  root: 'src/ui',
 });
