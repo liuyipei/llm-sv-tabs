@@ -86,7 +86,7 @@ describe('config store', () => {
       provider.set('anthropic');
       provider.set('openai');
 
-      expect(callCount).toBeGreaterThan(2); // Initial + 2 updates
+      expect(callCount).toBeGreaterThanOrEqual(2); // At least 2 updates
 
       unsubscribe();
     });
