@@ -15,6 +15,8 @@ export default defineConfig({
       input: resolve(__dirname, 'src/ui/index.html'),
     },
     emptyOutDir: true,
+    sourcemap: true,   // Enable source maps for debugging
+    minify: false,     // Disable minification for debugging
   },
   resolve: {
     alias: {

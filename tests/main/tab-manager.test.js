@@ -43,6 +43,8 @@ describe('TabManager', () => {
       addBrowserView: vi.fn(),
       removeBrowserView: vi.fn(),
       getBounds: vi.fn().mockReturnValue({ width: 1400, height: 900 }),
+      getContentBounds: vi.fn().mockReturnValue({ width: 1400, height: 900 }),
+      on: vi.fn(), // For resize event listener
       webContents: {
         send: vi.fn(),
       },

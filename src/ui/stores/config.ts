@@ -2,21 +2,45 @@ import { writable, type Writable } from 'svelte/store';
 import type { ProviderType } from '../../types';
 
 // Create a persisted store that syncs with localStorage
+// Uses the custom store pattern to avoid subscribing during module init
 function createPersistedStore<T>(key: string, initial: T): Writable<T> {
-  // Check if we're in a browser environment
   const isBrowser = typeof window !== 'undefined' && typeof localStorage !== 'undefined';
 
-  const stored = isBrowser ? localStorage.getItem(key) : null;
-  const store = writable<T>(stored ? JSON.parse(stored) : initial);
-
-  // Subscribe to changes and persist to localStorage
+  // 1. Load initial value from localStorage
+  let initialValue = initial;
   if (isBrowser) {
-    store.subscribe((value) => {
-      localStorage.setItem(key, JSON.stringify(value));
-    });
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      try {
+        initialValue = JSON.parse(stored);
+      } catch (e) {
+        console.warn(`Failed to parse stored value for ${key}`, e);
+      }
+    }
   }
 
-  return store;
+  // 2. Create the base writable store
+  const { subscribe, set, update } = writable<T>(initialValue);
+
+  // 3. Return a custom store object that persists on set/update
+  return {
+    subscribe,
+    set: (value: T) => {
+      if (isBrowser) {
+        localStorage.setItem(key, JSON.stringify(value));
+      }
+      set(value);
+    },
+    update: (fn: (value: T) => T) => {
+      update((current) => {
+        const newValue = fn(current);
+        if (isBrowser) {
+          localStorage.setItem(key, JSON.stringify(newValue));
+        }
+        return newValue;
+      });
+    }
+  };
 }
 
 // Configuration stores

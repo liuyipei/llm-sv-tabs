@@ -15,9 +15,9 @@
     'minimax',
   ];
 
-  $: currentProvider = $providerStore;
-  $: currentApiKey = $apiKeys[currentProvider] || '';
-  $: isRequired = requiresApiKey.includes(currentProvider);
+  const currentProvider = $derived($providerStore);
+  const currentApiKey = $derived($apiKeys[currentProvider] || '');
+  const isRequired = $derived(requiresApiKey.includes(currentProvider));
 
   function handleChange(event: Event) {
     const target = event.target as HTMLInputElement;

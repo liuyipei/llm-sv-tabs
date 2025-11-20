@@ -14,7 +14,7 @@ export class ContentExtractor {
    */
   static async extractFromTab(
     view: BrowserView,
-    tabId: string,
+    _tabId: string,
     includeScreenshot = false
   ): Promise<ExtractedContent> {
     const url = view.webContents.getURL();

@@ -10,12 +10,32 @@ class TabManager {
   private tabs: Map<string, TabWithView>;
   private activeTabId: string | null;
   private tabCounter: number;
+  private readonly SIDEBAR_WIDTH = 300;
+  private readonly HEADER_HEIGHT = 50;
 
   constructor(mainWindow: BrowserWindow) {
     this.mainWindow = mainWindow;
     this.tabs = new Map();
     this.activeTabId = null;
     this.tabCounter = 0;
+
+    // Handle window resize to update BrowserView bounds
+    this.mainWindow.on('resize', () => this.updateBrowserViewBounds());
+  }
+
+  private updateBrowserViewBounds(): void {
+    if (!this.activeTabId) return;
+
+    const tab = this.tabs.get(this.activeTabId);
+    if (!tab || !tab.view) return;
+
+    const bounds = this.mainWindow.getContentBounds();
+    tab.view.setBounds({
+      x: this.SIDEBAR_WIDTH,
+      y: this.HEADER_HEIGHT,
+      width: Math.max(0, bounds.width - this.SIDEBAR_WIDTH),
+      height: Math.max(0, bounds.height - this.HEADER_HEIGHT),
+    });
   }
 
   private createTabId(): string {
@@ -116,13 +136,13 @@ class TabManager {
     if (tab.view) {
       this.mainWindow.addBrowserView(tab.view);
 
-      // Position the view (leave space for UI at top)
-      const bounds = this.mainWindow.getBounds();
+      // Position the view to the right of the sidebar and below the header
+      const bounds = this.mainWindow.getContentBounds();
       tab.view.setBounds({
-        x: 0,
-        y: 200, // Space for UI
-        width: bounds.width,
-        height: bounds.height - 200,
+        x: this.SIDEBAR_WIDTH,
+        y: this.HEADER_HEIGHT,
+        width: Math.max(0, bounds.width - this.SIDEBAR_WIDTH),
+        height: Math.max(0, bounds.height - this.HEADER_HEIGHT),
       });
     }
 

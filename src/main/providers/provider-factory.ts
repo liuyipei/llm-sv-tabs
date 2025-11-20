@@ -55,11 +55,14 @@ export class ProviderFactory {
         provider = new OpenAICompatibleProvider('local-openai-compatible', endpoint, apiKey);
         break;
 
+      case 'fireworks':
+        provider = new OpenAICompatibleProvider('fireworks', endpoint || 'https://api.fireworks.ai/inference', apiKey);
+        break;
+
       // Placeholder for other providers
       case 'gemini':
       case 'xai':
       case 'openrouter':
-      case 'fireworks':
       case 'minimax':
         // TODO: Implement these providers
         // For now, use a generic OpenAI-compatible approach

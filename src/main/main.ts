@@ -4,7 +4,8 @@ import { dirname, join } from 'path';
 import TabManager from './tab-manager.js';
 import { ProviderFactory } from './providers/provider-factory.js';
 import { ContentExtractor } from './services/content-extractor.js';
-import type { QueryOptions, LLMResponse, Bookmark, ExtractedContent } from '../types';
+import { ModelDiscovery } from './providers/model-discovery.js';
+import type { QueryOptions, LLMResponse, Bookmark, ExtractedContent, ProviderType } from '../types';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -13,16 +14,23 @@ let mainWindow: BrowserWindow | null = null;
 let tabManager: TabManager | null = null;
 
 function createWindow(): void {
+  const preloadPath = join(__dirname, 'preload.js');
+  console.log('Main process __dirname:', __dirname);
+  console.log('Preload path:', preloadPath);
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     webPreferences: {
-      preload: join(__dirname, 'preload.js'),
+      preload: preloadPath,
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
     },
   });
+
+  // Open DevTools automatically to see errors
+  mainWindow.webContents.openDevTools();
 
   // In development, load from Vite dev server
   // In production, load from built files
@@ -38,6 +46,9 @@ function createWindow(): void {
 
   // Set up IPC handlers
   setupIPCHandlers();
+
+  // Open default homepage
+  tabManager.openUrl('https://www.google.com');
 }
 
 function setupIPCHandlers(): void {
@@ -206,6 +217,19 @@ ${dom.mainContent || ''}
 
       const content = await ContentExtractor.extractFromTab(view, tabId, includeScreenshot);
       return { success: true, data: content };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  });
+
+  // Model discovery
+  ipcMain.handle('discover-models', async (_event, provider: ProviderType, apiKey?: string, endpoint?: string) => {
+    try {
+      const models = await ModelDiscovery.discoverModels(provider, apiKey, endpoint);
+      return { success: true, data: models };
     } catch (error) {
       return {
         success: false,
