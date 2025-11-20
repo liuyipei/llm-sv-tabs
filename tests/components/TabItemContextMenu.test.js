@@ -20,10 +20,12 @@ const mockIpc = {
 };
 
 // Mock clipboard API
-Object.assign(navigator, {
-  clipboard: {
+Object.defineProperty(navigator, 'clipboard', {
+  value: {
     writeText: vi.fn().mockResolvedValue(undefined),
   },
+  writable: true,
+  configurable: true,
 });
 
 describe('Phase 2: Tab Context Menu', () => {
