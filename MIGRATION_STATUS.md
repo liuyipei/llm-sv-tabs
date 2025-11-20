@@ -6,7 +6,7 @@ This document tracks the migration from the original `llm-dom-browser` implement
 
 **Source Repository**: [llm-dom-browser](https://github.com/liuyipei/llm-dom-browser)
 **Target Repository**: llm-sv-tabs (this repo)
-**Status**: Phase 3 Complete - LLM provider system implemented, ready for Phase 4 (Content Extraction)
+**Status**: Phase 3 Complete - LLM provider system implemented, ready for Phase 3.5 (Complete JS→TS Conversion)
 
 ## Quick Summary
 
@@ -32,14 +32,14 @@ This document tracks the migration from the original `llm-dom-browser` implement
 - ❌ Streaming responses
 - ❌ Bookmarks implementation
 
-**Next Priority:** Implement content extraction (Phase 4) to send tab content to LLM
+**Next Priority:** Complete JS→TS conversion for core infrastructure files (Phase 3.5), then implement content extraction (Phase 4)
 
 ## Current State
 
 ### ✅ What's Implemented
 
-1. **TypeScript Infrastructure (COMPLETE)**
-   - ✅ Full TypeScript conversion of codebase
+1. **TypeScript Infrastructure (MOSTLY COMPLETE)**
+   - ⚠️ Core infrastructure files still in JS (7 files: main, preload, tab-manager, stores, ipc-bridge)
    - ✅ Comprehensive type definitions (`src/types.ts`):
      - Tab types (Tab, TabData, TabType, SortMode)
      - LLM provider types (all 11 providers: openai, anthropic, gemini, xai, openrouter, fireworks, ollama, lmstudio, vllm, minimax, local-openai-compatible)
@@ -198,10 +198,10 @@ Renderer Process (Svelte 5)
 
 ## Migration Strategy
 
-### Phase 1: TypeScript Conversion ✅ **COMPLETE**
-- ✅ Convert all JavaScript to TypeScript
+### Phase 1: TypeScript Conversion ⚠️ **MOSTLY COMPLETE**
+- ⚠️ Convert all JavaScript to TypeScript (7 core files remaining - see Phase 3.5)
 - ✅ Define core interfaces and types
-- ✅ Set up proper type checking for IPC
+- ⚠️ Set up proper type checking for IPC (preload/bridge still JS)
 - ✅ Create comprehensive type definitions for all systems
 - ✅ Implement persisted config stores
 
@@ -225,6 +225,34 @@ Renderer Process (Svelte 5)
 - ✅ Implement Ollama provider (local models)
 - ✅ Implement OpenAI-compatible providers (LM Studio, vLLM, etc.)
 - ✅ Add provider system tests (factory, discovery, capabilities)
+
+### Phase 3.5: Complete JS→TS Conversion 🔄 **IN PROGRESS**
+
+**Why:** Core infrastructure files (IPC contracts, state management, business logic) are still in JS, which:
+- Loses type safety at critical boundaries (main ↔ renderer communication)
+- Makes refactoring risky (no compile-time guarantees)
+- Defeats the purpose of having comprehensive type definitions in `src/types.ts`
+
+**Files to convert (in priority order):**
+
+#### 🔴 High Priority - IPC & Business Logic
+1. ✅ **`src/types.ts`** - Already exists with comprehensive types
+2. ✅ **`src/main/tab-manager.ts`** - Complete! Typed Tab model, business logic, error handling
+3. ⏳ **`src/main/preload.js`** → Type IPC API contract
+4. ⏳ **`src/ui/stores/tabs.js`** → Reuse `Tab` type from tab-manager
+
+#### 🟡 Medium Priority - Infrastructure
+5. ⏳ **`src/ui/lib/ipc-bridge.js`** → Type bridge layer
+6. ✅ **`src/main/main.ts`** - Already converted with typed IPC handlers
+
+#### 🟢 Low Priority - Config
+7. ⏳ **`src/ui/stores/config.js`** → Config types
+8. ⏳ **`src/ui/stores/ui.js`** → UI state types
+
+**Files staying JS (intentionally):**
+- ✅ Build configs: `vite.config.js`, `svelte.config.js`, `vitest.config.js`
+- ✅ Tests: All `tests/**/*.test.js` files
+- ✅ Bootstrap: `src/ui/main.js` (3-line Svelte instantiation)
 
 ### Phase 4: Content Extraction
 - Port DOM serialization preload
@@ -318,6 +346,16 @@ Renderer Process (Svelte 5)
 - **Node.js**: 22.20.0+
 
 ### Recent Updates
+- **2025-11-20**: Phase 3.5 Progress - Converted TabManager to TypeScript
+  - ✅ Converted `src/main/tab-manager.js` → `tab-manager.ts`
+  - ✅ Added comprehensive unit tests for TabManager (brittle parts: error handling, tab lifecycle, active tab management)
+  - ✅ Discovered `main.ts` already converted with typed IPC handlers
+  - 📊 Progress: 3/8 files complete (types.ts, tab-manager.ts, main.ts)
+  - Next: preload.js, stores/tabs.js, ipc-bridge.js
+- **2025-11-20**: Started Phase 3.5 - Complete JS→TS Conversion
+  - Identified 7 core infrastructure files still in JavaScript
+  - Created migration plan prioritizing IPC contracts and business logic
+  - Types already defined in `src/types.ts`, ready for implementation
 - **2025-11-20**: Completed Phase 3 - LLM Provider System
   - Implemented base provider class with capabilities system
   - Created provider factory with caching
