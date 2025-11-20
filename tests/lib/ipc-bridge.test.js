@@ -69,7 +69,7 @@ describe('IPC Bridge', () => {
         getBookmarks: vi.fn().mockResolvedValue([]),
         addBookmark: vi.fn().mockResolvedValue({ success: true }),
         sendQuery: vi.fn().mockResolvedValue({ response: 'test response' }),
-        getActiveTabs: vi.fn().mockResolvedValue({ tabs: [], activeTabId: null }),
+        getActiveTabs: vi.fn().mockResolvedValue({ success: true, data: { tabs: [], activeTabId: null } }),
         onTabCreated: vi.fn(),
         onTabClosed: vi.fn(),
         onTabTitleUpdated: vi.fn(),
@@ -105,8 +105,11 @@ describe('IPC Bridge', () => {
       ];
 
       mockElectronAPI.getActiveTabs.mockResolvedValue({
-        tabs: mockTabs,
-        activeTabId: 'tab-1',
+        success: true,
+        data: {
+          tabs: mockTabs,
+          activeTabId: 'tab-1',
+        },
       });
 
       initializeIPC();
@@ -160,7 +163,7 @@ describe('IPC Bridge', () => {
         getBookmarks: vi.fn().mockResolvedValue([]),
         addBookmark: vi.fn(),
         sendQuery: vi.fn(),
-        getActiveTabs: vi.fn().mockResolvedValue({ tabs: [], activeTabId: null }),
+        getActiveTabs: vi.fn().mockResolvedValue({ success: true, data: { tabs: [], activeTabId: null } }),
         onTabCreated: vi.fn((callback) => { eventHandlers.tabCreated = callback; }),
         onTabClosed: vi.fn((callback) => { eventHandlers.tabClosed = callback; }),
         onTabTitleUpdated: vi.fn((callback) => { eventHandlers.tabTitleUpdated = callback; }),
