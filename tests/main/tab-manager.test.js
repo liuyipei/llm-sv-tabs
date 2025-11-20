@@ -13,21 +13,25 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
  */
 
 // Mock Electron modules
-vi.mock('electron', () => ({
-  BrowserView: vi.fn().mockImplementation(() => ({
-    webContents: {
+class MockBrowserView {
+  constructor() {
+    this.webContents = {
       loadURL: vi.fn(),
       reload: vi.fn(),
       destroy: vi.fn(),
       on: vi.fn(),
-    },
-    setBounds: vi.fn(),
-  })),
+    };
+    this.setBounds = vi.fn();
+  }
+}
+
+vi.mock('electron', () => ({
+  BrowserView: MockBrowserView,
   BrowserWindow: vi.fn(),
 }));
 
 // Import after mocking
-const { default: TabManager } = await import('../../src/main/tab-manager.js');
+const { default: TabManager } = await import('../../src/main/tab-manager.ts');
 
 describe('TabManager', () => {
   let tabManager;
