@@ -12,8 +12,8 @@
   let contextMenuX = $state(0);
   let contextMenuY = $state(0);
 
-  $: isActive = tab.id === $activeTabId;
-  $: isSelected = $selectedTabs.has(tab.id);
+  const isActive = $derived(tab.id === $activeTabId);
+  const isSelected = $derived($selectedTabs.has(tab.id));
 
   function handleClick(): void {
     if (ipc) {

@@ -3,8 +3,8 @@
 
   let { message }: { message: ChatMessage } = $props();
 
-  $: isUser = message.role === 'user';
-  $: isAssistant = message.role === 'assistant';
+  const isUser = $derived(message.role === 'user');
+  const isAssistant = $derived(message.role === 'assistant');
 </script>
 
 <div class="chat-message" class:user={isUser} class:assistant={isAssistant}>
