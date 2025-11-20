@@ -75,7 +75,8 @@ class TabManager {
     // Destroy the view
     if (tab.view) {
       this.mainWindow.removeBrowserView(tab.view);
-      tab.view.webContents.destroy();
+      // Note: WebContents cleanup is handled automatically when BrowserView is removed
+      // The destroy() method was removed in newer Electron versions
     }
 
     // Remove from tabs
