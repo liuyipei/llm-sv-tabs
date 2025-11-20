@@ -85,6 +85,9 @@ describe('Phase 2: Tab Context Menu', () => {
       let contextMenu = container.querySelector('.context-menu');
       expect(contextMenu).toBeTruthy();
 
+      // Wait for the setTimeout to add the click listener
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
       // Simulate click outside
       await fireEvent.click(document.body);
 
