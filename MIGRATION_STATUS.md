@@ -237,13 +237,13 @@ Renderer Process (Svelte 5)
 
 #### 🔴 High Priority - IPC & Business Logic
 1. ✅ **`src/types.ts`** - Already exists with comprehensive types
-2. ⏳ **`src/main/tab-manager.js`** → Define core `Tab` type, business logic
+2. ✅ **`src/main/tab-manager.ts`** - Complete! Typed Tab model, business logic, error handling
 3. ⏳ **`src/main/preload.js`** → Type IPC API contract
 4. ⏳ **`src/ui/stores/tabs.js`** → Reuse `Tab` type from tab-manager
 
 #### 🟡 Medium Priority - Infrastructure
 5. ⏳ **`src/ui/lib/ipc-bridge.js`** → Type bridge layer
-6. ⏳ **`src/main/main.js`** → Type IPC handlers
+6. ✅ **`src/main/main.ts`** - Already converted with typed IPC handlers
 
 #### 🟢 Low Priority - Config
 7. ⏳ **`src/ui/stores/config.js`** → Config types
@@ -346,6 +346,12 @@ Renderer Process (Svelte 5)
 - **Node.js**: 22.20.0+
 
 ### Recent Updates
+- **2025-11-20**: Phase 3.5 Progress - Converted TabManager to TypeScript
+  - ✅ Converted `src/main/tab-manager.js` → `tab-manager.ts`
+  - ✅ Added comprehensive unit tests for TabManager (brittle parts: error handling, tab lifecycle, active tab management)
+  - ✅ Discovered `main.ts` already converted with typed IPC handlers
+  - 📊 Progress: 3/8 files complete (types.ts, tab-manager.ts, main.ts)
+  - Next: preload.js, stores/tabs.js, ipc-bridge.js
 - **2025-11-20**: Started Phase 3.5 - Complete JS→TS Conversion
   - Identified 7 core infrastructure files still in JavaScript
   - Created migration plan prioritizing IPC contracts and business logic
