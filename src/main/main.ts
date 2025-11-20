@@ -80,6 +80,16 @@ function setupIPCHandlers(): void {
     }
   });
 
+  ipcMain.handle('reload-tab', async (_event, tabId: string) => {
+    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
+    return tabManager.reloadTab(tabId);
+  });
+
+  ipcMain.handle('copy-tab-url', async (_event, tabId: string) => {
+    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
+    return tabManager.copyTabUrl(tabId);
+  });
+
   // Bookmarks
   ipcMain.handle('get-bookmarks', async () => {
     // Placeholder for bookmark functionality

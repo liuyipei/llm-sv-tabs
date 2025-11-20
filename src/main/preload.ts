@@ -32,6 +32,12 @@ const electronAPI = {
   selectTabs: (tabIds: string[]): Promise<IPCResponse<{ success: boolean; selectedTabs: string[] }>> =>
     ipcRenderer.invoke('select-tabs', tabIds),
 
+  reloadTab: (tabId: string): Promise<IPCResponse> =>
+    ipcRenderer.invoke('reload-tab', tabId),
+
+  copyTabUrl: (tabId: string): Promise<IPCResponse<{ url?: string }>> =>
+    ipcRenderer.invoke('copy-tab-url', tabId),
+
   // Content extraction
   extractContent: (tabId: string): Promise<IPCResponse<ExtractedContent>> =>
     ipcRenderer.invoke('extract-content', tabId),

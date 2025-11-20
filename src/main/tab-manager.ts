@@ -157,6 +157,25 @@ class TabManager {
     return { success: true, selectedTabs: tabIds };
   }
 
+  reloadTab(tabId: string): { success: boolean; error?: string } {
+    const tab = this.tabs.get(tabId);
+    if (!tab) return { success: false, error: 'Tab not found' };
+
+    if (tab.view && tab.view.webContents) {
+      tab.view.webContents.reload();
+      return { success: true };
+    }
+
+    return { success: false, error: 'Tab view not available' };
+  }
+
+  copyTabUrl(tabId: string): { success: boolean; url?: string; error?: string } {
+    const tab = this.tabs.get(tabId);
+    if (!tab) return { success: false, error: 'Tab not found' };
+
+    return { success: true, url: tab.url };
+  }
+
   private sendToRenderer(channel: string, data: any): void {
     if (this.mainWindow && this.mainWindow.webContents) {
       this.mainWindow.webContents.send(channel, data);

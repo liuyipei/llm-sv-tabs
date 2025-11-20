@@ -6,26 +6,29 @@ This document tracks the migration from the original `llm-dom-browser` implement
 
 **Source Repository**: [llm-dom-browser](https://github.com/liuyipei/llm-dom-browser)
 **Target Repository**: llm-sv-tabs (this repo)
-**Status**: Phase 1 Complete - TypeScript conversion and type system fully implemented, ready for Phase 2 (core features)
+**Status**: Phase 2 Complete - Core tab functionality fully implemented, ready for Phase 3 (LLM providers)
 
 ## Quick Summary
 
 **What Works:**
 - ✅ Complete TypeScript infrastructure with comprehensive type definitions
-- ✅ Svelte 5 UI components (shell structure)
+- ✅ Svelte 5 UI components (fully functional)
 - ✅ Persisted config stores (provider, model, apiKeys, etc.)
 - ✅ Type-safe IPC bridge
 - ✅ Latest dependency versions (Electron 39, Svelte 5.43, Vite 7, Vitest 4)
-- ✅ 71 passing tests
+- ✅ **Tab creation and management (NEW)**
+- ✅ **Tab selection for LLM context (NEW)**
+- ✅ **Tab switching and closing (NEW)**
+- ✅ **Context menu with reload/copy URL (NEW)**
+- ✅ 71+ passing tests (with new Phase 2 integration tests)
 
 **What's Missing:**
-- ❌ Tab creation/management workflow (tabs don't appear in UI yet)
 - ❌ LLM provider implementations (all 11 providers need porting)
 - ❌ LLM control UI (provider/model selection, API keys)
 - ❌ Content extraction (DOM, PDF, screenshots)
 - ❌ Real LLM responses (currently echo placeholder)
 
-**Next Priority:** Wire up tab creation workflow (Phase 2) to make tabs functional
+**Next Priority:** Port LLM provider system (Phase 3) to enable real AI interactions
 
 ## Current State
 
@@ -76,16 +79,19 @@ This document tracks the migration from the original `llm-dom-browser` implement
 
 ### ❌ Critical Missing Features
 
-The current implementation lacks the entire feature layer that makes llm-dom-browser functional:
+The current implementation lacks some advanced features from llm-dom-browser:
 
-#### 1. Tab Management (Partial)
-- ❌ No tabs created on startup (UI shows empty state)
-- ❌ No tab checkboxes for LLM context selection
-- ❌ No drag-and-drop reordering
-- ❌ No recently closed tabs
-- ❌ No notes tabs functionality
-- ❌ Tab persistence/restoration
-- ✅ Basic BrowserView creation in TabManager (but not wired up)
+#### 1. Tab Management (✅ Core Complete)
+- ✅ **Tab creation via URL input (Phase 2)**
+- ✅ **Tab checkboxes for LLM context selection (Phase 2)**
+- ✅ **Tab switching and activation (Phase 2)**
+- ✅ **Tab closing (Phase 2)**
+- ✅ **Context menu: reload, copy URL, close (Phase 2)**
+- ✅ **BrowserView integration (Phase 2)**
+- ❌ Drag-and-drop reordering (Future enhancement)
+- ❌ Recently closed tabs (Future enhancement)
+- ❌ Notes tabs functionality (Future enhancement)
+- ❌ Tab persistence/restoration (Future enhancement)
 
 #### 2. LLM Integration (Not Started)
 - ❌ **No LLM providers** (needs all 10+):
@@ -194,11 +200,13 @@ Renderer Process (Svelte 5)
 - ✅ Create comprehensive type definitions for all systems
 - ✅ Implement persisted config stores
 
-### Phase 2: Core Tab Functionality
-- Wire up tab creation on URL input
-- Implement tab selection checkboxes
-- Add tab context menu
-- Implement tab closing/switching
+### Phase 2: Core Tab Functionality ✅ **COMPLETE**
+- ✅ Wire up tab creation on URL input
+- ✅ Implement tab selection checkboxes for LLM context
+- ✅ Add tab context menu (reload, copy URL, close)
+- ✅ Implement tab closing/switching
+- ✅ Add reload tab functionality
+- ✅ Add fast integration tests for tab workflow
 
 ### Phase 3: LLM Provider System
 - Port provider base classes
@@ -248,22 +256,24 @@ Renderer Process (Svelte 5)
 
 ## Current Blockers
 
-1. **No visible UI on startup** - Need to wire up initial tab creation
+1. ✅ ~~**No visible UI on startup**~~ - Fixed! Tabs now appear and work
 2. **No LLM controls** - Provider/model selection UI missing
 3. **Placeholder LLM responses** - Real provider integration needed
 4. **No content extraction** - Can't send tab content to LLM
 
 ## Next Steps (Priority Order)
 
-### Immediate (Phase 2 - Core Tab Functionality)
+### Immediate (Phase 2 - Core Tab Functionality) ✅ **COMPLETE**
 1. ✅ ~~Convert to TypeScript~~
 2. ✅ ~~Create comprehensive type definitions~~
-3. **Wire up tab creation workflow**
-   - Connect URL input to tab manager
-   - Display created tabs in UI
-   - Implement tab switching
-4. **Add tab selection checkboxes** for LLM context
-5. **Implement tab context menu** (close, reload, etc.)
+3. ✅ ~~Wire up tab creation workflow~~
+   - ✅ Connect URL input to tab manager
+   - ✅ Display created tabs in UI
+   - ✅ Implement tab switching
+4. ✅ ~~Add tab selection checkboxes for LLM context~~
+5. ✅ ~~Implement tab context menu (close, reload, copy URL)~~
+6. ✅ ~~Add reload tab functionality~~
+7. ✅ ~~Create fast integration tests for Phase 2 features~~
 
 ### Short-term (Phase 3 - LLM Integration)
 6. **Create LLM provider UI components**
@@ -297,6 +307,14 @@ Renderer Process (Svelte 5)
 - **Node.js**: 22.20.0+
 
 ### Recent Updates
+- **2025-11-20**: Completed Phase 2 - Core Tab Functionality
+  - Fully wired tab creation via URL input
+  - Implemented tab selection checkboxes for LLM context
+  - Added context menu (reload, copy URL, close)
+  - Implemented tab switching and closing workflow
+  - Added reload tab functionality to TabManager
+  - Created fast integration tests for tab workflow
+  - Added context menu tests
 - **2025-11-20**: Upgraded all core dependencies to latest versions
 - **2025-11-19**: Completed TypeScript conversion (Phase 1)
   - Added comprehensive type definitions (`src/types.ts`)
