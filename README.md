@@ -1,62 +1,22 @@
 # LLM Browser
 
-An LLM-powered browser built with Electron and Svelte, following modern reactive patterns.
+LLM-powered browser built with Electron and Svelte 5, featuring tab management and content extraction for AI queries.
 
 ## Features
 
-- **Tab Management**: Create, switch, and close browser tabs with BrowserView
-- **Svelte Components**: Modern reactive UI built with Svelte 5
-- **Reactive State**: Svelte stores for automatic UI updates
-- **IPC Bridge**: Clean separation between Electron and Svelte layers
-- **Bookmarks**: Save and organize frequently visited sites
-- **LLM Integration**: Query and interact with tab content using LLM
+- **Tab Management**: Create, switch, close tabs with BrowserView
+- **LLM Integration**: Query tabs with OpenAI, Anthropic, Ollama, local providers
+- **Content Extraction**: DOM serialization and screenshots for vision models
+- **Reactive UI**: Svelte 5 components with automatic updates
+- **Type-Safe**: Full TypeScript with comprehensive type definitions
 
-## Architecture
-
-This project follows the migration pattern from [llm-dom-browser](https://github.com/liuyipei/llm-dom-browser), implementing:
-
-- **Component-based UI**: Modular Svelte components instead of manual DOM manipulation
-- **Reactive State Management**: Svelte stores replace global state objects
-- **Automatic Reactivity**: No manual re-render calls needed
-- **Scoped Styles**: Component-scoped CSS prevents style leaks
-
-### Project Structure
-
-```
-llm-sv-tabs/
-├── src/
-│   ├── main/              # Electron main process
-│   │   ├── main.js        # Entry point
-│   │   ├── tab-manager.js # Tab management logic
-│   │   └── preload.js     # IPC preload script
-│   └── ui/                # Svelte UI layer
-│       ├── App.svelte     # Root component
-│       ├── main.js        # Svelte entry
-│       ├── components/    # UI components
-│       │   ├── tabs/      # Tab-related components
-│       │   ├── bookmarks/ # Bookmark components
-│       │   └── chat/      # Chat interface
-│       ├── stores/        # Svelte stores
-│       │   ├── tabs.js    # Tab state
-│       │   ├── config.js  # Configuration
-│       │   └── ui.js      # UI state
-│       └── lib/           # Utilities
-│           └── ipc-bridge.js  # Electron-Svelte bridge
-├── vite.config.js
-├── svelte.config.js
-└── package.json
-```
-
-## Development
+## Quick Start
 
 ```bash
 # Install dependencies
 npm install
 
-# Run Vite dev server (for UI development)
-npm run dev
-
-# Run Electron app
+# Run in development
 npm run electron:dev
 
 # Build for production
@@ -65,67 +25,45 @@ npm start
 
 # Run tests
 npm test
+```
 
-# Run tests in watch mode
-npm run test:watch
+## Project Structure
 
-# Run tests with coverage
-npm run test:coverage
+```
+llm-sv-tabs/
+├── src/
+│   ├── main/              # Electron main process
+│   │   ├── main.ts        # Entry point
+│   │   ├── tab-manager.ts # Tab management
+│   │   ├── preload.ts     # IPC preload
+│   │   ├── providers/     # LLM providers
+│   │   └── services/      # Content extraction
+│   └── ui/                # Svelte UI
+│       ├── components/    # UI components
+│       ├── stores/        # Svelte stores
+│       └── lib/           # Utilities
+└── tests/                 # Fast unit/integration tests
 ```
 
 ## Testing
 
-Comprehensive test suite with **Vitest** and **Svelte Testing Library**:
+Comprehensive test suite with **80+ tests** running in < 10 seconds:
 
-- **6 test files** covering stores, components, and IPC bridge
-- **~160 total tests** with focus on fast execution
-- **< 10 second** test runs optimized for CI/CD
-- **GitHub Actions** integration for automated testing on PRs
+- Store logic and reactivity
+- Component rendering
+- IPC bridge
+- Tab management
+- Provider system
 
-See [TESTING.md](./TESTING.md) for detailed testing guide.
+See [TESTING.md](./TESTING.md) for details.
 
-### Quick Test Run
-```bash
-npm test
-```
+## Architecture Benefits
 
-Test coverage includes:
-- ✅ Store logic and reactivity
-- ✅ Component rendering and interactions
-- ✅ IPC bridge (mock and Electron modes)
-- ✅ User interactions (clicks, inputs)
-- ✅ State management (tabs, config, UI)
-
-## Migration Benefits
-
-Compared to vanilla JavaScript approach:
-
-- **60-70% code reduction** in UI layer
+- **60-70% code reduction** vs vanilla JS
 - **Zero manual DOM manipulation**
-- **Automatic reactivity** - no manual render calls
-- **Better developer experience** with hot reload
+- **Automatic reactivity**
 - **Scoped component styles**
-- **Easier testing** with component isolation
-
-## Key Patterns
-
-### Svelte Stores
-Global state is managed through reactive Svelte stores:
-- `activeTabs` - Map of open tabs
-- `selectedTabs` - Set of selected tab IDs
-- `activeTabId` - Currently active tab
-- `sortMode` - Tab sorting mode
-
-### IPC Bridge
-The `ipc-bridge.js` cleanly separates Electron and Svelte concerns:
-- Listens to Electron events and updates stores
-- Exposes clean API for components via Svelte context
-- Supports mock mode for browser-based development
-
-### Component Communication
-- **Parent → Child**: Props
-- **Child → Parent**: Events
-- **Global State**: Stores
+- **Type safety** throughout
 
 ## License
 
