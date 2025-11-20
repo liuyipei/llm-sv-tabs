@@ -15,26 +15,26 @@
   <div class="sort-buttons">
     <button
       class:active={$sortMode === 'time'}
-      on:click={() => setSortMode('time')}
+      onclick={() => setSortMode('time')}
       title="Sort by time"
     >
       Time
     </button>
     <button
       class:active={$sortMode === 'url'}
-      on:click={() => setSortMode('url')}
+      onclick={() => setSortMode('url')}
       title="Sort by URL"
     >
       URL
     </button>
     <button
       class:active={$sortMode === 'title'}
-      on:click={() => setSortMode('title')}
+      onclick={() => setSortMode('title')}
       title="Sort by title"
     >
       Title
     </button>
-    <button on:click={toggleSortDirection} title="Toggle sort direction">
+    <button onclick={toggleSortDirection} title="Toggle sort direction">
       {$sortDirection === 'asc' ? '↑' : '↓'}
     </button>
   </div>

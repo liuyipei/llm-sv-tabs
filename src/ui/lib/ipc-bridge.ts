@@ -7,7 +7,7 @@ import {
   updateTabTitle,
   updateTabUrl,
 } from '$stores/tabs';
-import type { QueryOptions, LLMResponse, Bookmark, Tab, IPCResponse, TabData } from '../../types';
+import type { QueryOptions, LLMResponse, Bookmark, Tab, IPCResponse, TabData, ProviderType, LLMModel } from '../../types';
 
 export interface IPCBridgeAPI {
   openUrl(url: string): Promise<IPCResponse<{ tabId: string; tab: TabData }> | { tabId: string; tab: Tab }>;
@@ -19,17 +19,24 @@ export interface IPCBridgeAPI {
   getBookmarks(): Promise<IPCResponse<Bookmark[]> | Bookmark[]>;
   addBookmark(bookmark: Omit<Bookmark, 'id' | 'created'>): Promise<IPCResponse<Bookmark> | { success: boolean }>;
   sendQuery(query: string, options?: QueryOptions): Promise<LLMResponse | { response: string }>;
+  discoverModels(provider: ProviderType, apiKey?: string, endpoint?: string): Promise<IPCResponse<LLMModel[]> | LLMModel[]>;
 }
 
 /**
  * Initialize IPC listeners and return IPC API for components
  */
 export function initializeIPC(): IPCBridgeAPI {
+  console.log('initializeIPC called');
+  console.log('window:', typeof window);
+  console.log('window.electronAPI:', typeof window !== 'undefined' ? window.electronAPI : 'window is undefined');
+
   // Check if we're in Electron environment
   if (typeof window === 'undefined' || !window.electronAPI) {
-    console.warn('Not running in Electron environment');
+    console.warn('Not running in Electron environment - using mock API');
     return createMockAPI();
   }
+
+  console.log('Using real Electron API');
 
   // Set up listeners from Electron main process -> Svelte stores
   window.electronAPI.onTabCreated((data) => {
@@ -66,6 +73,7 @@ export function initializeIPC(): IPCBridgeAPI {
     getBookmarks: () => window.electronAPI.getBookmarks(),
     addBookmark: (bookmark: Omit<Bookmark, 'id' | 'created'>) => window.electronAPI.addBookmark(bookmark),
     sendQuery: (query: string, options?: QueryOptions) => window.electronAPI.sendQuery(query, options),
+    discoverModels: (provider: ProviderType, apiKey?: string, endpoint?: string) => window.electronAPI.discoverModels(provider, apiKey, endpoint),
   };
 }
 
@@ -155,6 +163,13 @@ function createMockAPI(): IPCBridgeAPI {
         responseTime: 100,
         model: options?.model || 'mock-model',
       };
+    },
+    discoverModels: async (provider: ProviderType, apiKey?: string, endpoint?: string): Promise<LLMModel[]> => {
+      console.log('Mock: discoverModels', provider, apiKey, endpoint);
+      return [
+        { id: 'mock-model-1', name: 'Mock Model 1', provider },
+        { id: 'mock-model-2', name: 'Mock Model 2', provider },
+      ];
     },
   };
 }

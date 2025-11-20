@@ -70,21 +70,29 @@
     showContextMenu = false;
     handleClose(event);
   }
+
+  function handleKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      handleClick();
+    }
+  }
 </script>
 
 <div
   class="tab-item"
   class:active={isActive}
-  on:click={handleClick}
-  on:contextmenu={handleContextMenu}
+  onclick={handleClick}
+  oncontextmenu={handleContextMenu}
+  onkeydown={handleKeydown}
   role="button"
   tabindex="0"
 >
   <input
     type="checkbox"
     checked={isSelected}
-    on:change={handleCheckboxChange}
-    on:click={(e) => e.stopPropagation()}
+    onchange={handleCheckboxChange}
+    onclick={(e) => e.stopPropagation()}
   />
 
   <div class="tab-content">
@@ -96,7 +104,7 @@
     </div>
   </div>
 
-  <button class="close-btn" on:click={handleClose} title="Close tab">
+  <button class="close-btn" onclick={handleClose} title="Close tab">
     ×
   </button>
 </div>
@@ -107,14 +115,14 @@
     style="left: {contextMenuX}px; top: {contextMenuY}px;"
     role="menu"
   >
-    <button class="context-menu-item" on:click={handleReload} role="menuitem">
+    <button class="context-menu-item" onclick={handleReload} role="menuitem">
       Reload Tab
     </button>
-    <button class="context-menu-item" on:click={handleCopyUrl} role="menuitem">
+    <button class="context-menu-item" onclick={handleCopyUrl} role="menuitem">
       Copy URL
     </button>
     <div class="context-menu-divider"></div>
-    <button class="context-menu-item danger" on:click={handleCloseFromMenu} role="menuitem">
+    <button class="context-menu-item danger" onclick={handleCloseFromMenu} role="menuitem">
       Close Tab
     </button>
   </div>

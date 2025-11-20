@@ -18,10 +18,10 @@
     'local-openai-compatible': 'http://localhost:8080',
   };
 
-  $: currentProvider = $providerStore;
-  $: currentEndpoint = $endpoint || '';
-  $: isRequired = requiresEndpoint.includes(currentProvider);
-  $: placeholder = defaultEndpoints[currentProvider] || 'http://localhost:8080';
+  const currentProvider = $derived($providerStore);
+  const currentEndpoint = $derived($endpoint || '');
+  const isRequired = $derived(requiresEndpoint.includes(currentProvider));
+  const placeholder = $derived(defaultEndpoints[currentProvider] || 'http://localhost:8080');
 
   function handleChange(event: Event) {
     const target = event.target as HTMLInputElement;

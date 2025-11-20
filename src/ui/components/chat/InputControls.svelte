@@ -106,11 +106,11 @@
     <input
       type="text"
       bind:value={$urlInput}
-      on:keydown={handleUrlKeydown}
+      onkeydown={handleUrlKeydown}
       placeholder="Enter URL to open a new tab..."
       class="url-input"
     />
-    <button on:click={handleUrlSubmit} class="url-submit-btn" disabled={!$urlInput.trim()}>
+    <button onclick={handleUrlSubmit} class="url-submit-btn" disabled={!$urlInput.trim()}>
       Open
     </button>
   </div>
@@ -118,13 +118,13 @@
   <div class="query-input-container">
     <textarea
       bind:value={$queryInput}
-      on:keydown={handleQueryKeydown}
+      onkeydown={handleQueryKeydown}
       placeholder="Ask a question about your tabs... (Enter to send, Shift+Enter for new line)"
       class="query-input"
       rows="3"
-    />
+    ></textarea>
     <button
-      on:click={handleQuerySubmit}
+      onclick={handleQuerySubmit}
       class="query-submit-btn"
       disabled={!$queryInput.trim() || $isLoading}
     >

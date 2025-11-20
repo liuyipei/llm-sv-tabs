@@ -11,7 +11,11 @@ import type {
   TabUrlUpdatedEvent,
   ActiveTabChangedEvent,
   ExtractedContent,
+  ProviderType,
+  LLMModel,
 } from '../types';
+
+console.log('Preload script is running!');
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
@@ -56,6 +60,10 @@ const electronAPI = {
   sendQuery: (query: string, options?: QueryOptions): Promise<LLMResponse> =>
     ipcRenderer.invoke('send-query', query, options),
 
+  // Model discovery
+  discoverModels: (provider: ProviderType, apiKey?: string, endpoint?: string): Promise<IPCResponse<LLMModel[]>> =>
+    ipcRenderer.invoke('discover-models', provider, apiKey, endpoint),
+
   // Event listeners (from main to renderer)
   onTabCreated: (callback: (data: TabCreatedEvent) => void): void => {
     ipcRenderer.on('tab-created', (_event, data) => callback(data));
@@ -79,6 +87,7 @@ const electronAPI = {
 };
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);
+console.log('Preload: electronAPI exposed to window');
 
 // Type definition for window.electronAPI
 export type ElectronAPI = typeof electronAPI;

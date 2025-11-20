@@ -5,10 +5,17 @@
   function toggleBookmarks(): void {
     bookmarksCollapsed.update((collapsed) => !collapsed);
   }
+
+  function handleKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      toggleBookmarks();
+    }
+  }
 </script>
 
 <div class="bookmarks-section">
-  <div class="section-header" on:click={toggleBookmarks} role="button" tabindex="0">
+  <div class="section-header" onclick={toggleBookmarks} onkeydown={handleKeydown} role="button" tabindex="0">
     <h2>Bookmarks</h2>
     <span class="toggle-icon">{$bookmarksCollapsed ? '▶' : '▼'}</span>
   </div>

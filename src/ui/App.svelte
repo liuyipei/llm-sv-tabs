@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { setContext, onMount } from 'svelte';
+  import { setContext } from 'svelte';
   import { initializeIPC, type IPCBridgeAPI } from '$lib/ipc-bridge';
   import TabsSection from '$components/tabs/TabsSection.svelte';
   import BookmarksSection from '$components/bookmarks/BookmarksSection.svelte';
@@ -9,12 +9,8 @@
   import { menuCollapsed } from '$stores/ui';
 
   // Initialize IPC and make it available to all child components
-  let ipc: IPCBridgeAPI;
-
-  onMount(() => {
-    ipc = initializeIPC();
-    setContext('ipc', ipc);
-  });
+  const ipc: IPCBridgeAPI = initializeIPC();
+  setContext('ipc', ipc);
 
   function toggleMenu(): void {
     menuCollapsed.update((collapsed) => !collapsed);
@@ -24,7 +20,7 @@
 <main class="app-container">
   <header class="app-header">
     <div class="header-left">
-      <button class="menu-toggle" on:click={toggleMenu}>☰</button>
+      <button class="menu-toggle" onclick={toggleMenu}>☰</button>
       <h1>LLM Browser</h1>
     </div>
   </header>
