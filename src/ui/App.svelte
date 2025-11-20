@@ -1,6 +1,6 @@
-<script>
+<script lang="ts">
   import { setContext, onMount } from 'svelte';
-  import { initializeIPC } from '$lib/ipc-bridge';
+  import { initializeIPC, type IPCBridgeAPI } from '$lib/ipc-bridge';
   import TabsSection from '$components/tabs/TabsSection.svelte';
   import BookmarksSection from '$components/bookmarks/BookmarksSection.svelte';
   import ChatContainer from '$components/chat/ChatContainer.svelte';
@@ -8,14 +8,14 @@
   import { menuCollapsed } from '$stores/ui';
 
   // Initialize IPC and make it available to all child components
-  let ipc;
+  let ipc: IPCBridgeAPI;
 
   onMount(() => {
     ipc = initializeIPC();
     setContext('ipc', ipc);
   });
 
-  function toggleMenu() {
+  function toggleMenu(): void {
     menuCollapsed.update((collapsed) => !collapsed);
   }
 </script>

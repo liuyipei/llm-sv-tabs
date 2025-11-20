@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
   import { chatMessages } from '$stores/ui';
   import ChatMessage from './ChatMessage.svelte';
 </script>

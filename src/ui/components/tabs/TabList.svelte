@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
   import { sortedTabs } from '$stores/tabs';
   import TabItem from './TabItem.svelte';
 </script>

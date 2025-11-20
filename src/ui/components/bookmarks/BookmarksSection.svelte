@@ -1,8 +1,8 @@
-<script>
+<script lang="ts">
   import BookmarkList from './BookmarkList.svelte';
   import { bookmarksCollapsed } from '$stores/ui';
 
-  function toggleBookmarks() {
+  function toggleBookmarks(): void {
     bookmarksCollapsed.update((collapsed) => !collapsed);
   }
 </script>
