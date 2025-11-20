@@ -1,19 +1,26 @@
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export default defineConfig({
   plugins: [svelte()],
+  root: 'src/ui',
   build: {
-    outDir: 'dist',
+    outDir: resolve(__dirname, 'dist'),
     rollupOptions: {
-      input: 'src/ui/index.html',
+      input: resolve(__dirname, 'src/ui/index.html'),
     },
+    emptyOutDir: true,
   },
   resolve: {
     alias: {
-      '$stores': '/src/ui/stores',
-      '$components': '/src/ui/components',
-      '$lib': '/src/ui/lib',
+      '$stores': resolve(__dirname, 'src/ui/stores'),
+      '$components': resolve(__dirname, 'src/ui/components'),
+      '$lib': resolve(__dirname, 'src/ui/lib'),
     },
   },
   base: './',
