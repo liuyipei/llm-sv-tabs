@@ -6,7 +6,7 @@ This document tracks the migration from the original `llm-dom-browser` implement
 
 **Source Repository**: [llm-dom-browser](https://github.com/liuyipei/llm-dom-browser)
 **Target Repository**: llm-sv-tabs (this repo)
-**Status**: Phase 2 Complete - Core tab functionality fully implemented, ready for Phase 3 (LLM providers)
+**Status**: Phase 3 Complete - LLM provider system implemented, ready for Phase 4 (Content Extraction)
 
 ## Quick Summary
 
@@ -16,19 +16,23 @@ This document tracks the migration from the original `llm-dom-browser` implement
 - ✅ Persisted config stores (provider, model, apiKeys, etc.)
 - ✅ Type-safe IPC bridge
 - ✅ Latest dependency versions (Electron 39, Svelte 5.43, Vite 7, Vitest 4)
-- ✅ **Tab creation and management (NEW)**
-- ✅ **Tab selection for LLM context (NEW)**
-- ✅ **Tab switching and closing (NEW)**
-- ✅ **Context menu with reload/copy URL (NEW)**
-- ✅ 71+ passing tests (with new Phase 2 integration tests)
+- ✅ **Tab creation and management**
+- ✅ **Tab selection for LLM context**
+- ✅ **Tab switching and closing**
+- ✅ **Context menu with reload/copy URL**
+- ✅ **LLM provider system (NEW - Phase 3)**
+- ✅ **Provider UI controls (NEW - Phase 3)**
+- ✅ **Real LLM API integration (NEW - Phase 3)**
+- ✅ 80+ passing tests (including new provider tests)
 
 **What's Missing:**
-- ❌ LLM provider implementations (all 11 providers need porting)
-- ❌ LLM control UI (provider/model selection, API keys)
 - ❌ Content extraction (DOM, PDF, screenshots)
-- ❌ Real LLM responses (currently echo placeholder)
+- ❌ Additional providers (Gemini, xAI, OpenRouter, Fireworks, Minimax)
+- ❌ Message rendering (markdown, code highlighting, math)
+- ❌ Streaming responses
+- ❌ Bookmarks implementation
 
-**Next Priority:** Port LLM provider system (Phase 3) to enable real AI interactions
+**Next Priority:** Implement content extraction (Phase 4) to send tab content to LLM
 
 ## Current State
 
@@ -93,36 +97,37 @@ The current implementation lacks some advanced features from llm-dom-browser:
 - ❌ Notes tabs functionality (Future enhancement)
 - ❌ Tab persistence/restoration (Future enhancement)
 
-#### 2. LLM Integration (Not Started)
-- ❌ **No LLM providers** (needs all 10+):
-  - OpenAI
-  - Anthropic (Claude)
-  - Google Gemini
-  - xAI (Grok)
-  - OpenRouter
-  - Fireworks AI
-  - Ollama (local)
-  - LMStudio (local)
-  - vLLM (local)
-  - Minimax
-  - Local OpenAI-compatible providers
-- ❌ Provider factory pattern
-- ❌ Model discovery system
-- ❌ API key management and persistence
-- ❌ Query orchestrator
-- ❌ Context extraction from selected tabs
-- ⚠️ Only placeholder echo response implemented
+#### 2. LLM Integration (✅ Core Complete - Phase 3)
+- ✅ **LLM provider base classes** (Phase 3)
+- ✅ **Provider implementations** (Phase 3):
+  - ✅ OpenAI (with vision support)
+  - ✅ Anthropic (Claude with vision support)
+  - ✅ Ollama (local models)
+  - ✅ LM Studio (local via OpenAI-compatible)
+  - ✅ vLLM (local via OpenAI-compatible)
+  - ✅ Local OpenAI-compatible providers
+  - ❌ Google Gemini (placeholder)
+  - ❌ xAI (Grok) (placeholder)
+  - ❌ OpenRouter (placeholder)
+  - ❌ Fireworks AI (placeholder)
+  - ❌ Minimax (placeholder)
+- ✅ **Provider factory pattern** (Phase 3)
+- ✅ **Model discovery system** (Phase 3)
+- ✅ **API key management and persistence** (Phase 3)
+- ✅ **Query orchestrator** (Phase 3)
+- ❌ Context extraction from selected tabs (Phase 4)
+- ❌ Streaming responses (Future enhancement)
 
-#### 3. UI Controls (Not Implemented)
-- ❌ Provider selection dropdown
-- ❌ Model selection with search/filtering
-- ❌ API key input fields
-- ❌ Endpoint configuration for local providers
-- ❌ Health check for local endpoints
-- ❌ Include media/screenshot checkbox
-- ❌ Temperature/max tokens controls
-- ❌ Ollama model management panel
-- ❌ System prompt configuration
+#### 3. UI Controls (✅ Complete - Phase 3)
+- ✅ **Provider selection dropdown** (Phase 3)
+- ✅ **Model selection with search/filtering** (Phase 3)
+- ✅ **API key input fields** (Phase 3)
+- ✅ **Endpoint configuration for local providers** (Phase 3)
+- ❌ Health check for local endpoints (Future enhancement)
+- ❌ Include media/screenshot checkbox (Phase 4)
+- ⚠️ Temperature/max tokens controls (stored in config, UI pending)
+- ❌ Ollama model management panel (Future enhancement)
+- ⚠️ System prompt configuration (stored in config, UI pending)
 
 #### 4. Content Extraction (Not Started)
 - ❌ DOM serialization preload scripts
@@ -208,12 +213,18 @@ Renderer Process (Svelte 5)
 - ✅ Add reload tab functionality
 - ✅ Add fast integration tests for tab workflow
 
-### Phase 3: LLM Provider System
-- Port provider base classes
-- Implement provider factory
-- Add model discovery
-- Create provider UI controls (dropdowns, inputs)
-- Implement API key management
+### Phase 3: LLM Provider System ✅ **COMPLETE**
+- ✅ Port provider base classes (BaseProvider with capabilities)
+- ✅ Implement provider factory (ProviderFactory with caching)
+- ✅ Add model discovery (ModelDiscovery system)
+- ✅ Create provider UI controls (ProviderSelector, ModelSelector, ApiKeyInput, EndpointConfig)
+- ✅ Implement API key management (persisted in config store)
+- ✅ Wire up providers to query workflow (integrated with IPC)
+- ✅ Implement OpenAI provider (with vision support)
+- ✅ Implement Anthropic provider (with vision support)
+- ✅ Implement Ollama provider (local models)
+- ✅ Implement OpenAI-compatible providers (LM Studio, vLLM, etc.)
+- ✅ Add provider system tests (factory, discovery, capabilities)
 
 ### Phase 4: Content Extraction
 - Port DOM serialization preload
@@ -298,7 +309,7 @@ Renderer Process (Svelte 5)
 ## Version Info
 
 - **llm-dom-browser**: Latest commit (production-ready)
-- **llm-sv-tabs**: v1.0.0 (Phase 1 complete, Phase 2 in progress)
+- **llm-sv-tabs**: v1.0.0 (Phase 1-3 complete, ready for Phase 4)
 - **Electron**: 39.2.2 (upgraded from 33.0.0)
 - **Svelte**: 5.43.8 (upgraded from 5.0.0)
 - **Vite**: 7.2.2 (upgraded from 5.4.0)
@@ -307,6 +318,19 @@ Renderer Process (Svelte 5)
 - **Node.js**: 22.20.0+
 
 ### Recent Updates
+- **2025-11-20**: Completed Phase 3 - LLM Provider System
+  - Implemented base provider class with capabilities system
+  - Created provider factory with caching
+  - Implemented OpenAI provider (GPT-4o, GPT-4, GPT-3.5)
+  - Implemented Anthropic provider (Claude 3.5 Sonnet, Haiku, Opus)
+  - Implemented Ollama provider for local models
+  - Implemented OpenAI-compatible provider (LM Studio, vLLM)
+  - Created model discovery system
+  - Built provider UI controls (ProviderSelector, ModelSelector, ApiKeyInput, EndpointConfig)
+  - Integrated LLM controls into App sidebar
+  - Wired up provider system to query workflow
+  - Updated InputControls to pass provider config
+  - Added 3 test files with forward-looking tests (factory, discovery, capabilities)
 - **2025-11-20**: Completed Phase 2 - Core Tab Functionality
   - Fully wired tab creation via URL input
   - Implemented tab selection checkboxes for LLM context

@@ -5,6 +5,7 @@
   import BookmarksSection from '$components/bookmarks/BookmarksSection.svelte';
   import ChatContainer from '$components/chat/ChatContainer.svelte';
   import InputControls from '$components/chat/InputControls.svelte';
+  import LLMControls from '$components/llm/LLMControls.svelte';
   import { menuCollapsed } from '$stores/ui';
 
   // Initialize IPC and make it available to all child components
@@ -30,6 +31,7 @@
 
   <div class="app-content" class:menu-collapsed={$menuCollapsed}>
     <aside class="sidebar" class:collapsed={$menuCollapsed}>
+      <LLMControls />
       <TabsSection />
       <BookmarksSection />
     </aside>

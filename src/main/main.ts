@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain } from 'electron';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import TabManager from './tab-manager.js';
+import { ProviderFactory } from './providers/provider-factory.js';
 import type { QueryOptions, LLMResponse, Bookmark } from '../types';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -114,14 +115,42 @@ function setupIPCHandlers(): void {
 
   // LLM Query
   ipcMain.handle('send-query', async (_event, query: string, options?: QueryOptions): Promise<LLMResponse> => {
-    // Placeholder for LLM query functionality
-    // TODO: Implement actual LLM provider integration
-    return {
-      response: `Echo: ${query}`,
-      tokensUsed: 0,
-      responseTime: 0,
-      model: options?.model || 'placeholder',
-    };
+    if (!options?.provider) {
+      return {
+        response: '',
+        error: 'Provider is required',
+      };
+    }
+
+    try {
+      // Get provider instance
+      const provider = ProviderFactory.getProvider(
+        options.provider,
+        options.apiKey,
+        options.endpoint
+      );
+
+      // Build messages array
+      const messages: Array<{ role: string; content: string }> = [];
+
+      // Add system prompt if provided
+      if (options.systemPrompt) {
+        messages.push({ role: 'system', content: options.systemPrompt });
+      }
+
+      // Add user query
+      messages.push({ role: 'user', content: query });
+
+      // Send query to provider
+      const response = await provider.query(messages, options);
+
+      return response;
+    } catch (error) {
+      return {
+        response: '',
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
   });
 
   // Content extraction
