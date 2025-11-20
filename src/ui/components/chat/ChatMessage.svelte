@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { ChatMessage } from '../../../types';
 
-  export let message: ChatMessage;
+  let { message }: { message: ChatMessage } = $props();
 
   $: isUser = message.role === 'user';
   $: isAssistant = message.role === 'assistant';

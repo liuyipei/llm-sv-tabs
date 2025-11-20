@@ -4,7 +4,7 @@
   import type { Tab } from '../../../types';
   import type { IPCBridgeAPI } from '$lib/ipc-bridge';
 
-  export let tab: Tab;
+  let { tab }: { tab: Tab } = $props();
 
   const ipc = getContext<IPCBridgeAPI>('ipc');
 
