@@ -5,6 +5,7 @@ import TabManager from './tab-manager.js';
 import { ProviderFactory } from './providers/provider-factory.js';
 import { ContentExtractor } from './services/content-extractor.js';
 import { ModelDiscovery } from './providers/model-discovery.js';
+import { BookmarkManager } from './services/bookmark-manager.js';
 import type { QueryOptions, LLMResponse, Bookmark, ExtractedContent, ProviderType } from '../types';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -12,6 +13,7 @@ const __dirname = dirname(__filename);
 
 let mainWindow: BrowserWindow | null = null;
 let tabManager: TabManager | null = null;
+let bookmarkManager: BookmarkManager | null = null;
 
 function createWindow(): void {
   const preloadPath = join(__dirname, 'preload.js');
@@ -44,11 +46,18 @@ function createWindow(): void {
   // Initialize tab manager
   tabManager = new TabManager(mainWindow);
 
+  // Initialize bookmark manager
+  bookmarkManager = new BookmarkManager();
+
   // Set up IPC handlers
   setupIPCHandlers();
 
-  // Open default homepage
-  tabManager.openUrl('https://www.google.com');
+  // Restore session or open default homepage
+  const sessionRestored = tabManager.restoreSession();
+  if (!sessionRestored) {
+    // No saved session, open default homepage
+    tabManager.openUrl('https://www.google.com');
+  }
 }
 
 function setupIPCHandlers(): void {
@@ -105,24 +114,33 @@ function setupIPCHandlers(): void {
 
   // Bookmarks
   ipcMain.handle('get-bookmarks', async () => {
-    // Placeholder for bookmark functionality
-    const bookmarks: Bookmark[] = [];
-    return { success: true, data: bookmarks };
+    if (!bookmarkManager) return { success: false, error: 'BookmarkManager not initialized' };
+    try {
+      const bookmarks = bookmarkManager.getBookmarks();
+      return { success: true, data: bookmarks };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
   });
 
   ipcMain.handle('add-bookmark', async (_event, bookmark: Omit<Bookmark, 'id' | 'created'>) => {
-    // Placeholder for bookmark functionality
-    const newBookmark: Bookmark = {
-      ...bookmark,
-      id: `bookmark-${Date.now()}`,
-      created: Date.now(),
-    };
-    return { success: true, data: newBookmark };
+    if (!bookmarkManager) return { success: false, error: 'BookmarkManager not initialized' };
+    try {
+      const newBookmark = bookmarkManager.addBookmark(bookmark);
+      return { success: true, data: newBookmark };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
   });
 
   ipcMain.handle('delete-bookmark', async (_event, id: string) => {
-    // Placeholder for bookmark functionality
-    return { success: true, data: { id } };
+    if (!bookmarkManager) return { success: false, error: 'BookmarkManager not initialized' };
+    try {
+      const success = bookmarkManager.deleteBookmark(id);
+      return { success, data: { id } };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
   });
 
   // LLM Query

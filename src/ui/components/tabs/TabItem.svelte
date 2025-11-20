@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getContext } from 'svelte';
   import { activeTabId, selectedTabs, toggleTabSelection } from '$stores/tabs';
+  import { addBookmark } from '$stores/bookmarks';
   import type { Tab } from '../../../types';
   import type { IPCBridgeAPI } from '$lib/ipc-bridge';
 
@@ -65,6 +66,24 @@
     }
   }
 
+  async function handleAddBookmark(event: MouseEvent): Promise<void> {
+    event.stopPropagation();
+    showContextMenu = false;
+    try {
+      const bookmark = {
+        title: tab.title || 'Untitled',
+        url: tab.url,
+      };
+
+      if (ipc) {
+        await ipc.addBookmark(bookmark);
+      }
+      addBookmark(bookmark);
+    } catch (error) {
+      console.error('Failed to add bookmark:', error);
+    }
+  }
+
   function handleCloseFromMenu(event: MouseEvent): void {
     event.stopPropagation();
     showContextMenu = false;
@@ -120,6 +139,9 @@
     </button>
     <button class="context-menu-item" onclick={handleCopyUrl} role="menuitem">
       Copy URL
+    </button>
+    <button class="context-menu-item" onclick={handleAddBookmark} role="menuitem">
+      Add to Bookmarks
     </button>
     <div class="context-menu-divider"></div>
     <button class="context-menu-item danger" onclick={handleCloseFromMenu} role="menuitem">
