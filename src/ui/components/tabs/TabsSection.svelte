@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
   import TabList from './TabList.svelte';
   import TabControls from './TabControls.svelte';
   import { tabCount } from '$stores/tabs';

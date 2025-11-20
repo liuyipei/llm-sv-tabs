@@ -1,10 +1,11 @@
-<script>
+<script lang="ts">
   import { getContext } from 'svelte';
   import { queryInput, urlInput, isLoading, addChatMessage } from '$stores/ui';
+  import type { IPCBridgeAPI } from '$lib/ipc-bridge';
 
-  const ipc = getContext('ipc');
+  const ipc = getContext<IPCBridgeAPI>('ipc');
 
-  async function handleQuerySubmit() {
+  async function handleQuerySubmit(): Promise<void> {
     if (!$queryInput.trim()) return;
 
     const query = $queryInput.trim();
@@ -32,7 +33,7 @@
         addChatMessage({
           id: Date.now() + 1,
           role: 'assistant',
-          content: `Error: ${error.message}`,
+          content: `Error: ${error instanceof Error ? error.message : String(error)}`,
         });
       } finally {
         isLoading.set(false);
@@ -40,7 +41,7 @@
     }
   }
 
-  async function handleUrlSubmit() {
+  async function handleUrlSubmit(): Promise<void> {
     if (!$urlInput.trim()) return;
 
     const url = $urlInput.trim();
@@ -58,14 +59,14 @@
     }
   }
 
-  function handleQueryKeydown(event) {
+  function handleQueryKeydown(event: KeyboardEvent): void {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
       handleQuerySubmit();
     }
   }
 
-  function handleUrlKeydown(event) {
+  function handleUrlKeydown(event: KeyboardEvent): void {
     if (event.key === 'Enter') {
       event.preventDefault();
       handleUrlSubmit();

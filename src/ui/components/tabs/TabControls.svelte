@@ -1,11 +1,12 @@
-<script>
+<script lang="ts">
   import { sortMode, sortDirection } from '$stores/tabs';
+  import type { SortMode } from '../../../types';
 
-  function setSortMode(mode) {
+  function setSortMode(mode: SortMode): void {
     sortMode.set(mode);
   }
 
-  function toggleSortDirection() {
+  function toggleSortDirection(): void {
     sortDirection.update((dir) => (dir === 'asc' ? 'desc' : 'asc'));
   }
 </script>

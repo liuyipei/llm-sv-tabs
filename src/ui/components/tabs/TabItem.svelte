@@ -1,28 +1,30 @@
-<script>
+<script lang="ts">
   import { getContext } from 'svelte';
   import { activeTabId, selectedTabs, toggleTabSelection } from '$stores/tabs';
+  import type { Tab } from '../../../types';
+  import type { IPCBridgeAPI } from '$lib/ipc-bridge';
 
-  export let tab;
+  export let tab: Tab;
 
-  const ipc = getContext('ipc');
+  const ipc = getContext<IPCBridgeAPI>('ipc');
 
   $: isActive = tab.id === $activeTabId;
   $: isSelected = $selectedTabs.has(tab.id);
 
-  function handleClick() {
+  function handleClick(): void {
     if (ipc) {
       ipc.setActiveTab(tab.id);
     }
   }
 
-  function handleClose(event) {
+  function handleClose(event: MouseEvent): void {
     event.stopPropagation();
     if (ipc) {
       ipc.closeTab(tab.id);
     }
   }
 
-  function handleCheckboxChange() {
+  function handleCheckboxChange(): void {
     toggleTabSelection(tab.id);
   }
 </script>

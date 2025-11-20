@@ -1,12 +1,15 @@
-<script>
+<script lang="ts">
   import { getContext, onMount } from 'svelte';
+  import type { Bookmark } from '../../../types';
+  import type { IPCBridgeAPI } from '$lib/ipc-bridge';
 
-  const ipc = getContext('ipc');
-  let bookmarks = [];
+  const ipc = getContext<IPCBridgeAPI>('ipc');
+  let bookmarks: Bookmark[] = [];
 
   onMount(async () => {
     if (ipc) {
-      bookmarks = await ipc.getBookmarks();
+      const result = await ipc.getBookmarks();
+      bookmarks = Array.isArray(result) ? result : (result.data || []);
     }
   });
 </script>
