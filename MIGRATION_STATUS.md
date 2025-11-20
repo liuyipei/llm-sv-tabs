@@ -6,39 +6,73 @@ This document tracks the migration from the original `llm-dom-browser` implement
 
 **Source Repository**: [llm-dom-browser](https://github.com/liuyipei/llm-dom-browser)
 **Target Repository**: llm-sv-tabs (this repo)
-**Status**: Early stage - foundational architecture complete, core features not yet implemented
+**Status**: Phase 1 Complete - TypeScript conversion and type system fully implemented, ready for Phase 2 (core features)
+
+## Quick Summary
+
+**What Works:**
+- ✅ Complete TypeScript infrastructure with comprehensive type definitions
+- ✅ Svelte 5 UI components (shell structure)
+- ✅ Persisted config stores (provider, model, apiKeys, etc.)
+- ✅ Type-safe IPC bridge
+- ✅ Latest dependency versions (Electron 39, Svelte 5.43, Vite 7, Vitest 4)
+- ✅ 71 passing tests
+
+**What's Missing:**
+- ❌ Tab creation/management workflow (tabs don't appear in UI yet)
+- ❌ LLM provider implementations (all 11 providers need porting)
+- ❌ LLM control UI (provider/model selection, API keys)
+- ❌ Content extraction (DOM, PDF, screenshots)
+- ❌ Real LLM responses (currently echo placeholder)
+
+**Next Priority:** Wire up tab creation workflow (Phase 2) to make tabs functional
 
 ## Current State
 
 ### ✅ What's Implemented
 
-1. **Architecture Foundation**
-   - Electron + Svelte 5 setup
-   - Vite build system
-   - Component structure (tabs, chat, bookmarks)
-   - Store architecture (tabs, config, ui)
-   - IPC bridge setup
-   - Basic tab manager with BrowserView support
+1. **TypeScript Infrastructure (COMPLETE)**
+   - ✅ Full TypeScript conversion of codebase
+   - ✅ Comprehensive type definitions (`src/types.ts`):
+     - Tab types (Tab, TabData, TabType, SortMode)
+     - LLM provider types (all 11 providers: openai, anthropic, gemini, xai, openrouter, fireworks, ollama, lmstudio, vllm, minimax, local-openai-compatible)
+     - Chat/Message types (ChatMessage, MessageRole, MessageStats)
+     - Content extraction types (SerializedDOM, PDFContent, ExtractedContent)
+     - Query options and LLM response types
+     - IPC message contracts
+   - ✅ Type-safe IPC bridge interface
 
-2. **UI Components (Shell Only)**
+2. **Architecture Foundation**
+   - ✅ Electron + Svelte 5 setup
+   - ✅ Vite build system
+   - ✅ Component structure (tabs, chat, bookmarks)
+   - ✅ Store architecture (tabs, config, ui)
+   - ✅ IPC bridge setup with TypeScript types
+   - ✅ Basic tab manager with BrowserView support
+
+3. **UI Components (Shell Only)**
    - `App.svelte` - main application layout
    - `TabsSection.svelte` - tab list container
    - `TabList.svelte` - tab rendering (empty state handling)
    - `TabItem.svelte` - individual tab component
    - `TabControls.svelte` - sort controls UI
    - `BookmarksSection.svelte` - bookmarks container
+   - `BookmarkList.svelte` - bookmark list rendering
    - `ChatContainer.svelte` - chat message display
+   - `ChatMessage.svelte` - individual message component
    - `InputControls.svelte` - URL and query input
 
-3. **Stores**
-   - Tab state management (activeTabs, selectedTabs, sorting)
-   - Config stores (provider, model, apiKeys)
-   - UI state (menuCollapsed, queryInput, etc.)
+4. **Stores (with localStorage persistence)**
+   - ✅ Tab state management (activeTabs, selectedTabs, sorting)
+   - ✅ Config stores (provider, model, apiKeys, maxTokens, temperature, systemPrompt, endpoint)
+   - ✅ UI state (menuCollapsed, queryInput, urlInput, isLoading, messages)
+   - ✅ Persisted store system for config values
 
-4. **Test Suite**
-   - Vitest configuration
+5. **Test Suite**
+   - Vitest configuration (v4.0.8)
    - Component tests for TabItem, TabList
    - Store tests for tabs, config, ui
+   - 71 tests passing
 
 ### ❌ Critical Missing Features
 
@@ -153,10 +187,12 @@ Renderer Process (Svelte 5)
 
 ## Migration Strategy
 
-### Phase 1: TypeScript Conversion (Current)
-- Convert all JavaScript to TypeScript
-- Define core interfaces and types
-- Set up proper type checking for IPC
+### Phase 1: TypeScript Conversion ✅ **COMPLETE**
+- ✅ Convert all JavaScript to TypeScript
+- ✅ Define core interfaces and types
+- ✅ Set up proper type checking for IPC
+- ✅ Create comprehensive type definitions for all systems
+- ✅ Implement persisted config stores
 
 ### Phase 2: Core Tab Functionality
 - Wire up tab creation on URL input
@@ -217,18 +253,30 @@ Renderer Process (Svelte 5)
 3. **Placeholder LLM responses** - Real provider integration needed
 4. **No content extraction** - Can't send tab content to LLM
 
-## Next Steps
+## Next Steps (Priority Order)
 
-1. ✅ Convert to TypeScript
-2. Create type definitions for:
-   - Tab structure
-   - Provider interfaces
-   - LLM request/response
-   - IPC message contracts
-3. Implement basic tab creation workflow
-4. Port provider system from llm-dom-browser
-5. Add provider selection UI
-6. Implement content extraction
+### Immediate (Phase 2 - Core Tab Functionality)
+1. ✅ ~~Convert to TypeScript~~
+2. ✅ ~~Create comprehensive type definitions~~
+3. **Wire up tab creation workflow**
+   - Connect URL input to tab manager
+   - Display created tabs in UI
+   - Implement tab switching
+4. **Add tab selection checkboxes** for LLM context
+5. **Implement tab context menu** (close, reload, etc.)
+
+### Short-term (Phase 3 - LLM Integration)
+6. **Create LLM provider UI components**
+   - Provider selection dropdown
+   - Model selection with search
+   - API key input fields
+   - Endpoint configuration for local providers
+7. **Port provider system** from llm-dom-browser
+8. **Implement model discovery** system
+
+### Medium-term (Phase 4-5)
+9. **Content extraction services** (DOM, PDF, screenshots)
+10. **Message rendering** (markdown, code highlighting, math)
 
 ## Resources
 
@@ -240,7 +288,17 @@ Renderer Process (Svelte 5)
 ## Version Info
 
 - **llm-dom-browser**: Latest commit (production-ready)
-- **llm-sv-tabs**: v1.0.0 (early development)
-- **Electron**: 33.0.0
-- **Svelte**: 5.0.0
+- **llm-sv-tabs**: v1.0.0 (Phase 1 complete, Phase 2 in progress)
+- **Electron**: 39.2.2 (upgraded from 33.0.0)
+- **Svelte**: 5.43.8 (upgraded from 5.0.0)
+- **Vite**: 7.2.2 (upgraded from 5.4.0)
+- **Vitest**: 4.0.8 (upgraded from 2.0.0)
+- **TypeScript**: 5.9.3
 - **Node.js**: 22.20.0+
+
+### Recent Updates
+- **2025-11-20**: Upgraded all core dependencies to latest versions
+- **2025-11-19**: Completed TypeScript conversion (Phase 1)
+  - Added comprehensive type definitions (`src/types.ts`)
+  - Implemented persisted config stores
+  - Created type-safe IPC bridge
