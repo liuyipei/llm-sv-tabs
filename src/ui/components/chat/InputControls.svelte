@@ -1,7 +1,9 @@
 <script lang="ts">
   import { getContext } from 'svelte';
   import { queryInput, urlInput, isLoading, addChatMessage } from '$stores/ui';
+  import { provider, model, apiKeys, endpoint, temperature, maxTokens, systemPrompt } from '$stores/config';
   import type { IPCBridgeAPI } from '$lib/ipc-bridge';
+  import type { QueryOptions } from '$types';
 
   const ipc = getContext<IPCBridgeAPI>('ipc');
 
@@ -21,14 +23,39 @@
     if (ipc) {
       isLoading.set(true);
       try {
-        const response = await ipc.sendQuery(query);
+        // Build query options from config stores
+        const options: QueryOptions = {
+          provider: $provider,
+          model: $model || undefined,
+          apiKey: $apiKeys[$provider] || undefined,
+          endpoint: $endpoint || undefined,
+          temperature: $temperature,
+          maxTokens: $maxTokens,
+          systemPrompt: $systemPrompt || undefined,
+        };
 
-        // Add assistant response to chat
-        addChatMessage({
-          id: Date.now() + 1,
-          role: 'assistant',
-          content: response.response || 'No response',
-        });
+        const response = await ipc.sendQuery(query, options);
+
+        // Check for error in response
+        if (response.error) {
+          addChatMessage({
+            id: Date.now() + 1,
+            role: 'assistant',
+            content: `Error: ${response.error}`,
+          });
+        } else {
+          // Add assistant response to chat
+          addChatMessage({
+            id: Date.now() + 1,
+            role: 'assistant',
+            content: response.response || 'No response',
+            stats: {
+              tokensUsed: response.tokensUsed,
+              responseTime: response.responseTime,
+              model: response.model,
+            },
+          });
+        }
       } catch (error) {
         addChatMessage({
           id: Date.now() + 1,

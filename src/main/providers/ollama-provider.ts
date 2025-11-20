@@ -1,0 +1,107 @@
+/**
+ * Ollama provider implementation (local models)
+ */
+
+import { BaseProvider, type ProviderCapabilities } from './base-provider.js';
+import type { LLMModel, LLMResponse, QueryOptions } from '../../types';
+
+export class OllamaProvider extends BaseProvider {
+  private static readonly DEFAULT_ENDPOINT = 'http://localhost:11434';
+
+  constructor(endpoint?: string) {
+    super('ollama', undefined, endpoint || OllamaProvider.DEFAULT_ENDPOINT);
+  }
+
+  getCapabilities(): ProviderCapabilities {
+    return {
+      supportsStreaming: true,
+      supportsVision: true, // Some Ollama models support vision
+      requiresApiKey: false,
+      requiresEndpoint: true,
+      supportsSystemPrompt: true,
+    };
+  }
+
+  async getAvailableModels(): Promise<LLMModel[]> {
+    try {
+      const response = await this.makeRequest(`${this.endpoint}/api/tags`, {
+        method: 'GET',
+      });
+
+      const data = await response.json() as { models?: Array<{ name: string; details?: any }> };
+
+      return (data.models || []).map(model => ({
+        id: model.name,
+        name: model.name,
+        provider: 'ollama' as const,
+        contextWindow: model.details?.parameter_size || undefined,
+        supportsVision: model.name.includes('vision') || model.name.includes('llava'),
+      }));
+    } catch (error) {
+      console.error('Failed to fetch Ollama models:', error);
+      // Return some default models if the API call fails
+      return [
+        { id: 'llama3.2', name: 'Llama 3.2', provider: 'ollama', supportsVision: false },
+        { id: 'mistral', name: 'Mistral', provider: 'ollama', supportsVision: false },
+        { id: 'codellama', name: 'Code Llama', provider: 'ollama', supportsVision: false },
+      ];
+    }
+  }
+
+  async query(
+    messages: Array<{ role: string; content: string }>,
+    options?: QueryOptions
+  ): Promise<LLMResponse> {
+    const startTime = Date.now();
+
+    const endpoint = options?.endpoint || this.endpoint || OllamaProvider.DEFAULT_ENDPOINT;
+    const model = options?.model || this.model || 'llama3.2';
+    const temperature = options?.temperature ?? 0.7;
+
+    try {
+      const response = await this.makeRequest(`${endpoint}/api/chat`, {
+        method: 'POST',
+        body: JSON.stringify({
+          model,
+          messages,
+          stream: false,
+          options: {
+            temperature,
+          },
+        }),
+      });
+
+      const data = await response.json() as any;
+      const responseTime = Date.now() - startTime;
+
+      return {
+        response: data.message?.content || '',
+        tokensUsed: data.eval_count || undefined,
+        responseTime,
+        model,
+      };
+    } catch (error) {
+      return {
+        response: '',
+        error: error instanceof Error ? error.message : String(error),
+        responseTime: Date.now() - startTime,
+      };
+    }
+  }
+
+  async validate(): Promise<{ valid: boolean; error?: string }> {
+    try {
+      const response = await this.makeRequest(`${this.endpoint}/api/tags`, {
+        method: 'GET',
+      });
+
+      await response.json();
+      return { valid: true };
+    } catch (error) {
+      return {
+        valid: false,
+        error: error instanceof Error ? error.message : 'Failed to connect to Ollama',
+      };
+    }
+  }
+}
