@@ -8,6 +8,10 @@
   import LLMControls from '$components/llm/LLMControls.svelte';
   import { menuCollapsed } from '$stores/ui';
 
+  // Import styles for markdown rendering
+  import '~/highlight.js/styles/github-dark.css';
+  import '~/katex/dist/katex.css';
+
   // Initialize IPC and make it available to all child components
   const ipc: IPCBridgeAPI = initializeIPC();
   setContext('ipc', ipc);
