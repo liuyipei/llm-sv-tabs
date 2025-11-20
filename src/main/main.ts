@@ -3,7 +3,8 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import TabManager from './tab-manager.js';
 import { ProviderFactory } from './providers/provider-factory.js';
-import type { QueryOptions, LLMResponse, Bookmark } from '../types';
+import { ContentExtractor } from './services/content-extractor.js';
+import type { QueryOptions, LLMResponse, Bookmark, ExtractedContent } from '../types';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -138,8 +139,48 @@ function setupIPCHandlers(): void {
         messages.push({ role: 'system', content: options.systemPrompt });
       }
 
-      // Add user query
-      messages.push({ role: 'user', content: query });
+      // Extract content from selected tabs if requested
+      let contextContent = '';
+      if (tabManager && options.selectedTabIds && options.selectedTabIds.length > 0) {
+        const extractedContents: ExtractedContent[] = [];
+
+        for (const tabId of options.selectedTabIds) {
+          const view = tabManager.getTabView(tabId);
+          if (view) {
+            try {
+              const content = await ContentExtractor.extractFromTab(
+                view,
+                tabId,
+                options.includeMedia ?? false
+              );
+              extractedContents.push(content);
+            } catch (error) {
+              console.error(`Failed to extract content from tab ${tabId}:`, error);
+            }
+          }
+        }
+
+        // Format extracted content for LLM
+        if (extractedContents.length > 0) {
+          contextContent = extractedContents
+            .map((content) => {
+              const dom = content.content as any;
+              return `
+Tab: ${content.title}
+URL: ${content.url}
+
+${dom.mainContent || ''}
+              `.trim();
+            })
+            .join('\n\n---\n\n');
+
+          contextContent = `Here is the content from the selected tabs:\n\n${contextContent}\n\n`;
+        }
+      }
+
+      // Add user query with context
+      const fullQuery = contextContent ? `${contextContent}${query}` : query;
+      messages.push({ role: 'user', content: fullQuery });
 
       // Send query to provider
       const response = await provider.query(messages, options);
@@ -154,13 +195,23 @@ function setupIPCHandlers(): void {
   });
 
   // Content extraction
-  ipcMain.handle('extract-content', async (_event, _tabId: string) => {
-    // Placeholder for content extraction
-    // TODO: Implement DOM serialization and PDF extraction
-    return {
-      success: false,
-      error: 'Content extraction not yet implemented',
-    };
+  ipcMain.handle('extract-content', async (_event, tabId: string, includeScreenshot = false) => {
+    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
+
+    try {
+      const view = tabManager.getTabView(tabId);
+      if (!view) {
+        return { success: false, error: 'Tab not found' };
+      }
+
+      const content = await ContentExtractor.extractFromTab(view, tabId, includeScreenshot);
+      return { success: true, data: content };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
   });
 }
 

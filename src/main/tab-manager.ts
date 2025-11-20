@@ -176,6 +176,11 @@ class TabManager {
     return { success: true, url: tab.url };
   }
 
+  getTabView(tabId: string): BrowserView | null {
+    const tab = this.tabs.get(tabId);
+    return tab?.view ?? null;
+  }
+
   private sendToRenderer(channel: string, data: any): void {
     if (this.mainWindow && this.mainWindow.webContents) {
       this.mainWindow.webContents.send(channel, data);
