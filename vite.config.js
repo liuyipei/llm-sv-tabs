@@ -12,7 +12,7 @@ export default defineConfig({
   build: {
     outDir: resolve(__dirname, 'dist'),
     rollupOptions: {
-      input: './index.html',
+      input: resolve(__dirname, 'src/ui/index.html'),
     },
     emptyOutDir: true,
   },
