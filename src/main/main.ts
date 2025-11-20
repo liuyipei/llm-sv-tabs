@@ -115,7 +115,7 @@ function setupIPCHandlers(): void {
   });
 
   // Content extraction
-  ipcMain.handle('extract-content', async (_event, tabId: string) => {
+  ipcMain.handle('extract-content', async (_event, _tabId: string) => {
     // Placeholder for content extraction
     // TODO: Implement DOM serialization and PDF extraction
     return {
