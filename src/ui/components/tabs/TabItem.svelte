@@ -4,12 +4,16 @@
   import type { Tab } from '../../../types';
   import type { IPCBridgeAPI } from '$lib/ipc-bridge';
 
-  export let tab: Tab;
+  let { tab }: { tab: Tab } = $props();
 
   const ipc = getContext<IPCBridgeAPI>('ipc');
 
-  $: isActive = tab.id === $activeTabId;
-  $: isSelected = $selectedTabs.has(tab.id);
+  let showContextMenu = $state(false);
+  let contextMenuX = $state(0);
+  let contextMenuY = $state(0);
+
+  const isActive = $derived(tab.id === $activeTabId);
+  const isSelected = $derived($selectedTabs.has(tab.id));
 
   function handleClick(): void {
     if (ipc) {
@@ -27,9 +31,55 @@
   function handleCheckboxChange(): void {
     toggleTabSelection(tab.id);
   }
+
+  function handleContextMenu(event: MouseEvent): void {
+    event.preventDefault();
+    contextMenuX = event.clientX;
+    contextMenuY = event.clientY;
+    showContextMenu = true;
+
+    // Close menu when clicking outside
+    const closeMenu = () => {
+      showContextMenu = false;
+      document.removeEventListener('click', closeMenu);
+    };
+    // Delay to prevent immediate close
+    setTimeout(() => document.addEventListener('click', closeMenu), 0);
+  }
+
+  async function handleReload(event: MouseEvent): Promise<void> {
+    event.stopPropagation();
+    showContextMenu = false;
+    if (ipc) {
+      await ipc.reloadTab(tab.id);
+    }
+  }
+
+  async function handleCopyUrl(event: MouseEvent): Promise<void> {
+    event.stopPropagation();
+    showContextMenu = false;
+    try {
+      await navigator.clipboard.writeText(tab.url);
+    } catch (error) {
+      console.error('Failed to copy URL:', error);
+    }
+  }
+
+  function handleCloseFromMenu(event: MouseEvent): void {
+    event.stopPropagation();
+    showContextMenu = false;
+    handleClose(event);
+  }
 </script>
 
-<div class="tab-item" class:active={isActive} on:click={handleClick} role="button" tabindex="0">
+<div
+  class="tab-item"
+  class:active={isActive}
+  on:click={handleClick}
+  on:contextmenu={handleContextMenu}
+  role="button"
+  tabindex="0"
+>
   <input
     type="checkbox"
     checked={isSelected}
@@ -50,6 +100,25 @@
     ×
   </button>
 </div>
+
+{#if showContextMenu}
+  <div
+    class="context-menu"
+    style="left: {contextMenuX}px; top: {contextMenuY}px;"
+    role="menu"
+  >
+    <button class="context-menu-item" on:click={handleReload} role="menuitem">
+      Reload Tab
+    </button>
+    <button class="context-menu-item" on:click={handleCopyUrl} role="menuitem">
+      Copy URL
+    </button>
+    <div class="context-menu-divider"></div>
+    <button class="context-menu-item danger" on:click={handleCloseFromMenu} role="menuitem">
+      Close Tab
+    </button>
+  </div>
+{/if}
 
 <style>
   .tab-item {
@@ -123,5 +192,44 @@
   .close-btn:hover {
     opacity: 1;
     background-color: #e81123;
+  }
+
+  .context-menu {
+    position: fixed;
+    background-color: #2d2d30;
+    border: 1px solid #3e3e42;
+    border-radius: 4px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    min-width: 150px;
+    padding: 4px 0;
+  }
+
+  .context-menu-item {
+    display: block;
+    width: 100%;
+    background: none;
+    border: none;
+    color: #d4d4d4;
+    padding: 8px 16px;
+    text-align: left;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+
+  .context-menu-item:hover {
+    background-color: #3e3e42;
+  }
+
+  .context-menu-item.danger:hover {
+    background-color: #e81123;
+    color: white;
+  }
+
+  .context-menu-divider {
+    height: 1px;
+    background-color: #3e3e42;
+    margin: 4px 0;
   }
 </style>

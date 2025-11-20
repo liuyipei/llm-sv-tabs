@@ -1,3 +1,4 @@
+import { get } from 'svelte/store';
 import {
   activeTabs,
   activeTabId,
@@ -13,6 +14,8 @@ export interface IPCBridgeAPI {
   closeTab(tabId: string): Promise<IPCResponse | { success: boolean }>;
   setActiveTab(tabId: string): Promise<IPCResponse | { success: boolean }>;
   selectTabs(tabIds: string[]): Promise<IPCResponse | { success: boolean }>;
+  reloadTab(tabId: string): Promise<IPCResponse | { success: boolean }>;
+  copyTabUrl(tabId: string): Promise<IPCResponse<{ url?: string }> | { success: boolean; url?: string }>;
   getBookmarks(): Promise<IPCResponse<Bookmark[]> | Bookmark[]>;
   addBookmark(bookmark: Omit<Bookmark, 'id' | 'created'>): Promise<IPCResponse<Bookmark> | { success: boolean }>;
   sendQuery(query: string, options?: QueryOptions): Promise<LLMResponse | { response: string }>;
@@ -58,6 +61,8 @@ export function initializeIPC(): IPCBridgeAPI {
     closeTab: (tabId: string) => window.electronAPI.closeTab(tabId),
     setActiveTab: (tabId: string) => window.electronAPI.setActiveTab(tabId),
     selectTabs: (tabIds: string[]) => window.electronAPI.selectTabs(tabIds),
+    reloadTab: (tabId: string) => window.electronAPI.reloadTab(tabId),
+    copyTabUrl: (tabId: string) => window.electronAPI.copyTabUrl(tabId),
     getBookmarks: () => window.electronAPI.getBookmarks(),
     addBookmark: (bookmark: Omit<Bookmark, 'id' | 'created'>) => window.electronAPI.addBookmark(bookmark),
     sendQuery: (query: string, options?: QueryOptions) => window.electronAPI.sendQuery(query, options),
@@ -123,6 +128,16 @@ function createMockAPI(): IPCBridgeAPI {
     selectTabs: async (tabIds: string[]) => {
       console.log('Mock: selectTabs', tabIds);
       return { success: true };
+    },
+    reloadTab: async (tabId: string) => {
+      console.log('Mock: reloadTab', tabId);
+      return { success: true };
+    },
+    copyTabUrl: async (tabId: string) => {
+      console.log('Mock: copyTabUrl', tabId);
+      const tabs = get(activeTabs);
+      const tab = tabs.get(tabId);
+      return { success: true, url: tab?.url };
     },
     getBookmarks: async (): Promise<Bookmark[]> => {
       console.log('Mock: getBookmarks');
