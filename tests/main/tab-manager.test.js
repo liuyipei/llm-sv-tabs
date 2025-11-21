@@ -28,6 +28,14 @@ class MockBrowserView {
 vi.mock('electron', () => ({
   BrowserView: MockBrowserView,
   BrowserWindow: vi.fn(),
+  app: {
+    getPath: vi.fn((name) => {
+      if (name === 'userData') {
+        return '/tmp/test-user-data';
+      }
+      return '/tmp/test';
+    }),
+  },
 }));
 
 // Import after mocking
