@@ -1,9 +1,23 @@
 <script lang="ts">
   import { chatMessages } from '$stores/ui';
   import ChatMessage from './ChatMessage.svelte';
+
+  let containerElement: HTMLDivElement | null = $state(null);
+
+  // Auto-scroll to bottom when new messages arrive
+  $effect(() => {
+    if ($chatMessages.length > 0 && containerElement) {
+      setTimeout(() => {
+        containerElement?.scrollTo({
+          top: containerElement.scrollHeight,
+          behavior: 'smooth'
+        });
+      }, 100);
+    }
+  });
 </script>
 
-<div class="chat-container">
+<div class="chat-container" bind:this={containerElement}>
   {#if $chatMessages.length === 0}
     <div class="empty-state">
       <h2>Welcome to LLM Browser</h2>

@@ -66,6 +66,15 @@ export class OpenAICompatibleProvider extends BaseProvider {
       };
     }
 
+    // Check if API key is required for cloud providers
+    const cloudProviders: string[] = ['fireworks', 'openrouter', 'xai', 'gemini', 'minimax'];
+    if (cloudProviders.includes(this.providerType) && !this.apiKey && !options?.apiKey) {
+      return {
+        response: '',
+        error: `API key is required for ${this.providerType}`,
+      };
+    }
+
     const endpoint = options?.endpoint || this.endpoint;
     const apiKey = options?.apiKey || this.apiKey;
     const model = options?.model || this.model || 'default';
