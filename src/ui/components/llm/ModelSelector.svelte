@@ -214,8 +214,11 @@
   }
 
   .error {
-    color: var(--error-color, #d32f2f);
-    background: var(--error-bg, #ffebee);
+    color: #f48771;
+    background: rgba(244, 135, 113, 0.15);
+    border: 1px solid rgba(244, 135, 113, 0.3);
+    position: relative;
+    z-index: 10;
   }
 
   .no-results {

@@ -6,6 +6,7 @@
 
   const isUser = $derived(message.role === 'user');
   const isAssistant = $derived(message.role === 'assistant');
+  const isError = $derived(message.content.startsWith('Error:'));
 
   let showRaw = $state(false);
   let copyFeedback = $state(false);
@@ -29,7 +30,7 @@
   }
 </script>
 
-<div class="chat-message" class:user={isUser} class:assistant={isAssistant}>
+<div class="chat-message" class:user={isUser} class:assistant={isAssistant} class:error={isError}>
   <div class="message-header">
     <span class="role">{isUser ? 'You' : 'Assistant'}</span>
     <div class="message-controls">
@@ -76,6 +77,22 @@
   .chat-message.assistant {
     background-color: #2d2d30;
     margin-right: 20%;
+  }
+
+  .chat-message.error {
+    background-color: rgba(244, 135, 113, 0.15);
+    border: 2px solid rgba(244, 135, 113, 0.5);
+    margin-right: 10%;
+    position: relative;
+    z-index: 100;
+  }
+
+  .chat-message.error .role {
+    color: #f48771;
+  }
+
+  .chat-message.error .message-content {
+    color: #f48771;
   }
 
   .message-header {
