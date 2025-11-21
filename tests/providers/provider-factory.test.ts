@@ -3,6 +3,7 @@ import { ProviderFactory } from '../../src/main/providers/provider-factory';
 import { OpenAIProvider } from '../../src/main/providers/openai-provider';
 import { AnthropicProvider } from '../../src/main/providers/anthropic-provider';
 import { OllamaProvider } from '../../src/main/providers/ollama-provider';
+import { FireworksProvider } from '../../src/main/providers/fireworks-provider';
 
 describe('ProviderFactory', () => {
   it('should create OpenAI provider instance', () => {
@@ -21,6 +22,12 @@ describe('ProviderFactory', () => {
     const provider = ProviderFactory.getProvider('ollama', undefined, 'http://localhost:11434');
     expect(provider).toBeInstanceOf(OllamaProvider);
     expect(provider.getType()).toBe('ollama');
+  });
+
+  it('should create Fireworks provider instance', () => {
+    const provider = ProviderFactory.getProvider('fireworks', 'test-key');
+    expect(provider).toBeInstanceOf(FireworksProvider);
+    expect(provider.getType()).toBe('fireworks');
   });
 
   it('should return supported providers list', () => {

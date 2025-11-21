@@ -12,6 +12,7 @@ import { GeminiProvider } from './gemini-provider.js';
 import { XAIProvider } from './xai-provider.js';
 import { OpenRouterProvider } from './openrouter-provider.js';
 import { MinimaxProvider } from './minimax-provider.js';
+import { FireworksProvider } from './fireworks-provider.js';
 
 export class ProviderFactory {
   private static providers: Map<string, BaseProvider> = new Map();
@@ -60,7 +61,7 @@ export class ProviderFactory {
         break;
 
       case 'fireworks':
-        provider = new OpenAICompatibleProvider('fireworks', endpoint || 'https://api.fireworks.ai/inference/v1', apiKey);
+        provider = new FireworksProvider(apiKey);
         break;
 
       case 'gemini':
