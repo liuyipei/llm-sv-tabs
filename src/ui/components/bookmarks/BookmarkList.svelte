@@ -1,31 +1,53 @@
 <script lang="ts">
   import { getContext, onMount } from 'svelte';
+  import { bookmarks, removeBookmark } from '$stores/bookmarks';
   import type { Bookmark } from '../../../types';
   import type { IPCBridgeAPI } from '$lib/ipc-bridge';
 
   const ipc = getContext<IPCBridgeAPI>('ipc');
-  let bookmarks: Bookmark[] = [];
 
+  // Load bookmarks from main process on mount
   onMount(async () => {
     if (ipc) {
       const result = await ipc.getBookmarks();
-      bookmarks = Array.isArray(result) ? result : (result.data || []);
+      const loadedBookmarks = Array.isArray(result) ? result : (result.data || []);
+      if (loadedBookmarks.length > 0) {
+        bookmarks.set(loadedBookmarks);
+      }
     }
   });
+
+  async function handleDelete(id: string) {
+    if (ipc) {
+      const result = await ipc.deleteBookmark(id);
+      if (result.success || result.success === undefined) {
+        removeBookmark(id);
+      }
+    } else {
+      removeBookmark(id);
+    }
+  }
+
+  async function handleOpen(url: string) {
+    if (ipc) {
+      await ipc.openUrl(url);
+    }
+  }
 </script>
 
 <div class="bookmark-list">
-  {#if bookmarks.length === 0}
+  {#if $bookmarks.length === 0}
     <div class="empty-state">
       <p>No bookmarks yet</p>
     </div>
   {:else}
-    {#each bookmarks as bookmark (bookmark.id)}
+    {#each $bookmarks as bookmark (bookmark.id)}
       <div class="bookmark-item">
-        <span class="bookmark-title">{bookmark.title}</span>
-        <a href={bookmark.url} class="bookmark-url" target="_blank" rel="noopener noreferrer">
-          {bookmark.url}
-        </a>
+        <div class="bookmark-content" onclick={() => handleOpen(bookmark.url)} onkeydown={(e) => e.key === 'Enter' && handleOpen(bookmark.url)} role="button" tabindex="0">
+          <span class="bookmark-title">{bookmark.title}</span>
+          <span class="bookmark-url">{bookmark.url}</span>
+        </div>
+        <button class="delete-btn" onclick={() => handleDelete(bookmark.id)} title="Delete bookmark">×</button>
       </div>
     {/each}
   {/if}
@@ -46,11 +68,12 @@
   }
 
   .bookmark-item {
+    display: flex;
+    align-items: center;
     padding: 10px;
     margin-bottom: 5px;
     background-color: #2d2d30;
     border-radius: 4px;
-    cursor: pointer;
     transition: background-color 0.2s;
   }
 
@@ -58,25 +81,54 @@
     background-color: #3e3e42;
   }
 
+  .bookmark-content {
+    flex: 1;
+    cursor: pointer;
+    min-width: 0;
+  }
+
   .bookmark-title {
     display: block;
     font-size: 13px;
     color: #d4d4d4;
     margin-bottom: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .bookmark-url {
     display: block;
     font-size: 11px;
     color: #007acc;
-    text-decoration: none;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-  .bookmark-url:hover {
-    text-decoration: underline;
+  .delete-btn {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    margin-left: 8px;
+    background-color: transparent;
+    border: 1px solid #555;
+    border-radius: 4px;
+    color: #d4d4d4;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 0.2s;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .delete-btn:hover {
+    background-color: #c72e2e;
+    border-color: #c72e2e;
+    color: white;
   }
 
   /* Scrollbar styling */

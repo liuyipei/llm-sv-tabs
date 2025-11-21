@@ -1,5 +1,6 @@
 import { BrowserView, BrowserWindow } from 'electron';
 import type { Tab, TabData, TabType } from '../types';
+import { SessionManager } from './services/session-manager.js';
 
 interface TabWithView extends Tab {
   view: BrowserView;
@@ -10,6 +11,7 @@ class TabManager {
   private tabs: Map<string, TabWithView>;
   private activeTabId: string | null;
   private tabCounter: number;
+  private sessionManager: SessionManager;
   private readonly SIDEBAR_WIDTH = 300;
   private readonly HEADER_HEIGHT = 50;
 
@@ -18,9 +20,18 @@ class TabManager {
     this.tabs = new Map();
     this.activeTabId = null;
     this.tabCounter = 0;
+    this.sessionManager = new SessionManager();
 
     // Handle window resize to update BrowserView bounds
     this.mainWindow.on('resize', () => this.updateBrowserViewBounds());
+
+    // Save session periodically (every 30 seconds)
+    setInterval(() => this.saveSession(), 30000);
+
+    // Save session before app quits
+    this.mainWindow.on('close', () => {
+      this.saveSession();
+    });
   }
 
   private updateBrowserViewBounds(): void {
@@ -85,6 +96,9 @@ class TabManager {
     // Notify renderer
     this.sendToRenderer('tab-created', { tab: this.getTabData(tabId) });
 
+    // Save session after tab change
+    this.saveSession();
+
     return { tabId, tab: this.getTabData(tabId)! };
   }
 
@@ -113,6 +127,9 @@ class TabManager {
 
     // Notify renderer
     this.sendToRenderer('tab-closed', { id: tabId });
+
+    // Save session after tab change
+    this.saveSession();
 
     return { success: true };
   }
@@ -205,6 +222,47 @@ class TabManager {
     if (this.mainWindow && this.mainWindow.webContents) {
       this.mainWindow.webContents.send(channel, data);
     }
+  }
+
+  /**
+   * Save current session to disk
+   */
+  private saveSession(): void {
+    const tabs = Array.from(this.tabs.values()).map((tab) => this.getTabData(tab.id)!);
+    this.sessionManager.saveSession(tabs, this.activeTabId);
+  }
+
+  /**
+   * Restore session from disk
+   */
+  restoreSession(): boolean {
+    const session = this.sessionManager.loadSession();
+    if (!session || session.tabs.length === 0) {
+      return false;
+    }
+
+    // Restore each tab
+    for (const tabData of session.tabs) {
+      const { tabId } = this.openUrl(tabData.url);
+      const tab = this.tabs.get(tabId);
+      if (tab && tabData.title !== 'Loading...') {
+        tab.title = tabData.title;
+      }
+    }
+
+    // Restore active tab
+    if (session.activeTabId && this.tabs.has(session.activeTabId)) {
+      this.setActiveTab(session.activeTabId);
+    }
+
+    return true;
+  }
+
+  /**
+   * Clear saved session
+   */
+  clearSession(): void {
+    this.sessionManager.clearSession();
   }
 }
 

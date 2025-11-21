@@ -1,0 +1,138 @@
+/**
+ * Google Gemini provider implementation
+ */
+
+import { BaseProvider, type ProviderCapabilities } from './base-provider.js';
+import type { LLMModel, LLMResponse, QueryOptions } from '../../types';
+
+export class GeminiProvider extends BaseProvider {
+  private readonly baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
+
+  constructor(apiKey?: string) {
+    super('gemini', apiKey);
+  }
+
+  getCapabilities(): ProviderCapabilities {
+    return {
+      supportsStreaming: true,
+      supportsVision: true,
+      requiresApiKey: true,
+      requiresEndpoint: false,
+      supportsSystemPrompt: true,
+    };
+  }
+
+  async getAvailableModels(): Promise<LLMModel[]> {
+    return [
+      {
+        id: 'gemini-2.0-flash-exp',
+        name: 'Gemini 2.0 Flash (Experimental)',
+        provider: 'gemini',
+        contextWindow: 1000000,
+        supportsVision: true,
+      },
+      {
+        id: 'gemini-1.5-pro',
+        name: 'Gemini 1.5 Pro',
+        provider: 'gemini',
+        contextWindow: 2000000,
+        supportsVision: true,
+      },
+      {
+        id: 'gemini-1.5-flash',
+        name: 'Gemini 1.5 Flash',
+        provider: 'gemini',
+        contextWindow: 1000000,
+        supportsVision: true,
+      },
+    ];
+  }
+
+  async query(
+    messages: Array<{ role: string; content: string }>,
+    options?: QueryOptions
+  ): Promise<LLMResponse> {
+    if (!this.apiKey) {
+      return { response: '', error: 'API key is required' };
+    }
+
+    const model = options?.model || 'gemini-1.5-flash';
+    const startTime = Date.now();
+
+    try {
+      // Convert messages to Gemini format
+      const contents = [];
+      let systemInstruction = '';
+
+      for (const message of messages) {
+        if (message.role === 'system') {
+          systemInstruction = message.content;
+        } else {
+          contents.push({
+            role: message.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: message.content }],
+          });
+        }
+      }
+
+      const requestBody: any = {
+        contents,
+        generationConfig: {
+          temperature: options?.temperature ?? 0.7,
+          maxOutputTokens: options?.maxTokens ?? 2000,
+        },
+      };
+
+      // Add system instruction if provided
+      if (systemInstruction || options?.systemPrompt) {
+        requestBody.systemInstruction = {
+          parts: [{ text: systemInstruction || options?.systemPrompt }],
+        };
+      }
+
+      const url = `${this.baseUrl}/models/${model}:generateContent?key=${this.apiKey}`;
+      const response = await this.makeRequest(url, {
+        method: 'POST',
+        body: JSON.stringify(requestBody),
+      });
+
+      const data = await response.json();
+
+      if (!data.candidates || data.candidates.length === 0) {
+        return { response: '', error: 'No response from Gemini' };
+      }
+
+      const candidate = data.candidates[0];
+      const content = candidate.content?.parts?.[0]?.text || '';
+
+      return {
+        response: content,
+        tokensUsed: data.usageMetadata?.totalTokenCount,
+        responseTime: Date.now() - startTime,
+        model,
+      };
+    } catch (error) {
+      return {
+        response: '',
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  async validate(): Promise<{ valid: boolean; error?: string }> {
+    if (!this.apiKey) {
+      return { valid: false, error: 'API key is required' };
+    }
+
+    try {
+      const url = `${this.baseUrl}/models?key=${this.apiKey}`;
+      await this.makeRequest(url, { method: 'GET' });
+      return { valid: true };
+    } catch (error) {
+      return {
+        valid: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+}

@@ -8,6 +8,10 @@ import { OpenAIProvider } from './openai-provider.js';
 import { AnthropicProvider } from './anthropic-provider.js';
 import { OllamaProvider } from './ollama-provider.js';
 import { OpenAICompatibleProvider } from './openai-compatible-provider.js';
+import { GeminiProvider } from './gemini-provider.js';
+import { XAIProvider } from './xai-provider.js';
+import { OpenRouterProvider } from './openrouter-provider.js';
+import { MinimaxProvider } from './minimax-provider.js';
 
 export class ProviderFactory {
   private static providers: Map<string, BaseProvider> = new Map();
@@ -56,17 +60,23 @@ export class ProviderFactory {
         break;
 
       case 'fireworks':
-        provider = new OpenAICompatibleProvider('fireworks', endpoint || 'https://api.fireworks.ai/inference', apiKey);
+        provider = new OpenAICompatibleProvider('fireworks', endpoint || 'https://api.fireworks.ai/inference/v1', apiKey);
         break;
 
-      // Placeholder for other providers
       case 'gemini':
+        provider = new GeminiProvider(apiKey);
+        break;
+
       case 'xai':
+        provider = new XAIProvider(apiKey);
+        break;
+
       case 'openrouter':
+        provider = new OpenRouterProvider(apiKey);
+        break;
+
       case 'minimax':
-        // TODO: Implement these providers
-        // For now, use a generic OpenAI-compatible approach
-        provider = new OpenAICompatibleProvider(providerType, endpoint, apiKey);
+        provider = new MinimaxProvider(apiKey);
         break;
 
       default:
