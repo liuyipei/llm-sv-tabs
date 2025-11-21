@@ -55,7 +55,7 @@ export class ModelDiscovery {
       gemini: 'gemini-2.0-flash-exp',
       xai: 'grok-2-latest',
       openrouter: 'anthropic/claude-3.5-sonnet',
-      fireworks: 'accounts/fireworks/models/llama-v3p1-70b-instruct',
+      fireworks: 'accounts/fireworks/models/deepseek-v3p1',
       ollama: 'llama3.2',
       lmstudio: 'local-model',
       vllm: 'default',

@@ -1,35 +1,15 @@
 /**
- * Fireworks AI provider implementation
+ * Fireworks AI provider implementation (Serverless)
  */
 
 import { BaseProvider, type ProviderCapabilities } from './base-provider.js';
 import type { LLMModel, LLMResponse, QueryOptions } from '../../types';
 
-interface FireworksModel {
-  name: string;
-  displayName?: string;
-  description?: string;
-  contextLength?: number;
-  supportsImageInput?: boolean;
-  supportsTools?: boolean;
-  state?: string;
-  public?: boolean;
-}
-
-interface FireworksListModelsResponse {
-  models: FireworksModel[];
-  nextPageToken?: string;
-  totalSize?: number;
-}
-
 export class FireworksProvider extends BaseProvider {
-  private readonly baseUrl = 'https://api.fireworks.ai';
-  private readonly inferenceUrl = 'https://api.fireworks.ai/inference/v1';
-  private accountId: string;
+  private readonly baseUrl = 'https://api.fireworks.ai/inference/v1';
 
-  constructor(apiKey?: string, accountId: string = 'fireworks') {
+  constructor(apiKey?: string) {
     super('fireworks', apiKey);
-    this.accountId = accountId;
   }
 
   getCapabilities(): ProviderCapabilities {
@@ -42,13 +22,6 @@ export class FireworksProvider extends BaseProvider {
     };
   }
 
-  /**
-   * Set the account ID for Fireworks API calls
-   */
-  setAccountId(accountId: string): void {
-    this.accountId = accountId;
-  }
-
   async getAvailableModels(): Promise<LLMModel[]> {
     if (!this.apiKey) {
       console.warn('Fireworks API key not set, returning empty model list');
@@ -56,7 +29,7 @@ export class FireworksProvider extends BaseProvider {
     }
 
     try {
-      const url = `${this.baseUrl}/v1/accounts/${this.accountId}/models`;
+      const url = `${this.baseUrl}/models`;
       const response = await this.makeRequest(url, {
         method: 'GET',
         headers: {
@@ -64,19 +37,14 @@ export class FireworksProvider extends BaseProvider {
         },
       });
 
-      const data = (await response.json()) as FireworksListModelsResponse;
+      const data = (await response.json()) as { data?: Array<{ id: string }> };
 
-      // Filter for READY state and public models, map to LLMModel format
-      return (data.models || [])
-        .filter((model) => model.state === 'READY' || !model.state)
-        .map((model) => ({
-          id: model.name,
-          name: model.displayName || model.name.split('/').pop() || model.name,
-          provider: 'fireworks' as const,
-          contextWindow: model.contextLength,
-          supportsVision: model.supportsImageInput,
-          description: model.description,
-        }));
+      // Map to LLMModel format
+      return (data.data || []).map((model) => ({
+        id: model.id,
+        name: model.id.split('/').pop() || model.id,
+        provider: 'fireworks' as const,
+      }));
     } catch (error) {
       console.error('Failed to fetch Fireworks models:', error);
       return [];
@@ -91,7 +59,7 @@ export class FireworksProvider extends BaseProvider {
       return { response: '', error: 'API key is required for Fireworks' };
     }
 
-    const model = options?.model || 'accounts/fireworks/models/llama-v3p1-70b-instruct';
+    const model = options?.model || 'accounts/fireworks/models/deepseek-v3p1';
     const startTime = Date.now();
 
     try {
@@ -102,7 +70,7 @@ export class FireworksProvider extends BaseProvider {
         max_tokens: options?.maxTokens ?? 4096,
       };
 
-      const url = `${this.inferenceUrl}/chat/completions`;
+      const url = `${this.baseUrl}/chat/completions`;
       const response = await this.makeRequest(url, {
         method: 'POST',
         headers: {
@@ -139,7 +107,7 @@ export class FireworksProvider extends BaseProvider {
 
     try {
       // Try to fetch models to validate the API key
-      const url = `${this.baseUrl}/v1/accounts/${this.accountId}/models`;
+      const url = `${this.baseUrl}/models`;
       await this.makeRequest(url, {
         method: 'GET',
         headers: {
