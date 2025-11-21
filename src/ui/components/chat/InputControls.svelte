@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getContext } from 'svelte';
-  import { queryInput, urlInput, isLoading, addChatMessage } from '$stores/ui';
+  import { queryInput, isLoading, addChatMessage } from '$stores/ui';
   import { provider, model, apiKeys, endpoint, temperature, maxTokens, systemPrompt } from '$stores/config';
   import type { IPCBridgeAPI } from '$lib/ipc-bridge';
   import type { QueryOptions } from '$types';
@@ -68,53 +68,15 @@
     }
   }
 
-  async function handleUrlSubmit(): Promise<void> {
-    if (!$urlInput.trim()) return;
-
-    const url = $urlInput.trim();
-
-    // Add http:// if no protocol specified
-    const fullUrl = url.match(/^https?:\/\//) ? url : `https://${url}`;
-
-    if (ipc) {
-      try {
-        await ipc.openUrl(fullUrl);
-        $urlInput = '';
-      } catch (error) {
-        console.error('Failed to open URL:', error);
-      }
-    }
-  }
-
   function handleQueryKeydown(event: KeyboardEvent): void {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
       handleQuerySubmit();
     }
   }
-
-  function handleUrlKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      handleUrlSubmit();
-    }
-  }
 </script>
 
 <div class="input-controls">
-  <div class="url-input-container">
-    <input
-      type="text"
-      bind:value={$urlInput}
-      onkeydown={handleUrlKeydown}
-      placeholder="Enter URL to open a new tab..."
-      class="url-input"
-    />
-    <button onclick={handleUrlSubmit} class="url-submit-btn" disabled={!$urlInput.trim()}>
-      Open
-    </button>
-  </div>
-
   <div class="query-input-container">
     <textarea
       bind:value={$queryInput}
@@ -135,23 +97,16 @@
 
 <style>
   .input-controls {
-    padding: 20px;
+    padding: 15px;
     background-color: #252526;
     border-top: 1px solid #3e3e42;
   }
 
-  .url-input-container,
   .query-input-container {
     display: flex;
     gap: 10px;
-    margin-bottom: 10px;
   }
 
-  .query-input-container {
-    margin-bottom: 0;
-  }
-
-  .url-input,
   .query-input {
     flex: 1;
     background-color: #3c3c3c;
@@ -162,19 +117,14 @@
     font-family: inherit;
     font-size: 14px;
     resize: vertical;
+    min-height: 80px;
   }
 
-  .url-input {
-    height: 40px;
-  }
-
-  .url-input:focus,
   .query-input:focus {
     outline: none;
     border-color: #007acc;
   }
 
-  .url-submit-btn,
   .query-submit-btn {
     background-color: #007acc;
     color: white;
@@ -188,19 +138,13 @@
     white-space: nowrap;
   }
 
-  .url-submit-btn:hover:not(:disabled),
   .query-submit-btn:hover:not(:disabled) {
     background-color: #005a9e;
   }
 
-  .url-submit-btn:disabled,
   .query-submit-btn:disabled {
     background-color: #3e3e42;
     color: #808080;
     cursor: not-allowed;
-  }
-
-  .query-input {
-    min-height: 80px;
   }
 </style>

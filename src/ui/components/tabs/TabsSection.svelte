@@ -17,8 +17,7 @@
   .tabs-section {
     display: flex;
     flex-direction: column;
-    border-bottom: 1px solid #3e3e42;
-    max-height: 50%;
+    height: 100%;
     overflow: hidden;
   }
 
@@ -26,13 +25,14 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 15px;
+    padding: 10px 12px;
     border-bottom: 1px solid #3e3e42;
+    flex-shrink: 0;
   }
 
   h2 {
     margin: 0;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -42,8 +42,8 @@
   .tab-count {
     background-color: #3e3e42;
     color: #d4d4d4;
-    padding: 2px 8px;
+    padding: 2px 6px;
     border-radius: 10px;
-    font-size: 12px;
+    font-size: 11px;
   }
 </style>

@@ -154,11 +154,11 @@
   .tab-item {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px;
-    margin-bottom: 5px;
+    gap: 8px;
+    padding: 6px 8px;
+    margin-bottom: 3px;
     background-color: #2d2d30;
-    border-radius: 4px;
+    border-radius: 3px;
     cursor: pointer;
     transition: background-color 0.2s;
   }
@@ -184,17 +184,17 @@
   }
 
   .tab-title {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
     color: #d4d4d4;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-bottom: 3px;
+    margin-bottom: 2px;
   }
 
   .tab-url {
-    font-size: 11px;
+    font-size: 10px;
     color: #808080;
     white-space: nowrap;
     overflow: hidden;
@@ -206,12 +206,12 @@
     background: none;
     border: none;
     color: #d4d4d4;
-    font-size: 20px;
+    font-size: 18px;
     cursor: pointer;
     padding: 0;
-    width: 24px;
-    height: 24px;
-    border-radius: 4px;
+    width: 20px;
+    height: 20px;
+    border-radius: 3px;
     display: flex;
     align-items: center;
     justify-content: center;

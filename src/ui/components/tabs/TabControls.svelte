@@ -42,13 +42,14 @@
 
 <style>
   .tab-controls {
-    padding: 10px 15px;
+    padding: 8px 10px;
     border-bottom: 1px solid #3e3e42;
+    flex-shrink: 0;
   }
 
   .sort-buttons {
     display: flex;
-    gap: 5px;
+    gap: 4px;
   }
 
   button {
@@ -56,9 +57,9 @@
     background-color: #3e3e42;
     color: #d4d4d4;
     border: none;
-    padding: 6px 12px;
-    border-radius: 4px;
-    font-size: 12px;
+    padding: 5px 10px;
+    border-radius: 3px;
+    font-size: 11px;
     cursor: pointer;
     transition: background-color 0.2s;
   }
@@ -74,6 +75,6 @@
 
   button:last-child {
     flex: 0;
-    min-width: 40px;
+    min-width: 35px;
   }
 </style>
