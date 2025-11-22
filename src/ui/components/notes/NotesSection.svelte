@@ -67,10 +67,9 @@
         item.id === editingNote!.id ? { ...editingNote! } : item
       ));
 
-      // Create a tab for this note with a special note:// URL
-      const noteUrl = `note://${editingNote.id}`;
+      // Create a tab for this note
       try {
-        await ipc.openUrl(noteUrl);
+        await ipc.openNoteTab(editingNote.id, editingNote.title, editingNote.body);
       } catch (error) {
         console.error('Failed to create tab for note:', error);
       }
@@ -98,9 +97,8 @@
 
           // Create a tab for the uploaded file
           if (ipc) {
-            const noteUrl = `note://${newNote.id}`;
             try {
-              await ipc.openUrl(noteUrl);
+              await ipc.openNoteTab(newNote.id, newNote.title, newNote.body);
             } catch (error) {
               console.error('Failed to create tab for uploaded file:', error);
             }
