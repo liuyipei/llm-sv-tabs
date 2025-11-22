@@ -1,4 +1,4 @@
-import { BrowserView, BrowserWindow } from 'electron';
+import { BrowserView, BrowserWindow, Menu, MenuItem, shell } from 'electron';
 import type { Tab, TabData, TabType } from '../types';
 import { SessionManager } from './services/session-manager.js';
 
@@ -54,6 +54,56 @@ class TabManager {
     return `tab-${++this.tabCounter}`;
   }
 
+  /**
+   * Set up context menu for a BrowserView to handle right-clicks on links
+   */
+  private setupContextMenu(view: BrowserView, tabId: string): void {
+    view.webContents.on('context-menu', (_event, params) => {
+      const { linkURL, x, y } = params;
+
+      // Only show our custom menu if right-clicking on a link
+      if (!linkURL) return;
+
+      const menu = new Menu();
+
+      // Open link in new tab
+      menu.append(new MenuItem({
+        label: 'Open link in new tab',
+        click: () => {
+          this.openUrl(linkURL);
+        }
+      }));
+
+      // Save link as
+      menu.append(new MenuItem({
+        label: 'Save link as...',
+        click: async () => {
+          try {
+            await view.webContents.downloadURL(linkURL);
+          } catch (error) {
+            console.error('Failed to download:', error);
+          }
+        }
+      }));
+
+      // Separator
+      menu.append(new MenuItem({ type: 'separator' }));
+
+      // Inspect element
+      menu.append(new MenuItem({
+        label: 'Inspect',
+        click: () => {
+          view.webContents.inspectElement(x, y);
+          if (!view.webContents.isDevToolsOpened()) {
+            view.webContents.openDevTools();
+          }
+        }
+      }));
+
+      menu.popup();
+    });
+  }
+
   openUrl(url: string): { tabId: string; tab: TabData } {
     const tabId = this.createTabId();
 
@@ -78,6 +128,9 @@ class TabManager {
 
     // Load the URL
     view.webContents.loadURL(url);
+
+    // Set up context menu for links
+    this.setupContextMenu(view, tabId);
 
     // Update title when page loads
     view.webContents.on('page-title-updated', (_event, title) => {
@@ -180,6 +233,9 @@ class TabManager {
     // Load HTML content using data URI
     const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent);
     view.webContents.loadURL(dataUrl);
+
+    // Set up context menu for links
+    this.setupContextMenu(view, tabId);
 
     // Set as active tab
     this.setActiveTab(tabId);
