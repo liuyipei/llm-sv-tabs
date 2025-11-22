@@ -141,10 +141,10 @@ function setupIPCHandlers(): void {
     return tabManager.copyTabUrl(tabId);
   });
 
-  ipcMain.handle('open-note-tab', async (_event, noteId: number, title: string, content: string) => {
+  ipcMain.handle('open-note-tab', async (_event, noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image') => {
     if (!tabManager) return { success: false, error: 'TabManager not initialized' };
     try {
-      const result = tabManager.openNoteTab(noteId, title, content);
+      const result = tabManager.openNoteTab(noteId, title, content, fileType);
       return { success: true, data: result };
     } catch (error) {
       return { success: false, error: String(error) };

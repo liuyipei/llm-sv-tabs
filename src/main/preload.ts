@@ -44,8 +44,8 @@ const electronAPI = {
     ipcRenderer.invoke('copy-tab-url', tabId),
 
   // Note tabs
-  openNoteTab: (noteId: number, title: string, content: string): Promise<IPCResponse<{ tabId: string; tab: TabData }>> =>
-    ipcRenderer.invoke('open-note-tab', noteId, title, content),
+  openNoteTab: (noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image'): Promise<IPCResponse<{ tabId: string; tab: TabData }>> =>
+    ipcRenderer.invoke('open-note-tab', noteId, title, content, fileType),
 
   // Content extraction
   extractContent: (tabId: string): Promise<IPCResponse<ExtractedContent>> =>

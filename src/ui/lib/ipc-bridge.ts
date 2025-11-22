@@ -17,7 +17,7 @@ export interface IPCBridgeAPI {
   selectTabs(tabIds: string[]): Promise<IPCResponse | { success: boolean }>;
   reloadTab(tabId: string): Promise<IPCResponse | { success: boolean }>;
   copyTabUrl(tabId: string): Promise<IPCResponse<{ url?: string }> | { success: boolean; url?: string }>;
-  openNoteTab(noteId: number, title: string, content: string): Promise<IPCResponse<{ tabId: string; tab: TabData }> | { tabId: string; tab: Tab }>;
+  openNoteTab(noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image'): Promise<IPCResponse<{ tabId: string; tab: TabData }> | { tabId: string; tab: Tab }>;
   getBookmarks(): Promise<IPCResponse<Bookmark[]> | Bookmark[]>;
   addBookmark(bookmark: Omit<Bookmark, 'id' | 'created'>): Promise<IPCResponse<Bookmark> | { success: boolean }>;
   sendQuery(query: string, options?: QueryOptions): Promise<LLMResponse | { response: string }>;
@@ -76,7 +76,7 @@ export function initializeIPC(): IPCBridgeAPI {
     selectTabs: (tabIds: string[]) => window.electronAPI.selectTabs(tabIds),
     reloadTab: (tabId: string) => window.electronAPI.reloadTab(tabId),
     copyTabUrl: (tabId: string) => window.electronAPI.copyTabUrl(tabId),
-    openNoteTab: (noteId: number, title: string, content: string) => window.electronAPI.openNoteTab(noteId, title, content),
+    openNoteTab: (noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image') => window.electronAPI.openNoteTab(noteId, title, content, fileType),
     getBookmarks: () => window.electronAPI.getBookmarks(),
     addBookmark: (bookmark: Omit<Bookmark, 'id' | 'created'>) => window.electronAPI.addBookmark(bookmark),
     sendQuery: (query: string, options?: QueryOptions) => window.electronAPI.sendQuery(query, options),
@@ -154,8 +154,8 @@ function createMockAPI(): IPCBridgeAPI {
       const tab = tabs.get(tabId);
       return { success: true, url: tab?.url };
     },
-    openNoteTab: async (noteId: number, title: string, content: string) => {
-      console.log('Mock: openNoteTab', noteId, title, content);
+    openNoteTab: async (noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image') => {
+      console.log('Mock: openNoteTab', noteId, title, content, fileType);
       const tab: Tab = {
         id: `mock-note-${noteId}`,
         title: title,

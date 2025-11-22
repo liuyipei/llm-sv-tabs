@@ -161,7 +161,7 @@ class TabManager {
     return { tabId, tab: this.getTabData(tabId)! };
   }
 
-  openNoteTab(noteId: number, title: string, content: string): { tabId: string; tab: TabData } {
+  openNoteTab(noteId: number, title: string, content: string, fileType: 'text' | 'pdf' | 'image' = 'text'): { tabId: string; tab: TabData } {
     const tabId = this.createTabId();
 
     const view = new BrowserView({
@@ -183,52 +183,8 @@ class TabManager {
 
     this.tabs.set(tabId, tab);
 
-    // Create HTML content for the note
-    const htmlContent = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${this.escapeHtml(title)}</title>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 40px 20px;
-      background-color: #1e1e1e;
-      color: #d4d4d4;
-      line-height: 1.6;
-    }
-    h1 {
-      color: #ffffff;
-      border-bottom: 2px solid #007acc;
-      padding-bottom: 10px;
-      margin-bottom: 30px;
-    }
-    pre {
-      background-color: #2d2d30;
-      border: 1px solid #3e3e42;
-      border-radius: 4px;
-      padding: 15px;
-      overflow-x: auto;
-      white-space: pre-wrap;
-      word-wrap: break-word;
-    }
-    .note-content {
-      white-space: pre-wrap;
-      word-wrap: break-word;
-      font-size: 14px;
-    }
-  </style>
-</head>
-<body>
-  <h1>${this.escapeHtml(title)}</h1>
-  <div class="note-content">${this.escapeHtml(content)}</div>
-</body>
-</html>
-    `.trim();
+    // Create HTML content based on file type
+    const htmlContent = this.createNoteHTML(title, content, fileType);
 
     // Load HTML content using data URI
     const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent);
@@ -247,6 +203,127 @@ class TabManager {
     this.saveSession();
 
     return { tabId, tab: this.getTabData(tabId)! };
+  }
+
+  private createNoteHTML(title: string, content: string, fileType: 'text' | 'pdf' | 'image'): string {
+    const baseStyles = `
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        margin: 0;
+        padding: 40px 20px;
+        background-color: #1e1e1e;
+        color: #d4d4d4;
+        line-height: 1.6;
+      }
+      h1 {
+        color: #ffffff;
+        border-bottom: 2px solid #007acc;
+        padding-bottom: 10px;
+        margin-bottom: 30px;
+        max-width: 800px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+    `;
+
+    if (fileType === 'image') {
+      return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${this.escapeHtml(title)}</title>
+  <style>
+    ${baseStyles}
+    .image-container {
+      text-align: center;
+      max-width: 100%;
+    }
+    .image-container img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+  </style>
+</head>
+<body>
+  <h1>${this.escapeHtml(title)}</h1>
+  <div class="image-container">
+    <img src="${content}" alt="${this.escapeHtml(title)}" />
+  </div>
+</body>
+</html>
+      `.trim();
+    }
+
+    if (fileType === 'pdf') {
+      return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${this.escapeHtml(title)}</title>
+  <style>
+    ${baseStyles}
+    .pdf-container {
+      width: 100%;
+      height: calc(100vh - 120px);
+      display: flex;
+      justify-content: center;
+    }
+    .pdf-container embed,
+    .pdf-container object {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>${this.escapeHtml(title)}</h1>
+  <div class="pdf-container">
+    <embed src="${content}" type="application/pdf" />
+  </div>
+</body>
+</html>
+      `.trim();
+    }
+
+    // Default: text rendering
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${this.escapeHtml(title)}</title>
+  <style>
+    ${baseStyles}
+    .note-content {
+      max-width: 800px;
+      margin: 0 auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font-size: 14px;
+    }
+    pre {
+      background-color: #2d2d30;
+      border: 1px solid #3e3e42;
+      border-radius: 4px;
+      padding: 15px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>${this.escapeHtml(title)}</h1>
+  <div class="note-content">${this.escapeHtml(content)}</div>
+</body>
+</html>
+    `.trim();
   }
 
   private escapeHtml(text: string): string {

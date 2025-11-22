@@ -120,6 +120,8 @@ export interface LLMResponse {
 // Content Extraction Types
 // ============================================================================
 
+export type FileContentType = 'text' | 'pdf' | 'image';
+
 export interface SerializedDOM {
   title: string;
   url: string;
