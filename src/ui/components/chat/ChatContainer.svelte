@@ -18,18 +18,11 @@
 </script>
 
 <div class="chat-container" bind:this={containerElement}>
-  {#if $chatMessages.length === 0}
-    <div class="empty-state">
-      <h2>Welcome to LLM Browser</h2>
-      <p>Enter a query to interact with your tabs using LLM</p>
-    </div>
-  {:else}
-    <div class="messages">
-      {#each $chatMessages as message (message.id)}
-        <ChatMessage {message} />
-      {/each}
-    </div>
-  {/if}
+  <div class="messages">
+    {#each $chatMessages as message (message.id)}
+      <ChatMessage {message} />
+    {/each}
+  </div>
 </div>
 
 <style>
@@ -38,28 +31,6 @@
     overflow-y: auto;
     padding: 20px;
     background-color: #1e1e1e;
-  }
-
-  .empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    color: #808080;
-    text-align: center;
-  }
-
-  .empty-state h2 {
-    margin: 0 0 10px 0;
-    font-size: 24px;
-    font-weight: 400;
-  }
-
-  .empty-state p {
-    margin: 0;
-    font-size: 14px;
-    color: #606060;
   }
 
   .messages {

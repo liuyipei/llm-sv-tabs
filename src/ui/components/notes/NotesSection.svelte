@@ -1,5 +1,7 @@
 <script lang="ts">
+  import { getContext, onMount } from 'svelte';
   import { writable } from 'svelte/store';
+  import type { IPCBridgeAPI } from '$lib/ipc-bridge';
 
   type Note = {
     id: number;
@@ -8,8 +10,27 @@
     selected: boolean;
   };
 
+  const ipc = getContext<IPCBridgeAPI>('ipc');
   let notes = writable<Note[]>([]);
   let editingNote: Note | null = $state(null);
+
+  // Load notes from localStorage on mount
+  onMount(() => {
+    const stored = localStorage.getItem('llm-notes');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        notes.set(parsed);
+      } catch (e) {
+        console.error('Failed to load notes:', e);
+      }
+    }
+  });
+
+  // Save notes to localStorage whenever they change
+  notes.subscribe(n => {
+    localStorage.setItem('llm-notes', JSON.stringify(n));
+  });
 
   function createNewNote(): void {
     const newNote: Note = {
@@ -28,7 +49,7 @@
     ));
   }
 
-  function deleteNote(noteId: number): void {
+  async function deleteNote(noteId: number): Promise<void> {
     notes.update(n => n.filter(item => item.id !== noteId));
     if (editingNote?.id === noteId) {
       editingNote = null;
@@ -39,23 +60,33 @@
     editingNote = note;
   }
 
-  function saveNote(): void {
-    if (editingNote) {
+  async function saveNote(): Promise<void> {
+    if (editingNote && ipc) {
+      // Update the note in the list
       notes.update(n => n.map(item =>
         item.id === editingNote!.id ? { ...editingNote! } : item
       ));
+
+      // Create a tab for this note with a special note:// URL
+      const noteUrl = `note://${editingNote.id}`;
+      try {
+        await ipc.openUrl(noteUrl);
+      } catch (error) {
+        console.error('Failed to create tab for note:', error);
+      }
+
       editingNote = null;
     }
   }
 
-  function handleFileUpload(event: Event): void {
+  async function handleFileUpload(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const files = input.files;
 
     if (files) {
-      Array.from(files).forEach(file => {
+      for (const file of Array.from(files)) {
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
           const content = e.target?.result as string;
           const newNote: Note = {
             id: Date.now(),
@@ -64,9 +95,19 @@
             selected: false,
           };
           notes.update(n => [...n, newNote]);
+
+          // Create a tab for the uploaded file
+          if (ipc) {
+            const noteUrl = `note://${newNote.id}`;
+            try {
+              await ipc.openUrl(noteUrl);
+            } catch (error) {
+              console.error('Failed to create tab for uploaded file:', error);
+            }
+          }
         };
         reader.readAsText(file);
-      });
+      }
     }
   }
 </script>
@@ -120,7 +161,13 @@
               onchange={() => toggleNoteSelection(note)}
               title="Include in context"
             />
-            <div class="note-info" onclick={() => editNote(note)}>
+            <div
+              class="note-info"
+              onclick={() => editNote(note)}
+              onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && editNote(note)}
+              role="button"
+              tabindex="0"
+            >
               <div class="note-title">{note.title}</div>
               <div class="note-preview">{note.body.slice(0, 50)}{note.body.length > 50 ? '...' : ''}</div>
             </div>

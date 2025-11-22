@@ -83,7 +83,7 @@
       onkeydown={handleQueryKeydown}
       placeholder="Ask a question about your tabs... (Enter to send, Shift+Enter for new line)"
       class="query-input"
-      rows="3"
+      rows="8"
     ></textarea>
     <button
       onclick={handleQuerySubmit}
@@ -117,7 +117,7 @@
     font-family: inherit;
     font-size: 14px;
     resize: vertical;
-    min-height: 80px;
+    min-height: 150px;
   }
 
   .query-input:focus {

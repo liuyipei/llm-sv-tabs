@@ -23,10 +23,6 @@
 </script>
 
 <main class="app-container">
-  <header class="app-header">
-    <h1>LLM Browser</h1>
-  </header>
-
   <div class="app-content">
     <aside class="sidebar">
       <div class="sidebar-nav">
@@ -105,23 +101,8 @@
 
   .app-container {
     display: flex;
-    flex-direction: column;
     height: 100vh;
     overflow: hidden;
-  }
-
-  .app-header {
-    background-color: #252526;
-    padding: 5px 15px;
-    border-bottom: 1px solid #3e3e42;
-    display: flex;
-    align-items: center;
-  }
-
-  h1 {
-    margin: 0;
-    font-size: 16px;
-    font-weight: 500;
   }
 
   .app-content {
