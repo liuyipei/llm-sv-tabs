@@ -10,6 +10,7 @@
   let searchQuery = $state('');
   let isLoading = $state(false);
   let error = $state<string | null>(null);
+  let copySuccess = $state(false);
 
   let filteredModels = $derived(
     searchQuery
@@ -82,19 +83,45 @@
     const target = event.target as HTMLSelectElement;
     modelStore.set(target.value);
   }
+
+  async function handleCopyModel() {
+    const modelName = $modelStore;
+    if (!modelName) return;
+
+    try {
+      await navigator.clipboard.writeText(modelName);
+      copySuccess = true;
+      setTimeout(() => {
+        copySuccess = false;
+      }, 2000);
+    } catch (err) {
+      console.error('Failed to copy model name:', err);
+    }
+  }
 </script>
 
 <div class="model-selector">
   <div class="model-header">
     <label for="model-select">Model:</label>
-    <button
-      onclick={handleRefresh}
-      class="refresh-btn"
-      disabled={isLoading}
-      title="Refresh models from provider"
-    >
-      ↻
-    </button>
+    <div class="button-group">
+      <button
+        onclick={handleCopyModel}
+        class="copy-btn"
+        disabled={!$modelStore}
+        title={copySuccess ? 'Copied!' : 'Copy model name to clipboard'}
+        class:copied={copySuccess}
+      >
+        {copySuccess ? '✓' : '📋'}
+      </button>
+      <button
+        onclick={handleRefresh}
+        class="refresh-btn"
+        disabled={isLoading}
+        title="Refresh models from provider"
+      >
+        ↻
+      </button>
+    </div>
   </div>
 
   {#if isLoading}
@@ -149,6 +176,12 @@
     color: var(--text-secondary, #666);
   }
 
+  .button-group {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .copy-btn,
   .refresh-btn {
     background: none;
     border: 1px solid var(--border-color, #ddd);
@@ -160,14 +193,22 @@
     transition: all 0.2s;
   }
 
+  .copy-btn:hover:not(:disabled),
   .refresh-btn:hover:not(:disabled) {
     background: var(--button-hover-bg, #f5f5f5);
     border-color: var(--border-hover, #999);
   }
 
+  .copy-btn:disabled,
   .refresh-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  .copy-btn.copied {
+    background: #d4edda;
+    border-color: #28a745;
+    color: #155724;
   }
 
   .search-input,
