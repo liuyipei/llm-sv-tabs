@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getContext } from 'svelte';
-  import { queryInput, urlInput, isLoading, addChatMessage } from '$stores/ui';
+  import { queryInput, isLoading } from '$stores/ui';
   import { provider, model, apiKeys, endpoint, temperature, maxTokens, systemPrompt } from '$stores/config';
   import type { IPCBridgeAPI } from '$lib/ipc-bridge';
   import type { QueryOptions } from '$types';
@@ -12,13 +12,6 @@
 
     const query = $queryInput.trim();
     $queryInput = '';
-
-    // Add user message to chat
-    addChatMessage({
-      id: Date.now(),
-      role: 'user',
-      content: query,
-    });
 
     if (ipc) {
       isLoading.set(true);
@@ -36,52 +29,21 @@
 
         const response = await ipc.sendQuery(query, options);
 
+        // Create a tab with the LLM response
+        const timestamp = Date.now();
+        const responseUrl = `llm-response://${timestamp}`;
+
         // Check for error in response
         if (response.error) {
-          addChatMessage({
-            id: Date.now() + 1,
-            role: 'assistant',
-            content: `Error: ${response.error}`,
-          });
+          await ipc.openUrl(responseUrl);
+          console.error('LLM Error:', response.error);
         } else {
-          // Add assistant response to chat
-          addChatMessage({
-            id: Date.now() + 1,
-            role: 'assistant',
-            content: response.response || 'No response',
-            stats: {
-              tokensUsed: response.tokensUsed,
-              responseTime: response.responseTime,
-              model: response.model,
-            },
-          });
+          await ipc.openUrl(responseUrl);
         }
       } catch (error) {
-        addChatMessage({
-          id: Date.now() + 1,
-          role: 'assistant',
-          content: `Error: ${error instanceof Error ? error.message : String(error)}`,
-        });
+        console.error('Failed to send query:', error);
       } finally {
         isLoading.set(false);
-      }
-    }
-  }
-
-  async function handleUrlSubmit(): Promise<void> {
-    if (!$urlInput.trim()) return;
-
-    const url = $urlInput.trim();
-
-    // Add http:// if no protocol specified
-    const fullUrl = url.match(/^https?:\/\//) ? url : `https://${url}`;
-
-    if (ipc) {
-      try {
-        await ipc.openUrl(fullUrl);
-        $urlInput = '';
-      } catch (error) {
-        console.error('Failed to open URL:', error);
       }
     }
   }
@@ -92,115 +54,87 @@
       handleQuerySubmit();
     }
   }
-
-  function handleUrlKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      handleUrlSubmit();
-    }
-  }
 </script>
 
 <div class="input-controls">
-  <div class="url-input-container">
-    <input
-      type="text"
-      bind:value={$urlInput}
-      onkeydown={handleUrlKeydown}
-      placeholder="Enter URL to open a new tab..."
-      class="url-input"
-    />
-    <button onclick={handleUrlSubmit} class="url-submit-btn" disabled={!$urlInput.trim()}>
-      Open
-    </button>
-  </div>
-
   <div class="query-input-container">
     <textarea
       bind:value={$queryInput}
       onkeydown={handleQueryKeydown}
       placeholder="Ask a question about your tabs... (Enter to send, Shift+Enter for new line)"
       class="query-input"
-      rows="3"
+      rows="8"
     ></textarea>
     <button
       onclick={handleQuerySubmit}
       class="query-submit-btn"
       disabled={!$queryInput.trim() || $isLoading}
+      title={$isLoading ? 'Sending...' : 'Send (Enter)'}
     >
-      {$isLoading ? 'Sending...' : 'Send'}
+      {$isLoading ? '⏳' : '➤'}
     </button>
   </div>
 </div>
 
 <style>
   .input-controls {
-    padding: 20px;
+    flex: 1;
+    padding: 15px;
     background-color: #252526;
-    border-top: 1px solid #3e3e42;
-  }
-
-  .url-input-container,
-  .query-input-container {
     display: flex;
-    gap: 10px;
-    margin-bottom: 10px;
+    flex-direction: column;
   }
 
   .query-input-container {
-    margin-bottom: 0;
+    position: relative;
+    display: flex;
+    flex: 1;
   }
 
-  .url-input,
   .query-input {
     flex: 1;
     background-color: #3c3c3c;
     color: #d4d4d4;
     border: 1px solid #3e3e42;
     border-radius: 4px;
-    padding: 10px;
+    padding: 10px 50px 10px 10px;
     font-family: inherit;
     font-size: 14px;
-    resize: vertical;
+    resize: none;
+    min-height: 100px;
   }
 
-  .url-input {
-    height: 40px;
-  }
-
-  .url-input:focus,
   .query-input:focus {
     outline: none;
     border-color: #007acc;
   }
 
-  .url-submit-btn,
   .query-submit-btn {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
     background-color: #007acc;
     color: white;
     border: none;
     border-radius: 4px;
-    padding: 10px 20px;
-    font-size: 14px;
-    font-weight: 500;
+    padding: 8px 12px;
+    font-size: 18px;
     cursor: pointer;
     transition: background-color 0.2s;
-    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
   }
 
-  .url-submit-btn:hover:not(:disabled),
   .query-submit-btn:hover:not(:disabled) {
     background-color: #005a9e;
   }
 
-  .url-submit-btn:disabled,
   .query-submit-btn:disabled {
     background-color: #3e3e42;
     color: #808080;
     cursor: not-allowed;
-  }
-
-  .query-input {
-    min-height: 80px;
   }
 </style>

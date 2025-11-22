@@ -20,11 +20,11 @@
   .tab-list {
     flex: 1;
     overflow-y: auto;
-    padding: 5px;
+    padding: 8px;
   }
 
   .empty-state {
-    padding: 30px 20px;
+    padding: 20px 15px;
     text-align: center;
     color: #808080;
   }
