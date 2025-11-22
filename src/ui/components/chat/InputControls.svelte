@@ -34,15 +34,11 @@
         const response = await ipc.sendQuery(query, options);
 
         // Create a tab with the LLM response
-        const timestamp = Date.now();
-        const responseUrl = `llm-response://${timestamp}`;
-
-        // Check for error in response
         if (response.error) {
-          await ipc.openUrl(responseUrl);
+          await ipc.openLLMResponseTab(query, '', response.error);
           console.error('LLM Error:', response.error);
         } else {
-          await ipc.openUrl(responseUrl);
+          await ipc.openLLMResponseTab(query, response.response);
         }
       } catch (error) {
         console.error('Failed to send query:', error);

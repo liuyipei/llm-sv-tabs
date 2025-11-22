@@ -151,6 +151,16 @@ function setupIPCHandlers(): void {
     }
   });
 
+  ipcMain.handle('open-llm-response-tab', async (_event, query: string, response: string, error?: string) => {
+    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
+    try {
+      const result = tabManager.openLLMResponseTab(query, response, error);
+      return { success: true, data: result };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
   // Bookmarks
   ipcMain.handle('get-bookmarks', async () => {
     if (!bookmarkManager) return { success: false, error: 'BookmarkManager not initialized' };
