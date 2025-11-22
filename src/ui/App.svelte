@@ -7,7 +7,8 @@
   import UrlBar from '$components/chat/UrlBar.svelte';
   import LLMControls from '$components/llm/LLMControls.svelte';
   import NotesSection from '$components/notes/NotesSection.svelte';
-  import { activeSidebarView } from '$stores/ui';
+  import ResizableDivider from '$components/ResizableDivider.svelte';
+  import { activeSidebarView, sidebarTabsHeightPercent } from '$stores/ui';
   import { activeTabId, sortedTabs } from '$stores/tabs';
   import { initKeyboardShortcuts } from '$utils/keyboard-shortcuts';
 
@@ -36,6 +37,10 @@
 
   function setView(view: 'chat' | 'settings' | 'bookmarks' | 'notes'): void {
     activeSidebarView.set(view);
+  }
+
+  function handleSidebarResize(percentage: number): void {
+    sidebarTabsHeightPercent.set(percentage);
   }
 
   // Keyboard shortcut actions
@@ -191,7 +196,7 @@
         </button>
       </div>
 
-      <div class="sidebar-content">
+      <div class="sidebar-content" style="flex: {100 - $sidebarTabsHeightPercent}">
         {#if $activeSidebarView === 'chat'}
           <ChatView />
         {:else if $activeSidebarView === 'settings'}
@@ -203,7 +208,9 @@
         {/if}
       </div>
 
-      <div class="sidebar-tabs">
+      <ResizableDivider onResize={handleSidebarResize} orientation="horizontal" />
+
+      <div class="sidebar-tabs" style="flex: {$sidebarTabsHeightPercent}">
         <TabsSection />
       </div>
     </aside>
@@ -287,18 +294,17 @@
   }
 
   .sidebar-content {
-    flex: 1;
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    min-height: 0;
   }
 
   .sidebar-tabs {
-    height: 250px;
-    border-top: 1px solid #3e3e42;
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    min-height: 0;
   }
 
   .main-content {
