@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, session } from 'electron';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import TabManager from './tab-manager.js';
@@ -52,12 +52,41 @@ function createWindow(): void {
   // Set up IPC handlers
   setupIPCHandlers();
 
+  // Set up download handler
+  setupDownloadHandler();
+
   // Restore session or open default homepage
   const sessionRestored = tabManager.restoreSession();
   if (!sessionRestored) {
     // No saved session, open default homepage
     tabManager.openUrl('https://www.google.com');
   }
+}
+
+function setupDownloadHandler(): void {
+  // Handle downloads from BrowserViews
+  session.defaultSession.on('will-download', (event, item, webContents) => {
+    // Show save dialog
+    const savePath = dialog.showSaveDialogSync(mainWindow!, {
+      defaultPath: item.getFilename(),
+    });
+
+    if (savePath) {
+      item.setSavePath(savePath);
+    } else {
+      // User cancelled, cancel the download
+      item.cancel();
+    }
+
+    // Handle download events
+    item.once('done', (event, state) => {
+      if (state === 'completed') {
+        console.log('Download completed successfully');
+      } else {
+        console.log(`Download failed: ${state}`);
+      }
+    });
+  });
 }
 
 function setupIPCHandlers(): void {
