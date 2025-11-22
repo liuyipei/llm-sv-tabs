@@ -107,7 +107,8 @@ export class GeminiProvider extends BaseProvider {
 
       return {
         response: content,
-        tokensUsed: data.usageMetadata?.totalTokenCount,
+        tokensIn: data.usageMetadata?.promptTokenCount,
+        tokensOut: data.usageMetadata?.candidatesTokenCount,
         responseTime: Date.now() - startTime,
         model,
       };

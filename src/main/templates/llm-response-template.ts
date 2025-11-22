@@ -70,32 +70,10 @@ export function createLLMResponseHTML(query: string, response: string, error?: s
       word-wrap: break-word;
     }
 
-    .metadata-section {
-      display: flex;
-      gap: 20px;
-      margin-bottom: 30px;
-      flex-wrap: wrap;
-    }
-
-    .metadata-box {
-      background-color: #2d2d30;
-      padding: 15px 20px;
-      border-radius: 4px;
-      border-left: 3px solid #4ec9b0;
-      min-width: 150px;
-    }
-
-    .metadata-label {
+    .token-info {
       color: #4ec9b0;
-      font-size: 11px;
-      text-transform: uppercase;
-      margin-bottom: 5px;
-      font-weight: bold;
-    }
-
-    .metadata-value {
-      color: #ffffff;
-      font-size: 16px;
+      font-size: 12px;
+      margin-top: 12px;
       font-weight: bold;
     }
 
@@ -103,6 +81,15 @@ export function createLLMResponseHTML(query: string, response: string, error?: s
       background-color: #252526;
       padding: 20px;
       border-radius: 4px;
+    }
+
+    .response-header {
+      color: #4ec9b0;
+      font-size: 13px;
+      font-weight: bold;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #3e3e42;
     }
 
     .error-section {
@@ -244,38 +231,19 @@ export function createLLMResponseHTML(query: string, response: string, error?: s
     <div class="query-section">
       <div class="query-label">Your Query</div>
       <div class="query-text">${escapeHtml(query)}</div>
-    </div>
-
-    ${metadata && (metadata.model || metadata.tokensIn || metadata.tokensOut) ? `
-    <div class="metadata-section">
-      ${metadata.model ? `
-        <div class="metadata-box">
-          <div class="metadata-label">Model</div>
-          <div class="metadata-value">${escapeHtml(metadata.model)}</div>
-        </div>
-      ` : ''}
-      ${metadata.tokensIn ? `
-        <div class="metadata-box">
-          <div class="metadata-label">Tokens In</div>
-          <div class="metadata-value">${metadata.tokensIn.toLocaleString()}</div>
-        </div>
-      ` : ''}
-      ${metadata.tokensOut ? `
-        <div class="metadata-box">
-          <div class="metadata-label">Tokens Out</div>
-          <div class="metadata-value">${metadata.tokensOut.toLocaleString()}</div>
-        </div>
-      ` : ''}
-      ${metadata.tokensIn && metadata.tokensOut ? `
-        <div class="metadata-box">
-          <div class="metadata-label">Total Tokens</div>
-          <div class="metadata-value">${(metadata.tokensIn + metadata.tokensOut).toLocaleString()}</div>
-        </div>
+      ${metadata?.tokensIn ? `
+      <div class="token-info">↑ ${metadata.tokensIn.toLocaleString()} tokens</div>
       ` : ''}
     </div>
-    ` : ''}
 
-    ${isError ? '<div class="error-section"><div class="error-label">Error</div>' : '<div class="response-section">'}
+    ${isError ? '<div class="error-section"><div class="error-label">Error</div>' : `
+    <div class="response-section">
+      ${metadata?.model || metadata?.tokensOut ? `
+      <div class="response-header">
+        ${metadata.model ? `Model: ${escapeHtml(metadata.model)}` : ''}${metadata.model && metadata.tokensOut ? ' ' : ''}${metadata.tokensOut ? `↓ ${metadata.tokensOut.toLocaleString()} tokens` : ''}
+      </div>
+      ` : ''}
+    `}
       <div id="content" class="markdown-content"></div>
     </div>
   </div>

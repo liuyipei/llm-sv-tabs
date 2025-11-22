@@ -291,14 +291,11 @@ class TabManager {
       const modelName = metadata?.model || '';
       const tokensIn = metadata?.tokensIn || 0;
       const tokensOut = metadata?.tokensOut || 0;
-      const totalTokens = tokensIn + tokensOut;
 
-      if (modelName && totalTokens > 0) {
-        tab.title = `LLM Response - ${modelName} (${totalTokens.toLocaleString()} tokens)`;
+      if (modelName && tokensIn > 0 && tokensOut > 0) {
+        tab.title = `Response ${modelName} up: ${tokensIn.toLocaleString()} down: ${tokensOut.toLocaleString()}`;
       } else if (modelName) {
-        tab.title = `LLM Response - ${modelName}`;
-      } else if (totalTokens > 0) {
-        tab.title = `LLM Response (${totalTokens.toLocaleString()} tokens)`;
+        tab.title = `Response ${modelName}`;
       } else {
         tab.title = 'LLM Response';
       }
