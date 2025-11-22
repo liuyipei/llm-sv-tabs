@@ -18,6 +18,10 @@ export const chatMessages: Writable<ChatMessage[]> = writable([]);
 export const queryInput: Writable<string> = writable('');
 export const urlInput: Writable<string> = writable('');
 
+// Sidebar layout state
+// Percentage of sidebar height allocated to tabs panel (0-100)
+export const sidebarTabsHeightPercent: Writable<number> = writable(60);
+
 // Helper functions
 export function addChatMessage(message: ChatMessage): void {
   chatMessages.update((messages) => [...messages, message]);
