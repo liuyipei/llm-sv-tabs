@@ -1,5 +1,5 @@
 import { writable, type Writable } from 'svelte/store';
-import type { ProviderType } from '../../types';
+import type { ProviderType, LLMModel } from '../../types';
 
 // Create a persisted store that syncs with localStorage
 // Uses the custom store pattern to avoid subscribing during module init
@@ -52,6 +52,16 @@ export const temperature = createPersistedStore<number>('temperature', 0.7);
 export const systemPrompt = createPersistedStore<string>('systemPrompt', '');
 export const endpoint = createPersistedStore<string>('endpoint', '');
 
+// Model history stores
+// Stores discovered models for each provider
+export const discoveredModels = createPersistedStore<Record<string, LLMModel[]>>('discoveredModels', {});
+// Stores models that have been used, with timestamp
+export const modelUsageHistory = createPersistedStore<Array<{
+  model: string;
+  provider: ProviderType;
+  timestamp: number;
+}>>('modelUsageHistory', []);
+
 // Helper functions
 export function setApiKey(providerName: ProviderType, key: string): void {
   apiKeys.update((keys) => {
@@ -62,4 +72,40 @@ export function setApiKey(providerName: ProviderType, key: string): void {
 
 export function getApiKey(providerName: ProviderType, currentKeys: Record<string, string>): string | undefined {
   return currentKeys[providerName];
+}
+
+// Save discovered models for a provider
+export function saveDiscoveredModels(providerName: ProviderType, models: LLMModel[]): void {
+  discoveredModels.update((allModels) => ({
+    ...allModels,
+    [providerName]: models,
+  }));
+}
+
+// Get discovered models for a provider
+export function getDiscoveredModels(providerName: ProviderType, allModels: Record<string, LLMModel[]>): LLMModel[] | undefined {
+  return allModels[providerName];
+}
+
+// Record model usage
+export function recordModelUsage(modelName: string, providerName: ProviderType): void {
+  modelUsageHistory.update((history) => {
+    // Add new usage record at the beginning
+    const newHistory = [
+      {
+        model: modelName,
+        provider: providerName,
+        timestamp: Date.now(),
+      },
+      ...history,
+    ];
+
+    // Keep only last 100 usage records to avoid unbounded growth
+    return newHistory.slice(0, 100);
+  });
+}
+
+// Get recently used models
+export function getRecentModels(history: Array<{ model: string; provider: ProviderType; timestamp: number }>, count = 10): Array<{ model: string; provider: ProviderType; timestamp: number }> {
+  return history.slice(0, count);
 }

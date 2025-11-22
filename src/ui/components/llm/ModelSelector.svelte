@@ -1,5 +1,13 @@
 <script lang="ts">
-  import { model as modelStore, provider as providerStore, apiKeys, endpoint } from '../../stores/config.js';
+  import {
+    model as modelStore,
+    provider as providerStore,
+    apiKeys,
+    endpoint,
+    discoveredModels,
+    saveDiscoveredModels,
+    getDiscoveredModels
+  } from '../../stores/config.js';
   import { onMount, getContext } from 'svelte';
   import type { IPCBridgeAPI } from '$lib/ipc-bridge';
   import type { ProviderType } from '../../../types';
@@ -11,6 +19,7 @@
   let isLoading = $state(false);
   let error = $state<string | null>(null);
   let copySuccess = $state(false);
+  let modelsSource = $state<'cached' | 'api' | 'default'>('default');
 
   let filteredModels = $derived(
     searchQuery
@@ -23,15 +32,30 @@
     error = null;
 
     try {
-      if (ipc && forceRefresh) {
-        // Try to fetch models from the provider
+      // Try loading from cache first if not forcing refresh
+      if (!forceRefresh) {
+        const cachedModels = getDiscoveredModels(provider, $discoveredModels);
+        if (cachedModels && cachedModels.length > 0) {
+          models = cachedModels.map(m => m.id);
+          modelsSource = 'cached';
+          isLoading = false;
+          return;
+        }
+      }
+
+      // Try to fetch models from the provider API
+      if (ipc) {
         const apiKey = $apiKeys[provider];
         const endpointUrl = $endpoint;
         const response = await ipc.discoverModels(provider, apiKey, endpointUrl);
 
         if ('success' in response && response.success && response.data) {
-          models = response.data.map(m => m.id);
-          if (models.length > 0) {
+          const discoveredModelList = response.data;
+          if (discoveredModelList.length > 0) {
+            models = discoveredModelList.map(m => m.id);
+            modelsSource = 'api';
+            // Save to cache
+            saveDiscoveredModels(provider, discoveredModelList);
             isLoading = false;
             return;
           }
@@ -60,9 +84,11 @@
       };
 
       models = defaultModels[provider] || ['default'];
+      modelsSource = 'default';
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load models';
       console.error('Error loading models:', err);
+      modelsSource = 'default';
     } finally {
       isLoading = false;
     }
@@ -102,7 +128,16 @@
 
 <div class="model-selector">
   <div class="model-header">
-    <label for="model-select">Model:</label>
+    <div class="label-group">
+      <label for="model-select">Model:</label>
+      {#if modelsSource === 'cached'}
+        <span class="source-indicator cached" title="Models loaded from cache">💾</span>
+      {:else if modelsSource === 'api'}
+        <span class="source-indicator api" title="Models loaded from API">🌐</span>
+      {:else}
+        <span class="source-indicator default" title="Using default models">📋</span>
+      {/if}
+    </div>
     <div class="button-group">
       <button
         onclick={handleCopyModel}
@@ -170,10 +205,21 @@
     align-items: center;
   }
 
+  .label-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
   label {
     font-size: 0.875rem;
     font-weight: 500;
     color: var(--text-secondary, #666);
+  }
+
+  .source-indicator {
+    font-size: 0.875rem;
+    opacity: 0.7;
   }
 
   .button-group {
