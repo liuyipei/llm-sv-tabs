@@ -107,31 +107,35 @@
   role="button"
   tabindex="0"
 >
-  <input
-    type="checkbox"
-    checked={isSelected}
-    onchange={handleCheckboxChange}
-    onclick={(e) => e.stopPropagation()}
-  />
+  <div class="tab-main-row">
+    <div class="tab-left-section">
+      <input
+        type="checkbox"
+        checked={isSelected}
+        onchange={handleCheckboxChange}
+        onclick={(e) => e.stopPropagation()}
+      />
 
-  {#if tab.thumbnail}
-    <div class="tab-thumbnail">
-      <img src={tab.thumbnail} alt="Tab preview" />
+      {#if tab.thumbnail}
+        <div class="tab-thumbnail">
+          <img src={tab.thumbnail} alt="Tab preview" />
+        </div>
+      {/if}
     </div>
-  {/if}
 
-  <div class="tab-content">
-    <div class="tab-title" title={tab.title}>
-      {tab.title || 'Untitled'}
+    <div class="tab-content">
+      <div class="tab-title" title={tab.title}>
+        {tab.title || 'Untitled'}
+      </div>
+      <div class="tab-url" title={tab.url}>
+        {tab.url}
+      </div>
     </div>
-    <div class="tab-url" title={tab.url}>
-      {tab.url}
-    </div>
+
+    <button class="close-btn" onclick={handleClose} title="Close tab">
+      ×
+    </button>
   </div>
-
-  <button class="close-btn" onclick={handleClose} title="Close tab">
-    ×
-  </button>
 </div>
 
 {#if showContextMenu}
@@ -158,9 +162,6 @@
 
 <style>
   .tab-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
     padding: 6px 8px;
     margin-bottom: 3px;
     background-color: #2d2d30;
@@ -178,16 +179,30 @@
     border-left: 3px solid #007acc;
   }
 
+  .tab-main-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .tab-left-section {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
   input[type='checkbox'] {
     flex-shrink: 0;
     cursor: pointer;
+    margin: 0;
   }
 
   .tab-thumbnail {
-    flex-shrink: 0;
-    width: 80px;
-    height: 45px;
-    border-radius: 3px;
+    width: 48px;
+    height: 27px;
+    border-radius: 2px;
     overflow: hidden;
     background-color: #1e1e1e;
     border: 1px solid #3e3e42;
