@@ -1,5 +1,10 @@
 # Project Setup for Claude Code
 
+## Electron Binary Download
+- In restricted environments, use `npm install --ignore-scripts` to skip Electron binary download
+- This is safe for building/testing (Electron runtime not needed)
+- The SessionStart hook automatically handles this
+
 ## Dependencies
 
 - **Node.js 18+** required
@@ -68,11 +73,6 @@ llm-sv-tabs/
 ### Build Requirements
 - **Always run both builds**: `npm run build` compiles both renderer (Vite) and main process (TypeScript)
 - **Don't modify `dist/` or `dist-main/`**: These are auto-generated build outputs
-
-### Electron Binary Download
-- In restricted environments, use `npm install --ignore-scripts` to skip Electron binary download
-- This is safe for building/testing (Electron runtime not needed)
-- The SessionStart hook automatically handles this
 
 ### Development Workflow
 - **For code changes**: Run `npm run build` then `npm start` to test in Electron

@@ -20,6 +20,12 @@ class MockBrowserView {
       reload: vi.fn(),
       destroy: vi.fn(),
       on: vi.fn(),
+      setWindowOpenHandler: vi.fn(),
+      executeJavaScript: vi.fn(),
+      downloadURL: vi.fn(),
+      inspectElement: vi.fn(),
+      isDevToolsOpened: vi.fn().mockReturnValue(false),
+      openDevTools: vi.fn(),
     };
     this.setBounds = vi.fn();
   }
