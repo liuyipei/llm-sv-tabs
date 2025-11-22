@@ -101,6 +101,16 @@ const electronAPI = {
   onActiveTabChanged: (callback: (data: ActiveTabChangedEvent) => void): void => {
     ipcRenderer.on('active-tab-changed', (_event, data) => callback(data));
   },
+
+  onLLMChunk: (callback: (payload: { tabId: string; chunk: string }) => void) => {
+    const handler = (_event: unknown, payload: { tabId: string; chunk: string }) => {
+      callback(payload);
+    };
+    ipcRenderer.on('llm-stream-chunk', handler);
+
+    // Return unsubscribe function
+    return () => ipcRenderer.removeListener('llm-stream-chunk', handler);
+  },
 };
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);

@@ -25,6 +25,7 @@ export interface IPCBridgeAPI {
   addBookmark(bookmark: Omit<Bookmark, 'id' | 'created'>): Promise<IPCResponse<Bookmark> | { success: boolean }>;
   sendQuery(query: string, options?: QueryOptions): Promise<LLMResponse | { response: string }>;
   discoverModels(provider: ProviderType, apiKey?: string, endpoint?: string): Promise<IPCResponse<LLMModel[]> | LLMModel[]>;
+  onLLMChunk?(callback: (payload: { tabId: string; chunk: string }) => void): () => void;
 }
 
 /**

@@ -84,6 +84,99 @@ export class OpenAIProvider extends BaseProvider {
     }
   }
 
+  async queryStream(
+    messages: Array<{ role: string; content: string }>,
+    options: QueryOptions | undefined,
+    onChunk: (chunk: string) => void
+  ): Promise<LLMResponse> {
+    const startTime = Date.now();
+
+    if (!this.apiKey && !options?.apiKey) {
+      return {
+        response: '',
+        error: 'OpenAI API key is required',
+      };
+    }
+
+    const apiKey = options?.apiKey || this.apiKey;
+    const model = options?.model || this.model || 'gpt-4o-mini';
+    const temperature = options?.temperature ?? 0.7;
+    const maxTokens = options?.maxTokens ?? 4096;
+
+    try {
+      const response = await fetch(`${OpenAIProvider.API_BASE}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature,
+          max_tokens: maxTokens,
+          stream: true,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`HTTP ${response.status}: ${error}`);
+      }
+
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+      let buffer = '';
+      let returnedModel = model;
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.trim() || line.startsWith(':')) continue;
+          if (!line.startsWith('data: ')) continue;
+
+          const data = line.slice(6);
+          if (data === '[DONE]') continue;
+
+          try {
+            const parsed = JSON.parse(data);
+            const delta = parsed.choices?.[0]?.delta?.content || '';
+            if (delta) {
+              fullText += delta;
+              onChunk(delta);
+            }
+            if (parsed.model) {
+              returnedModel = parsed.model;
+            }
+          } catch (e) {
+            // Skip malformed JSON
+          }
+        }
+      }
+
+      const responseTime = Date.now() - startTime;
+
+      return {
+        response: fullText,
+        responseTime,
+        model: returnedModel,
+      };
+    } catch (error) {
+      return {
+        response: '',
+        error: error instanceof Error ? error.message : String(error),
+        responseTime: Date.now() - startTime,
+      };
+    }
+  }
+
   async validate(): Promise<{ valid: boolean; error?: string }> {
     if (!this.apiKey) {
       return { valid: false, error: 'API key is required' };

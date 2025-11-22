@@ -2,17 +2,18 @@ import { BrowserView, BrowserWindow, Menu, MenuItem } from 'electron';
 import type { Tab, TabData, TabType } from '../types';
 import { SessionManager } from './services/session-manager.js';
 import { createNoteHTML } from './templates/note-template.js';
-import { createLLMResponseHTML } from './templates/llm-response-template.js';
 import { createRawMessageViewerHTML } from './templates/raw-message-template.js';
 
 interface TabWithView extends Tab {
-  view: BrowserView;
+  view?: BrowserView;  // Optional for Svelte-rendered tabs
+  component?: 'llm-response' | 'note';  // For Svelte-rendered tabs
 }
 
 class TabManager {
   private mainWindow: BrowserWindow;
   private tabs: Map<string, TabWithView>;
   private activeTabId: string | null;
+  private activeBrowserView: BrowserView | null;
   private tabCounter: number;
   private sessionManager: SessionManager;
   private readonly SIDEBAR_WIDTH = 350;
@@ -22,6 +23,7 @@ class TabManager {
     this.mainWindow = mainWindow;
     this.tabs = new Map();
     this.activeTabId = null;
+    this.activeBrowserView = null;
     this.tabCounter = 0;
     this.sessionManager = new SessionManager();
 
@@ -238,21 +240,16 @@ class TabManager {
   openLLMResponseTab(query: string, response?: string, error?: string, autoSelect: boolean = true): { tabId: string; tab: TabData } {
     const tabId = this.createTabId();
 
-    const view = new BrowserView({
-      webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true,
-      },
-    });
-
     const timestamp = Date.now();
     const isLoading = !response && !error;
+
+    // No BrowserView for LLM responses - use Svelte component instead
     const tab: TabWithView = {
       id: tabId,
       title: error ? 'Error' : (isLoading ? 'Loading...' : 'LLM Response'),
       url: `llm-response://${timestamp}`,
       type: 'notes' as TabType,
-      view: view,
+      component: 'llm-response',  // Render using Svelte component
       created: timestamp,
       lastViewed: timestamp,
       metadata: {
@@ -265,20 +262,6 @@ class TabManager {
     };
 
     this.tabs.set(tabId, tab);
-
-    // Create HTML content with markdown rendering
-    const displayResponse = response || (isLoading ? 'Loading response...' : '');
-    const htmlContent = createLLMResponseHTML(query, displayResponse, error, tab.metadata);
-
-    // Load HTML content using data URI
-    const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent);
-    view.webContents.loadURL(dataUrl);
-
-    // Set up context menu for links
-    this.setupContextMenu(view, tabId);
-
-    // Set up handler for control-click/cmd-click to open links in new tabs
-    this.setupWindowOpenHandler(view);
 
     // Set as active tab (if autoSelect is true)
     if (autoSelect) {
@@ -324,14 +307,8 @@ class TabManager {
       }
     }
 
-    // Re-create HTML content with updated response
-    const query = tab.metadata?.query || '';
-    const error = metadata?.error;
-    const htmlContent = createLLMResponseHTML(query, response, error, tab.metadata);
-
-    // Reload HTML content
-    const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent);
-    tab.view.webContents.loadURL(dataUrl);
+    // For Svelte component tabs, no need to reload HTML
+    // The streaming component will handle the rendering
 
     // Notify renderer of title update
     this.sendToRenderer('tab-title-updated', { id: tabId, title: tab.title });
@@ -632,12 +609,10 @@ class TabManager {
     const tab = this.tabs.get(tabId);
     if (!tab) return { success: false, error: 'Tab not found' };
 
-    // Hide current active tab
-    if (this.activeTabId && this.activeTabId !== tabId) {
-      const currentTab = this.tabs.get(this.activeTabId);
-      if (currentTab && currentTab.view) {
-        this.mainWindow.removeBrowserView(currentTab.view);
-      }
+    // Hide previous BrowserView if there was one
+    if (this.activeBrowserView) {
+      this.mainWindow.removeBrowserView(this.activeBrowserView);
+      this.activeBrowserView = null;
     }
 
     // Show new active tab
@@ -645,7 +620,9 @@ class TabManager {
     tab.lastViewed = Date.now();
 
     if (tab.view) {
+      // Traditional BrowserView tab (webpage, notes, uploads)
       this.mainWindow.addBrowserView(tab.view);
+      this.activeBrowserView = tab.view;
 
       // Position the view to the right of the sidebar and below the header
       const bounds = this.mainWindow.getContentBounds();
@@ -655,6 +632,10 @@ class TabManager {
         width: Math.max(0, bounds.width - this.SIDEBAR_WIDTH),
         height: Math.max(0, bounds.height - this.HEADER_HEIGHT),
       });
+    } else {
+      // Svelte component tab (LLM responses)
+      // Renderer will show Svelte component in the content area
+      this.activeBrowserView = null;
     }
 
     // Notify renderer
@@ -755,6 +736,20 @@ class TabManager {
     if (this.mainWindow && this.mainWindow.webContents) {
       this.mainWindow.webContents.send(channel, data);
     }
+  }
+
+  /**
+   * Send streaming chunk to renderer for LLM responses
+   */
+  sendStreamChunk(tabId: string, chunk: string): void {
+    this.mainWindow.webContents.send('llm-stream-chunk', { tabId, chunk });
+  }
+
+  /**
+   * Get tab by ID
+   */
+  getTab(tabId: string): TabWithView | undefined {
+    return this.tabs.get(tabId);
   }
 
   /**

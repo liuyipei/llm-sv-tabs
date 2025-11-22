@@ -8,13 +8,18 @@
   import LLMControls from '$components/llm/LLMControls.svelte';
   import NotesSection from '$components/notes/NotesSection.svelte';
   import ResizableDivider from '$components/ResizableDivider.svelte';
+  import MessageStream from '$components/chat/MessageStream.svelte';
   import { activeSidebarView, sidebarTabsHeightPercent } from '$stores/ui';
-  import { activeTabId, sortedTabs } from '$stores/tabs';
+  import { activeTabId, activeTabs, sortedTabs } from '$stores/tabs';
   import { initKeyboardShortcuts } from '$utils/keyboard-shortcuts';
 
   // Import styles for markdown rendering
   import '~/highlight.js/styles/github-dark.css';
   import '~/katex/dist/katex.css';
+
+  // Reactive computed properties
+  $: activeTab = $activeTabId ? $activeTabs.get($activeTabId) : null;
+  $: showSvelteContent = activeTab?.component === 'llm-response';
 
   // Initialize IPC and make it available to all child components
   const ipc: IPCBridgeAPI = initializeIPC();
@@ -224,10 +229,14 @@
     <section class="main-content">
       <UrlBar />
       <div class="browser-view">
-        <div class="browser-placeholder">
-          <p>Browser content will appear here</p>
-          <p class="hint">Enter a URL above to open a new tab</p>
-        </div>
+        {#if showSvelteContent && activeTab}
+          <MessageStream tabId={activeTab.id} />
+        {:else}
+          <div class="browser-placeholder">
+            <p>Browser content will appear here</p>
+            <p class="hint">Enter a URL above to open a new tab</p>
+          </div>
+        {/if}
       </div>
     </section>
   </div>

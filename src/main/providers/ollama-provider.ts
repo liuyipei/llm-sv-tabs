@@ -90,6 +90,91 @@ export class OllamaProvider extends BaseProvider {
     }
   }
 
+  async queryStream(
+    messages: Array<{ role: string; content: string }>,
+    options: QueryOptions | undefined,
+    onChunk: (chunk: string) => void
+  ): Promise<LLMResponse> {
+    const startTime = Date.now();
+
+    const endpoint = options?.endpoint || this.endpoint || OllamaProvider.DEFAULT_ENDPOINT;
+    const model = options?.model || this.model || 'llama3.2';
+    const temperature = options?.temperature ?? 0.7;
+
+    try {
+      const response = await fetch(`${endpoint}/api/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          stream: true,
+          options: {
+            temperature,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`HTTP ${response.status}: ${error}`);
+      }
+
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+      let buffer = '';
+      let tokensIn = 0;
+      let tokensOut = 0;
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+
+          try {
+            const parsed = JSON.parse(line);
+            const content = parsed.message?.content || '';
+            if (content) {
+              fullText += content;
+              onChunk(content);
+            }
+
+            // Ollama returns token counts in the final message
+            if (parsed.done) {
+              tokensIn = parsed.prompt_eval_count || tokensIn;
+              tokensOut = parsed.eval_count || tokensOut;
+            }
+          } catch (e) {
+            // Skip malformed JSON
+          }
+        }
+      }
+
+      return {
+        response: fullText,
+        tokensIn,
+        tokensOut,
+        responseTime: Date.now() - startTime,
+        model,
+      };
+    } catch (error) {
+      return {
+        response: '',
+        error: error instanceof Error ? error.message : String(error),
+        responseTime: Date.now() - startTime,
+      };
+    }
+  }
+
   async validate(): Promise<{ valid: boolean; error?: string }> {
     try {
       const response = await this.makeRequest(`${this.endpoint}/api/tags`, {
