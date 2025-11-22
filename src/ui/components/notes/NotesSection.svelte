@@ -8,6 +8,8 @@
     title: string;
     body: string;
     selected: boolean;
+    fileType?: 'text' | 'pdf' | 'image';
+    mimeType?: string;
   };
 
   const ipc = getContext<IPCBridgeAPI>('ipc');
@@ -72,7 +74,7 @@
 
       // Create a tab for this note
       try {
-        await ipc.openNoteTab(editingNote.id, editingNote.title, editingNote.body);
+        await ipc.openNoteTab(editingNote.id, editingNote.title, editingNote.body, editingNote.fileType || 'text');
       } catch (error) {
         console.error('Failed to create tab for note:', error);
       }
@@ -104,6 +106,9 @@
       return;
     }
 
+    // Detect file type based on MIME type
+    const fileType = detectFileType(file);
+
     const reader = new FileReader();
     reader.onload = async (e) => {
       const content = e.target?.result as string;
@@ -112,19 +117,46 @@
         title: file.name,
         body: content,
         selected: false,
+        fileType,
+        mimeType: file.type,
       };
       notes.update(n => [...n, newNote]);
 
       // Create a tab for the uploaded file
       if (ipc) {
         try {
-          await ipc.openNoteTab(newNote.id, newNote.title, newNote.body);
+          await ipc.openNoteTab(newNote.id, newNote.title, newNote.body, fileType);
         } catch (error) {
           console.error('Failed to create tab for uploaded file:', error);
         }
       }
     };
-    reader.readAsText(file);
+
+    // Use appropriate reader method based on file type
+    if (fileType === 'image' || fileType === 'pdf') {
+      reader.readAsDataURL(file);
+    } else {
+      reader.readAsText(file);
+    }
+  }
+
+  function detectFileType(file: File): 'text' | 'pdf' | 'image' {
+    const mimeType = file.type.toLowerCase();
+    const fileName = file.name.toLowerCase();
+
+    // Check for images
+    if (mimeType.startsWith('image/') ||
+        /\.(jpg|jpeg|png|gif|webp|bmp|svg|ico)$/i.test(fileName)) {
+      return 'image';
+    }
+
+    // Check for PDFs
+    if (mimeType === 'application/pdf' || fileName.endsWith('.pdf')) {
+      return 'pdf';
+    }
+
+    // Default to text
+    return 'text';
   }
 
   function handleDragOver(event: DragEvent): void {
