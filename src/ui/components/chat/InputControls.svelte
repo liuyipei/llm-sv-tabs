@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getContext } from 'svelte';
-  import { queryInput, isLoading, addChatMessage } from '$stores/ui';
+  import { queryInput, isLoading } from '$stores/ui';
   import { provider, model, apiKeys, endpoint, temperature, maxTokens, systemPrompt } from '$stores/config';
   import type { IPCBridgeAPI } from '$lib/ipc-bridge';
   import type { QueryOptions } from '$types';
@@ -12,13 +12,6 @@
 
     const query = $queryInput.trim();
     $queryInput = '';
-
-    // Add user message to chat
-    addChatMessage({
-      id: Date.now(),
-      role: 'user',
-      content: query,
-    });
 
     if (ipc) {
       isLoading.set(true);
@@ -36,32 +29,19 @@
 
         const response = await ipc.sendQuery(query, options);
 
+        // Create a tab with the LLM response
+        const timestamp = Date.now();
+        const responseUrl = `llm-response://${timestamp}`;
+
         // Check for error in response
         if (response.error) {
-          addChatMessage({
-            id: Date.now() + 1,
-            role: 'assistant',
-            content: `Error: ${response.error}`,
-          });
+          await ipc.openUrl(responseUrl);
+          console.error('LLM Error:', response.error);
         } else {
-          // Add assistant response to chat
-          addChatMessage({
-            id: Date.now() + 1,
-            role: 'assistant',
-            content: response.response || 'No response',
-            stats: {
-              tokensUsed: response.tokensUsed,
-              responseTime: response.responseTime,
-              model: response.model,
-            },
-          });
+          await ipc.openUrl(responseUrl);
         }
       } catch (error) {
-        addChatMessage({
-          id: Date.now() + 1,
-          role: 'assistant',
-          content: `Error: ${error instanceof Error ? error.message : String(error)}`,
-        });
+        console.error('Failed to send query:', error);
       } finally {
         isLoading.set(false);
       }
@@ -99,9 +79,8 @@
 <style>
   .input-controls {
     flex: 1;
-    padding: 10px;
+    padding: 15px;
     background-color: #252526;
-    border-top: 1px solid #3e3e42;
     display: flex;
     flex-direction: column;
   }
