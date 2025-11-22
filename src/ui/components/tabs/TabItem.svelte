@@ -56,6 +56,13 @@
     }
   }
 
+  async function handleRefreshClick(event: MouseEvent): Promise<void> {
+    event.stopPropagation();
+    if (ipc) {
+      await ipc.reloadTab(tab.id);
+    }
+  }
+
   async function handleCopyUrl(event: MouseEvent): Promise<void> {
     event.stopPropagation();
     showContextMenu = false;
@@ -131,6 +138,10 @@
         {tab.url}
       </div>
     </div>
+
+    <button class="refresh-btn" onclick={handleRefreshClick} title="Reload tab">
+      ↻
+    </button>
 
     <button class="close-btn" onclick={handleClose} title="Close tab">
       ×
@@ -236,6 +247,29 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .refresh-btn {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    color: #d4d4d4;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.6;
+    transition: all 0.2s;
+  }
+
+  .refresh-btn:hover {
+    opacity: 1;
+    background-color: #007acc;
   }
 
   .close-btn {
