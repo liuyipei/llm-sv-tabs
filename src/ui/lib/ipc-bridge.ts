@@ -18,6 +18,7 @@ export interface IPCBridgeAPI {
   reloadTab(tabId: string): Promise<IPCResponse | { success: boolean }>;
   copyTabUrl(tabId: string): Promise<IPCResponse<{ url?: string }> | { success: boolean; url?: string }>;
   openNoteTab(noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image'): Promise<IPCResponse<{ tabId: string; tab: TabData }> | { tabId: string; tab: Tab }>;
+  openLLMResponseTab(query: string, response: string, error?: string): Promise<IPCResponse<{ tabId: string; tab: TabData }> | { tabId: string; tab: Tab }>;
   getBookmarks(): Promise<IPCResponse<Bookmark[]> | Bookmark[]>;
   addBookmark(bookmark: Omit<Bookmark, 'id' | 'created'>): Promise<IPCResponse<Bookmark> | { success: boolean }>;
   sendQuery(query: string, options?: QueryOptions): Promise<LLMResponse | { response: string }>;
@@ -77,6 +78,7 @@ export function initializeIPC(): IPCBridgeAPI {
     reloadTab: (tabId: string) => window.electronAPI.reloadTab(tabId),
     copyTabUrl: (tabId: string) => window.electronAPI.copyTabUrl(tabId),
     openNoteTab: (noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image') => window.electronAPI.openNoteTab(noteId, title, content, fileType),
+    openLLMResponseTab: (query: string, response: string, error?: string) => window.electronAPI.openLLMResponseTab(query, response, error),
     getBookmarks: () => window.electronAPI.getBookmarks(),
     addBookmark: (bookmark: Omit<Bookmark, 'id' | 'created'>) => window.electronAPI.addBookmark(bookmark),
     sendQuery: (query: string, options?: QueryOptions) => window.electronAPI.sendQuery(query, options),
@@ -163,6 +165,21 @@ function createMockAPI(): IPCBridgeAPI {
         type: 'notes',
         created: Date.now(),
         lastViewed: Date.now(),
+      };
+      addTab(tab);
+      activeTabId.set(tab.id);
+      return { tabId: tab.id, tab };
+    },
+    openLLMResponseTab: async (query: string, response: string, error?: string) => {
+      console.log('Mock: openLLMResponseTab', query, response, error);
+      const timestamp = Date.now();
+      const tab: Tab = {
+        id: `mock-llm-${timestamp}`,
+        title: error ? 'Error' : 'LLM Response',
+        url: `llm-response://${timestamp}`,
+        type: 'notes',
+        created: timestamp,
+        lastViewed: timestamp,
       };
       addTab(tab);
       activeTabId.set(tab.id);
