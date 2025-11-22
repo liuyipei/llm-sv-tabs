@@ -74,7 +74,6 @@ describe('IPC Bridge', () => {
         onTabClosed: vi.fn(),
         onTabTitleUpdated: vi.fn(),
         onTabUrlUpdated: vi.fn(),
-        onTabThumbnailUpdated: vi.fn(),
         onActiveTabChanged: vi.fn(),
       };
 
@@ -169,7 +168,6 @@ describe('IPC Bridge', () => {
         onTabClosed: vi.fn((callback) => { eventHandlers.tabClosed = callback; }),
         onTabTitleUpdated: vi.fn((callback) => { eventHandlers.tabTitleUpdated = callback; }),
         onTabUrlUpdated: vi.fn((callback) => { eventHandlers.tabUrlUpdated = callback; }),
-        onTabThumbnailUpdated: vi.fn((callback) => { eventHandlers.tabThumbnailUpdated = callback; }),
         onActiveTabChanged: vi.fn((callback) => { eventHandlers.activeTabChanged = callback; }),
       };
 

@@ -14,7 +14,6 @@ export interface Tab {
   url: string;
   type: TabType;
   favicon?: string;
-  thumbnail?: string; // base64 encoded thumbnail image
   lastViewed?: number;
   created?: number;
 }
@@ -24,7 +23,6 @@ export interface TabData {
   title: string;
   url: string;
   type: TabType;
-  thumbnail?: string; // base64 encoded thumbnail image
 }
 
 export type SortMode = 'time' | 'url' | 'title' | 'manual';
@@ -172,11 +170,6 @@ export interface TabTitleUpdatedEvent {
 export interface TabUrlUpdatedEvent {
   id: string;
   url: string;
-}
-
-export interface TabThumbnailUpdatedEvent {
-  id: string;
-  thumbnail: string;
 }
 
 export interface ActiveTabChangedEvent {
