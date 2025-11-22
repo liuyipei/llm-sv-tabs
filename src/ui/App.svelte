@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { setContext } from 'svelte';
+  import { setContext, onMount } from 'svelte';
   import { initializeIPC, type IPCBridgeAPI } from '$lib/ipc-bridge';
   import TabsSection from '$components/tabs/TabsSection.svelte';
   import BookmarksSection from '$components/bookmarks/BookmarksSection.svelte';
@@ -8,6 +8,8 @@
   import LLMControls from '$components/llm/LLMControls.svelte';
   import NotesSection from '$components/notes/NotesSection.svelte';
   import { activeSidebarView } from '$stores/ui';
+  import { activeTabId, sortedTabs } from '$stores/tabs';
+  import { initKeyboardShortcuts } from '$utils/keyboard-shortcuts';
 
   // Import styles for markdown rendering
   import '~/highlight.js/styles/github-dark.css';
@@ -17,9 +19,80 @@
   const ipc: IPCBridgeAPI = initializeIPC();
   setContext('ipc', ipc);
 
+  // Input focus callbacks (will be set by child components)
+  let focusUrlInputCallback: (() => void) | null = null;
+  let focusLLMInputCallback: (() => void) | null = null;
+
+  function setFocusUrlInputCallback(callback: () => void): void {
+    focusUrlInputCallback = callback;
+  }
+
+  function setFocusLLMInputCallback(callback: () => void): void {
+    focusLLMInputCallback = callback;
+  }
+
+  setContext('setFocusUrlInputCallback', setFocusUrlInputCallback);
+  setContext('setFocusLLMInputCallback', setFocusLLMInputCallback);
+
   function setView(view: 'chat' | 'settings' | 'bookmarks' | 'notes'): void {
     activeSidebarView.set(view);
   }
+
+  // Keyboard shortcut actions
+  function focusUrlInput(): void {
+    if (focusUrlInputCallback) {
+      focusUrlInputCallback();
+    }
+  }
+
+  function focusLLMInput(): void {
+    if (focusLLMInputCallback) {
+      focusLLMInputCallback();
+    }
+  }
+
+  async function closeActiveTab(): Promise<void> {
+    const currentActiveTabId = $activeTabId;
+    if (currentActiveTabId && ipc) {
+      try {
+        await ipc.closeTab(currentActiveTabId);
+      } catch (error) {
+        console.error('Failed to close active tab:', error);
+      }
+    }
+  }
+
+  async function bookmarkActiveTab(): Promise<void> {
+    const currentActiveTabId = $activeTabId;
+    if (!currentActiveTabId || !ipc) return;
+
+    // Find the active tab
+    const activeTab = $sortedTabs.find((tab) => tab.id === currentActiveTabId);
+    if (!activeTab) return;
+
+    try {
+      await ipc.addBookmark({
+        title: activeTab.title,
+        url: activeTab.url,
+      });
+      console.log('Bookmark added:', activeTab.title);
+    } catch (error) {
+      console.error('Failed to bookmark tab:', error);
+    }
+  }
+
+  // Initialize keyboard shortcuts on mount
+  onMount(() => {
+    const cleanup = initKeyboardShortcuts({
+      focusUrlInput,
+      focusLLMInput,
+      closeActiveTab,
+      bookmarkActiveTab,
+    });
+
+    // Cleanup on unmount
+    return cleanup;
+  });
 </script>
 
 <main class="app-container">

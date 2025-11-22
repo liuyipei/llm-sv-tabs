@@ -1,11 +1,15 @@
 <script lang="ts">
-  import { getContext } from 'svelte';
+  import { getContext, onMount } from 'svelte';
   import { queryInput, isLoading } from '$stores/ui';
   import { provider, model, apiKeys, endpoint, temperature, maxTokens, systemPrompt } from '$stores/config';
   import type { IPCBridgeAPI } from '$lib/ipc-bridge';
   import type { QueryOptions } from '$types';
 
   const ipc = getContext<IPCBridgeAPI>('ipc');
+  const setFocusLLMInputCallback = getContext<(callback: () => void) => void>('setFocusLLMInputCallback');
+
+  // Reference to the query input element
+  let queryInputElement: HTMLTextAreaElement;
 
   async function handleQuerySubmit(): Promise<void> {
     if (!$queryInput.trim()) return;
@@ -54,11 +58,27 @@
       handleQuerySubmit();
     }
   }
+
+  function focusQueryInputElement(): void {
+    if (queryInputElement) {
+      queryInputElement.focus();
+      // For textarea, select all text if there's any
+      queryInputElement.select();
+    }
+  }
+
+  // Register focus callback on mount
+  onMount(() => {
+    if (setFocusLLMInputCallback) {
+      setFocusLLMInputCallback(focusQueryInputElement);
+    }
+  });
 </script>
 
 <div class="input-controls">
   <div class="query-input-container">
     <textarea
+      bind:this={queryInputElement}
       bind:value={$queryInput}
       onkeydown={handleQueryKeydown}
       placeholder="Ask a question about your tabs... (Enter to send, Shift+Enter for new line)"
