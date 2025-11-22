@@ -79,6 +79,13 @@
     }
   }
 
+  async function handleDebugInfoClick(event: MouseEvent): Promise<void> {
+    event.stopPropagation();
+    if (ipc) {
+      await ipc.openDebugInfoWindow(tab.id);
+    }
+  }
+
   async function handleCopyUrl(event: MouseEvent): Promise<void> {
     event.stopPropagation();
     showContextMenu = false;
@@ -150,6 +157,9 @@
     {#if isLLMResponse}
       <button class="refresh-btn view-raw-btn" onclick={handleViewRawClick} title="View raw message">
         📄
+      </button>
+      <button class="refresh-btn debug-info-btn" onclick={handleDebugInfoClick} title="Debug info (opens in new window)">
+        🐛
       </button>
     {:else}
       <button class="refresh-btn" onclick={handleRefreshClick} title="Reload tab">

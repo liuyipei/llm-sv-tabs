@@ -395,6 +395,207 @@ class TabManager {
     return { success: true };
   }
 
+  openDebugInfoWindow(tabId: string): { success: boolean; error?: string } {
+    const tab = this.tabs.get(tabId);
+    if (!tab) return { success: false, error: 'Tab not found' };
+    if (!tab.metadata?.isLLMResponse) return { success: false, error: 'Not an LLM response tab' };
+
+    // Create a new window for debug info
+    const debugWindow = new BrowserWindow({
+      width: 900,
+      height: 700,
+      title: 'LLM Debug Info',
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    // Create HTML for debug info viewer with formatted JSON
+    const htmlContent = this.createDebugInfoHTML(tab.metadata);
+
+    // Load HTML content using data URI
+    const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent);
+    debugWindow.loadURL(dataUrl);
+
+    // Open DevTools for easy inspection
+    debugWindow.webContents.openDevTools();
+
+    return { success: true };
+  }
+
+  private createDebugInfoHTML(metadata: any): string {
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>LLM Debug Info</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background-color: #1e1e1e;
+      color: #d4d4d4;
+      padding: 20px;
+      margin: 0;
+    }
+    h1 {
+      color: #4ec9b0;
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+    h2 {
+      color: #569cd6;
+      font-size: 18px;
+      margin-top: 30px;
+      margin-bottom: 10px;
+    }
+    .section {
+      background-color: #252526;
+      border: 1px solid #3e3e42;
+      border-radius: 4px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+    pre {
+      background-color: #1e1e1e;
+      border: 1px solid #3e3e42;
+      border-radius: 4px;
+      padding: 15px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .key {
+      color: #9cdcfe;
+      font-weight: bold;
+    }
+    .value {
+      color: #ce9178;
+    }
+    .number {
+      color: #b5cea8;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    td {
+      padding: 8px;
+      border-bottom: 1px solid #3e3e42;
+    }
+    td:first-child {
+      color: #9cdcfe;
+      font-weight: bold;
+      width: 150px;
+    }
+    .copy-btn {
+      background-color: #007acc;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+    .copy-btn:hover {
+      background-color: #005a9e;
+    }
+  </style>
+</head>
+<body>
+  <h1>🐛 LLM Debug Information</h1>
+
+  <div class="section">
+    <h2>Token Statistics</h2>
+    <table>
+      <tr>
+        <td>Tokens In:</td>
+        <td class="number">${metadata.tokensIn || 'N/A'}</td>
+      </tr>
+      <tr>
+        <td>Tokens Out:</td>
+        <td class="number">${metadata.tokensOut || 'N/A'}</td>
+      </tr>
+      <tr>
+        <td>Total Tokens:</td>
+        <td class="number">${(metadata.tokensIn || 0) + (metadata.tokensOut || 0)}</td>
+      </tr>
+      <tr>
+        <td>Model:</td>
+        <td>${metadata.model || 'N/A'}</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Query</h2>
+    <pre>${this.escapeHtml(metadata.query || 'N/A')}</pre>
+  </div>
+
+  ${metadata.fullQuery && metadata.fullQuery !== metadata.query ? `
+  <div class="section">
+    <h2>Full Query (with context)</h2>
+    <pre>${this.escapeHtml(metadata.fullQuery)}</pre>
+  </div>
+  ` : ''}
+
+  ${metadata.selectedTabIds && metadata.selectedTabIds.length > 0 ? `
+  <div class="section">
+    <h2>Selected Tabs</h2>
+    <pre>${JSON.stringify(metadata.selectedTabIds, null, 2)}</pre>
+  </div>
+  ` : ''}
+
+  <div class="section">
+    <h2>Response</h2>
+    <pre>${this.escapeHtml(metadata.response?.substring(0, 5000) || 'N/A')}${(metadata.response?.length || 0) > 5000 ? '\n\n... (truncated, see full metadata below)' : ''}</pre>
+  </div>
+
+  ${metadata.error ? `
+  <div class="section">
+    <h2>Error</h2>
+    <pre style="color: #f48771;">${this.escapeHtml(metadata.error)}</pre>
+  </div>
+  ` : ''}
+
+  <div class="section">
+    <h2>Full Metadata Object</h2>
+    <button class="copy-btn" onclick="copyMetadata()">Copy JSON</button>
+    <pre id="metadata-json">${this.escapeHtml(JSON.stringify(metadata, null, 2))}</pre>
+  </div>
+
+  <script>
+    function copyMetadata() {
+      const text = document.getElementById('metadata-json').textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = document.querySelector('.copy-btn');
+        const originalText = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => {
+          btn.textContent = originalText;
+        }, 2000);
+      });
+    }
+  </script>
+</body>
+</html>
+    `.trim();
+  }
+
+  private escapeHtml(text: string): string {
+    const map: { [key: string]: string } = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, (m) => map[m]);
+  }
+
   closeTab(tabId: string): { success: boolean; error?: string } {
     const tab = this.tabs.get(tabId);
     if (!tab) return { success: false, error: 'Tab not found' };
