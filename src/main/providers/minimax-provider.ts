@@ -84,7 +84,8 @@ export class MinimaxProvider extends BaseProvider {
 
       return {
         response: data.choices[0].message?.content || data.choices[0].text,
-        tokensUsed: data.usage?.total_tokens,
+        tokensIn: data.usage?.prompt_tokens,
+        tokensOut: data.usage?.completion_tokens,
         responseTime: Date.now() - startTime,
         model,
       };

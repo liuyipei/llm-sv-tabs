@@ -87,7 +87,8 @@ export class FireworksProvider extends BaseProvider {
 
       return {
         response: data.choices[0].message.content,
-        tokensUsed: data.usage?.total_tokens,
+        tokensIn: data.usage?.prompt_tokens,
+        tokensOut: data.usage?.completion_tokens,
         responseTime: Date.now() - startTime,
         model: data.model || model,
       };

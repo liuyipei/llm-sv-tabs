@@ -76,7 +76,8 @@ export class OllamaProvider extends BaseProvider {
 
       return {
         response: data.message?.content || '',
-        tokensUsed: data.eval_count || undefined,
+        tokensIn: data.prompt_eval_count,
+        tokensOut: data.eval_count,
         responseTime,
         model,
       };

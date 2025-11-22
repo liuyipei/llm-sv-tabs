@@ -5,7 +5,7 @@ LLM-powered browser built with Electron and Svelte 5, featuring tab management a
 ## Features
 
 - **Tab Management**: Create, switch, close tabs with BrowserView
-- **LLM Integration**: Query tabs with OpenAI, Anthropic, Ollama, local providers
+- **LLM Integration**: Query tabs with Fireworks AI, OpenRouter, Anthropic, OpenAI, and more
 - **Content Extraction**: DOM serialization and screenshots for vision models
 - **Reactive UI**: Svelte 5 components with automatic updates
 - **Type-Safe**: Full TypeScript with comprehensive type definitions

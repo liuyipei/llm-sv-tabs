@@ -76,7 +76,8 @@ export class AnthropicProvider extends BaseProvider {
 
       return {
         response: data.content[0]?.text || '',
-        tokensUsed: data.usage?.input_tokens + data.usage?.output_tokens,
+        tokensIn: data.usage?.input_tokens,
+        tokensOut: data.usage?.output_tokens,
         responseTime,
         model: data.model,
       };
