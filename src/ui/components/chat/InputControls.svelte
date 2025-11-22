@@ -1,7 +1,7 @@
 <script lang="ts">
   import { getContext, onMount } from 'svelte';
   import { queryInput, isLoading } from '$stores/ui';
-  import { provider, model, apiKeys, endpoint, temperature, maxTokens, systemPrompt } from '$stores/config';
+  import { provider, model, apiKeys, endpoint, temperature, maxTokens, systemPrompt, recordModelUsage } from '$stores/config';
   import { selectedTabs } from '$stores/tabs';
   import type { IPCBridgeAPI } from '$lib/ipc-bridge';
   import type { QueryOptions } from '$types';
@@ -39,6 +39,11 @@
         };
 
         const response = await ipc.sendQuery(query, options);
+
+        // Record model usage if we got a valid response
+        if (response.model && !response.error) {
+          recordModelUsage(response.model, $provider);
+        }
 
         // Update the tab with the response
         if (tabId) {
