@@ -13,6 +13,9 @@
   const ipc = getContext<IPCBridgeAPI>('ipc');
   let notes = writable<Note[]>([]);
   let editingNote: Note | null = $state(null);
+  let isDragging = $state(false);
+  let showSizeConfirmDialog = $state(false);
+  let pendingLargeFile: File | null = $state(null);
 
   // Load notes from localStorage on mount
   onMount(() => {
@@ -84,29 +87,84 @@
 
     if (files) {
       for (const file of Array.from(files)) {
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-          const content = e.target?.result as string;
-          const newNote: Note = {
-            id: Date.now(),
-            title: file.name,
-            body: content,
-            selected: false,
-          };
-          notes.update(n => [...n, newNote]);
-
-          // Create a tab for the uploaded file
-          if (ipc) {
-            try {
-              await ipc.openNoteTab(newNote.id, newNote.title, newNote.body);
-            } catch (error) {
-              console.error('Failed to create tab for uploaded file:', error);
-            }
-          }
-        };
-        reader.readAsText(file);
+        await processFile(file);
       }
     }
+    // Reset input value to allow uploading the same file again
+    input.value = '';
+  }
+
+  async function processFile(file: File, skipSizeCheck = false): Promise<void> {
+    const MAX_SIZE = 50 * 1024 * 1024; // 50MB in bytes
+
+    // Check file size
+    if (!skipSizeCheck && file.size > MAX_SIZE) {
+      pendingLargeFile = file;
+      showSizeConfirmDialog = true;
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const content = e.target?.result as string;
+      const newNote: Note = {
+        id: Date.now(),
+        title: file.name,
+        body: content,
+        selected: false,
+      };
+      notes.update(n => [...n, newNote]);
+
+      // Create a tab for the uploaded file
+      if (ipc) {
+        try {
+          await ipc.openNoteTab(newNote.id, newNote.title, newNote.body);
+        } catch (error) {
+          console.error('Failed to create tab for uploaded file:', error);
+        }
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function handleDragOver(event: DragEvent): void {
+    event.preventDefault();
+    isDragging = true;
+  }
+
+  function handleDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    isDragging = false;
+  }
+
+  async function handleDrop(event: DragEvent): Promise<void> {
+    event.preventDefault();
+    isDragging = false;
+
+    const files = event.dataTransfer?.files;
+    if (files) {
+      for (const file of Array.from(files)) {
+        await processFile(file);
+      }
+    }
+  }
+
+  function confirmLargeFileUpload(): void {
+    if (pendingLargeFile) {
+      processFile(pendingLargeFile, true);
+      pendingLargeFile = null;
+    }
+    showSizeConfirmDialog = false;
+  }
+
+  function cancelLargeFileUpload(): void {
+    pendingLargeFile = null;
+    showSizeConfirmDialog = false;
+  }
+
+  function formatFileSize(bytes: number): string {
+    const mb = bytes / (1024 * 1024);
+    return mb.toFixed(2) + ' MB';
   }
 </script>
 
@@ -145,36 +203,52 @@
       </div>
     </div>
   {:else}
-    <div class="notes-list">
-      {#if $notes.length === 0}
-        <div class="empty-state">
-          <p>No notes yet. Create a new note or upload a file.</p>
-        </div>
-      {:else}
-        {#each $notes as note (note.id)}
-          <div class="note-item" class:selected={note.selected}>
-            <input
-              type="checkbox"
-              checked={note.selected}
-              onchange={() => toggleNoteSelection(note)}
-              title="Include in context"
-            />
-            <div
-              class="note-info"
-              onclick={() => editNote(note)}
-              onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && editNote(note)}
-              role="button"
-              tabindex="0"
-            >
-              <div class="note-title">{note.title}</div>
-              <div class="note-preview">{note.body.slice(0, 50)}{note.body.length > 50 ? '...' : ''}</div>
-            </div>
-            <button class="delete-btn" onclick={() => deleteNote(note.id)} title="Delete note">
-              ×
-            </button>
+    <div
+      class="notes-list"
+      class:dragging={isDragging}
+      ondragover={handleDragOver}
+      ondragleave={handleDragLeave}
+      ondrop={handleDrop}
+    >
+      {#each $notes as note (note.id)}
+        <div class="note-item" class:selected={note.selected}>
+          <input
+            type="checkbox"
+            checked={note.selected}
+            onchange={() => toggleNoteSelection(note)}
+            title="Include in context"
+          />
+          <div
+            class="note-info"
+            onclick={() => editNote(note)}
+            onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && editNote(note)}
+            role="button"
+            tabindex="0"
+          >
+            <div class="note-title">{note.title}</div>
+            <div class="note-preview">{note.body.slice(0, 50)}{note.body.length > 50 ? '...' : ''}</div>
           </div>
-        {/each}
-      {/if}
+          <button class="delete-btn" onclick={() => deleteNote(note.id)} title="Delete note">
+            ×
+          </button>
+        </div>
+      {/each}
+    </div>
+  {/if}
+
+  {#if showSizeConfirmDialog && pendingLargeFile}
+    <div class="modal-overlay" onclick={cancelLargeFileUpload}>
+      <div class="modal-content" onclick={(e) => e.stopPropagation()}>
+        <h3>Large File Warning</h3>
+        <p>
+          The file <strong>{pendingLargeFile.name}</strong> is {formatFileSize(pendingLargeFile.size)}.
+        </p>
+        <p>This exceeds the recommended size limit of 50 MB. Do you want to continue?</p>
+        <div class="modal-actions">
+          <button onclick={confirmLargeFileUpload} class="confirm-btn">Upload Anyway</button>
+          <button onclick={cancelLargeFileUpload} class="cancel-btn">Cancel</button>
+        </div>
+      </div>
     </div>
   {/if}
 </div>
@@ -236,13 +310,26 @@
     flex: 1;
     overflow-y: auto;
     padding: 10px;
+    transition: background-color 0.2s;
+    position: relative;
   }
 
-  .empty-state {
-    padding: 20px;
-    text-align: center;
-    color: #808080;
-    font-size: 13px;
+  .notes-list.dragging {
+    background-color: #094771;
+    border: 2px dashed #007acc;
+  }
+
+  .notes-list.dragging::before {
+    content: 'Drop files here';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #007acc;
+    font-size: 16px;
+    font-weight: 600;
+    pointer-events: none;
+    z-index: 1;
   }
 
   .note-item {
@@ -391,5 +478,74 @@
 
   .cancel-btn:hover {
     background-color: #4e4e52;
+  }
+
+  /* Modal styles */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+
+  .modal-content {
+    background-color: #252526;
+    border: 1px solid #3e3e42;
+    border-radius: 6px;
+    padding: 24px;
+    max-width: 500px;
+    width: 90%;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  }
+
+  .modal-content h3 {
+    margin: 0 0 16px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #cccccc;
+  }
+
+  .modal-content p {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    color: #d4d4d4;
+    line-height: 1.5;
+  }
+
+  .modal-content p strong {
+    color: #ffffff;
+    word-break: break-all;
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+  }
+
+  .modal-actions button {
+    flex: 1;
+    border: none;
+    border-radius: 4px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+
+  .confirm-btn {
+    background-color: #007acc;
+    color: white;
+  }
+
+  .confirm-btn:hover {
+    background-color: #005a9e;
   }
 </style>
