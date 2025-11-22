@@ -106,6 +106,20 @@ class TabManager {
     });
   }
 
+  /**
+   * Set up window open handler to intercept control-click, cmd-click, and middle-click on links
+   * This converts new window requests into new tabs
+   */
+  private setupWindowOpenHandler(view: BrowserView): void {
+    view.webContents.setWindowOpenHandler((details) => {
+      // Open the URL in a new tab instead of a new window
+      this.openUrl(details.url);
+
+      // Deny the window from opening
+      return { action: 'deny' };
+    });
+  }
+
   openUrl(url: string, autoSelect: boolean = true): { tabId: string; tab: TabData } {
     const tabId = this.createTabId();
 
@@ -133,6 +147,9 @@ class TabManager {
 
     // Set up context menu for links
     this.setupContextMenu(view, tabId);
+
+    // Set up handler for control-click/cmd-click to open links in new tabs
+    this.setupWindowOpenHandler(view);
 
     // Update title when page loads
     view.webContents.on('page-title-updated', (_event, title) => {
@@ -201,6 +218,9 @@ class TabManager {
     // Set up context menu for links
     this.setupContextMenu(view, tabId);
 
+    // Set up handler for control-click/cmd-click to open links in new tabs
+    this.setupWindowOpenHandler(view);
+
     // Set as active tab (if autoSelect is true)
     if (autoSelect) {
       this.setActiveTab(tabId);
@@ -256,6 +276,9 @@ class TabManager {
 
     // Set up context menu for links
     this.setupContextMenu(view, tabId);
+
+    // Set up handler for control-click/cmd-click to open links in new tabs
+    this.setupWindowOpenHandler(view);
 
     // Set as active tab (if autoSelect is true)
     if (autoSelect) {
@@ -354,6 +377,9 @@ class TabManager {
 
     // Set up context menu
     this.setupContextMenu(view, rawViewId);
+
+    // Set up handler for control-click/cmd-click to open links in new tabs
+    this.setupWindowOpenHandler(view);
 
     // Set as active tab (if autoSelect is true)
     if (autoSelect) {
