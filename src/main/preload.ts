@@ -47,8 +47,14 @@ const electronAPI = {
     ipcRenderer.invoke('open-note-tab', noteId, title, content, fileType),
 
   // LLM Response tabs
-  openLLMResponseTab: (query: string, response: string, error?: string): Promise<IPCResponse<{ tabId: string; tab: TabData }>> =>
+  openLLMResponseTab: (query: string, response?: string, error?: string): Promise<IPCResponse<{ tabId: string; tab: TabData }>> =>
     ipcRenderer.invoke('open-llm-response-tab', query, response, error),
+
+  updateLLMResponseTab: (tabId: string, response: string, metadata?: any): Promise<IPCResponse> =>
+    ipcRenderer.invoke('update-llm-response-tab', tabId, response, metadata),
+
+  openRawMessageViewer: (tabId: string): Promise<IPCResponse> =>
+    ipcRenderer.invoke('open-raw-message-viewer', tabId),
 
   // Content extraction
   extractContent: (tabId: string): Promise<IPCResponse<ExtractedContent>> =>

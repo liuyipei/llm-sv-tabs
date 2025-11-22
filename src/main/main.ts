@@ -151,11 +151,31 @@ function setupIPCHandlers(): void {
     }
   });
 
-  ipcMain.handle('open-llm-response-tab', async (_event, query: string, response: string, error?: string) => {
+  ipcMain.handle('open-llm-response-tab', async (_event, query: string, response?: string, error?: string) => {
     if (!tabManager) return { success: false, error: 'TabManager not initialized' };
     try {
       const result = tabManager.openLLMResponseTab(query, response, error);
       return { success: true, data: result };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  ipcMain.handle('update-llm-response-tab', async (_event, tabId: string, response: string, metadata?: any) => {
+    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
+    try {
+      const result = tabManager.updateLLMResponseTab(tabId, response, metadata);
+      return result.success ? { success: true } : { success: false, error: result.error };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  ipcMain.handle('open-raw-message-viewer', async (_event, tabId: string) => {
+    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
+    try {
+      const result = tabManager.openRawMessageViewer(tabId);
+      return result.success ? { success: true } : { success: false, error: result.error };
     } catch (error) {
       return { success: false, error: String(error) };
     }
@@ -263,7 +283,11 @@ ${dom.mainContent || ''}
       // Send query to provider
       const response = await provider.query(messages, options);
 
-      return response;
+      // Add fullQuery to response metadata
+      return {
+        ...response,
+        fullQuery: fullQuery !== query ? fullQuery : undefined,
+      };
     } catch (error) {
       return {
         response: '',

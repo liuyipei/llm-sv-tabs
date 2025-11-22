@@ -15,6 +15,7 @@
 
   const isActive = $derived(tab.id === $activeTabId);
   const isSelected = $derived($selectedTabs.has(tab.id));
+  const isLLMResponse = $derived(tab.metadata?.isLLMResponse === true);
 
   function handleClick(): void {
     if (ipc) {
@@ -56,10 +57,25 @@
     }
   }
 
+  async function handleViewRawFromMenu(event: MouseEvent): Promise<void> {
+    event.stopPropagation();
+    showContextMenu = false;
+    if (ipc) {
+      await ipc.openRawMessageViewer(tab.id);
+    }
+  }
+
   async function handleRefreshClick(event: MouseEvent): Promise<void> {
     event.stopPropagation();
     if (ipc) {
       await ipc.reloadTab(tab.id);
+    }
+  }
+
+  async function handleViewRawClick(event: MouseEvent): Promise<void> {
+    event.stopPropagation();
+    if (ipc) {
+      await ipc.openRawMessageViewer(tab.id);
     }
   }
 
@@ -131,9 +147,15 @@
       </div>
     </div>
 
-    <button class="refresh-btn" onclick={handleRefreshClick} title="Reload tab">
-      ↻
-    </button>
+    {#if isLLMResponse}
+      <button class="refresh-btn view-raw-btn" onclick={handleViewRawClick} title="View raw message">
+        📄
+      </button>
+    {:else}
+      <button class="refresh-btn" onclick={handleRefreshClick} title="Reload tab">
+        ↻
+      </button>
+    {/if}
 
     <button class="close-btn" onclick={handleClose} title="Close tab">
       ×
@@ -147,9 +169,15 @@
     style="left: {contextMenuX}px; top: {contextMenuY}px;"
     role="menu"
   >
-    <button class="context-menu-item" onclick={handleReload} role="menuitem">
-      Reload Tab
-    </button>
+    {#if isLLMResponse}
+      <button class="context-menu-item" onclick={handleViewRawFromMenu} role="menuitem">
+        View Raw Message
+      </button>
+    {:else}
+      <button class="context-menu-item" onclick={handleReload} role="menuitem">
+        Reload Tab
+      </button>
+    {/if}
     <button class="context-menu-item" onclick={handleCopyUrl} role="menuitem">
       Copy URL
     </button>
