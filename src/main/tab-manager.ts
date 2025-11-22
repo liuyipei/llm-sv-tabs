@@ -241,7 +241,7 @@ class TabManager {
 
     // Create HTML content with markdown rendering
     const displayResponse = response || (isLoading ? 'Loading response...' : '');
-    const htmlContent = this.createLLMResponseHTML(query, displayResponse, error);
+    const htmlContent = this.createLLMResponseHTML(query, displayResponse, error, tab.metadata);
 
     // Load HTML content using data URI
     const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent);
@@ -275,13 +275,30 @@ class TabManager {
       }
     }
 
-    // Update tab title
-    tab.title = metadata?.error ? 'Error' : 'LLM Response';
+    // Update tab title with model and tokens
+    if (metadata?.error) {
+      tab.title = 'Error';
+    } else {
+      const modelName = metadata?.model || '';
+      const tokensIn = metadata?.tokensIn || 0;
+      const tokensOut = metadata?.tokensOut || 0;
+      const totalTokens = tokensIn + tokensOut;
+
+      if (modelName && totalTokens > 0) {
+        tab.title = `LLM Response - ${modelName} (${totalTokens.toLocaleString()} tokens)`;
+      } else if (modelName) {
+        tab.title = `LLM Response - ${modelName}`;
+      } else if (totalTokens > 0) {
+        tab.title = `LLM Response (${totalTokens.toLocaleString()} tokens)`;
+      } else {
+        tab.title = 'LLM Response';
+      }
+    }
 
     // Re-create HTML content with updated response
     const query = tab.metadata?.query || '';
     const error = metadata?.error;
-    const htmlContent = this.createLLMResponseHTML(query, response, error);
+    const htmlContent = this.createLLMResponseHTML(query, response, error, tab.metadata);
 
     // Reload HTML content
     const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent);
@@ -474,7 +491,7 @@ class TabManager {
       .replace(/'/g, '&#039;');
   }
 
-  private createLLMResponseHTML(query: string, response: string, error?: string): string {
+  private createLLMResponseHTML(query: string, response: string, error?: string, metadata?: any): string {
     // Escape content for safe embedding in JavaScript
     const escapeForJs = (text: string): string => {
       return text
@@ -531,6 +548,35 @@ class TabManager {
       font-size: 14px;
       white-space: pre-wrap;
       word-wrap: break-word;
+    }
+
+    .metadata-section {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 30px;
+      flex-wrap: wrap;
+    }
+
+    .metadata-box {
+      background-color: #2d2d30;
+      padding: 15px 20px;
+      border-radius: 4px;
+      border-left: 3px solid #4ec9b0;
+      min-width: 150px;
+    }
+
+    .metadata-label {
+      color: #4ec9b0;
+      font-size: 11px;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+
+    .metadata-value {
+      color: #ffffff;
+      font-size: 16px;
+      font-weight: bold;
     }
 
     .response-section {
@@ -679,6 +725,35 @@ class TabManager {
       <div class="query-label">Your Query</div>
       <div class="query-text">${this.escapeHtml(query)}</div>
     </div>
+
+    ${metadata && (metadata.model || metadata.tokensIn || metadata.tokensOut) ? `
+    <div class="metadata-section">
+      ${metadata.model ? `
+        <div class="metadata-box">
+          <div class="metadata-label">Model</div>
+          <div class="metadata-value">${this.escapeHtml(metadata.model)}</div>
+        </div>
+      ` : ''}
+      ${metadata.tokensIn ? `
+        <div class="metadata-box">
+          <div class="metadata-label">Tokens In</div>
+          <div class="metadata-value">${metadata.tokensIn.toLocaleString()}</div>
+        </div>
+      ` : ''}
+      ${metadata.tokensOut ? `
+        <div class="metadata-box">
+          <div class="metadata-label">Tokens Out</div>
+          <div class="metadata-value">${metadata.tokensOut.toLocaleString()}</div>
+        </div>
+      ` : ''}
+      ${metadata.tokensIn && metadata.tokensOut ? `
+        <div class="metadata-box">
+          <div class="metadata-label">Total Tokens</div>
+          <div class="metadata-value">${(metadata.tokensIn + metadata.tokensOut).toLocaleString()}</div>
+        </div>
+      ` : ''}
+    </div>
+    ` : ''}
 
     ${isError ? '<div class="error-section"><div class="error-label">Error</div>' : '<div class="response-section">'}
       <div id="content" class="markdown-content"></div>
