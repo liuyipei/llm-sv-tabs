@@ -144,9 +144,14 @@ class TabManager {
       this.sendToRenderer('tab-url-updated', { id: tabId, url });
     });
 
-    // Capture thumbnail when page finishes loading
-    view.webContents.on('did-finish-load', () => {
-      this.captureThumbnail(tabId);
+    // Capture thumbnail and favicon when page finishes loading
+    view.webContents.on('did-finish-load', async () => {
+      await this.captureThumbnail(tabId);
+      const favicon = await this.extractFavicon(tabId);
+      if (favicon) {
+        tab.favicon = favicon;
+        this.sendToRenderer('tab-favicon-updated', { id: tabId, favicon });
+      }
     });
 
     // Set as active tab
@@ -420,18 +425,111 @@ class TabManager {
       url: tab.url,
       type: tab.type,
       thumbnail: tab.thumbnail,
+      favicon: tab.favicon,
     };
   }
 
   /**
+   * Extract favicon from page
+   */
+  private async extractFavicon(tabId: string): Promise<string | null> {
+    const tab = this.tabs.get(tabId);
+    if (!tab || !tab.view || !tab.view.webContents) return null;
+
+    try {
+      const result = await tab.view.webContents.executeJavaScript(`
+        (function() {
+          // Check for icon link tags
+          const iconLink = document.querySelector('link[rel~="icon"]');
+          if (iconLink) {
+            return iconLink.getAttribute('href');
+          }
+
+          const shortcutIcon = document.querySelector('link[rel="shortcut icon"]');
+          if (shortcutIcon) {
+            return shortcutIcon.getAttribute('href');
+          }
+
+          // Default favicon location
+          return '/favicon.ico';
+        })();
+      `);
+
+      // Convert relative URLs to absolute
+      if (result && !result.startsWith('http')) {
+        const url = new URL(tab.url);
+        return new URL(result, url.origin).href;
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Failed to extract favicon:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Extract OG image or twitter image from page metadata
+   * Following Chrome's approach: check OG images first
+   */
+  private async extractMetaImage(tabId: string): Promise<string | null> {
+    const tab = this.tabs.get(tabId);
+    if (!tab || !tab.view || !tab.view.webContents) return null;
+
+    try {
+      const result = await tab.view.webContents.executeJavaScript(`
+        (function() {
+          // Check for Open Graph image
+          const ogImage = document.querySelector('meta[property="og:image"]');
+          if (ogImage) {
+            return ogImage.getAttribute('content');
+          }
+
+          // Check for Twitter image
+          const twitterImage = document.querySelector('meta[name="twitter:image"]');
+          if (twitterImage) {
+            return twitterImage.getAttribute('content');
+          }
+
+          // Check for Twitter card image
+          const twitterCard = document.querySelector('meta[property="twitter:image"]');
+          if (twitterCard) {
+            return twitterCard.getAttribute('content');
+          }
+
+          return null;
+        })();
+      `);
+
+      return result;
+    } catch (error) {
+      console.error('Failed to extract meta image:', error);
+      return null;
+    }
+  }
+
+  /**
    * Capture thumbnail for a tab
+   * Following Chrome's approach:
+   * 1. Check for OG image or Twitter image (preferred)
+   * 2. Fall back to screenshot if no metadata image
    */
   private async captureThumbnail(tabId: string): Promise<void> {
     const tab = this.tabs.get(tabId);
     if (!tab || !tab.view || !tab.view.webContents) return;
 
     try {
-      // Capture page at smaller size for thumbnail (160x90 for 16:9 aspect ratio)
+      // First, try to get OG image or Twitter image
+      const metaImageUrl = await this.extractMetaImage(tabId);
+
+      if (metaImageUrl) {
+        // Use the meta image as thumbnail
+        tab.thumbnail = metaImageUrl;
+        this.sendToRenderer('tab-thumbnail-updated', { id: tabId, thumbnail: metaImageUrl });
+        return;
+      }
+
+      // Fall back to screenshot if no meta image
       const image = await tab.view.webContents.capturePage({
         x: 0,
         y: 0,
