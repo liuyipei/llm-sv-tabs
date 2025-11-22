@@ -4,13 +4,16 @@ This document describes the keyboard shortcuts available in the LLM Browser appl
 
 ## Available Shortcuts
 
-The following Chrome-like keyboard shortcuts are available:
+The following keyboard shortcuts are available, combining Chrome conventions with LLM-specific features:
 
 | Shortcut | Action | Description |
 |----------|--------|-------------|
 | `Ctrl+L` | Focus URL Input | Focuses and selects the URL input field (address bar equivalent) |
+| `Ctrl+.` | **Focus LLM Input** | Focuses the LLM query input (primary AI feature) |
 | `Ctrl+W` | Close Active Tab | Closes the currently active tab |
 | `Ctrl+D` | Bookmark Tab | Bookmarks the currently active tab |
+
+> **Note**: `Ctrl+.` follows the modern standard for AI sidebars, similar to Microsoft Edge Copilot. It's easy to hit with one hand but hard to trigger accidentally.
 
 ## Implementation
 
@@ -34,7 +37,7 @@ The keyboard shortcuts system is structured into separate files for better organ
 
 ### Integration
 - **App.svelte**: Initializes keyboard shortcuts on mount and defines action handlers
-- **InputControls.svelte**: Exposes URL input focus functionality
+- **InputControls.svelte**: Exposes URL input and LLM query input focus functionality
 
 ## Adding New Shortcuts
 
@@ -54,6 +57,7 @@ To add a new keyboard shortcut:
    ```typescript
    export interface ShortcutAction {
      focusUrlInput: () => void;
+     focusLLMInput: () => void;
      closeActiveTab: () => void;
      bookmarkActiveTab: () => void;
      openNewTab: () => void; // Add new action
@@ -71,6 +75,7 @@ To add a new keyboard shortcut:
    ```typescript
    initKeyboardShortcuts({
      focusUrlInput,
+     focusLLMInput,
      closeActiveTab,
      bookmarkActiveTab,
      openNewTab, // Add new action

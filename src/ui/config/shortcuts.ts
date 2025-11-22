@@ -15,13 +15,14 @@ export interface ShortcutConfig {
 
 export interface ShortcutAction {
   focusUrlInput: () => void;
+  focusLLMInput: () => void;
   closeActiveTab: () => void;
   bookmarkActiveTab: () => void;
 }
 
 /**
  * Keyboard shortcuts configuration
- * Following Chrome/browser conventions
+ * Following Chrome/browser conventions with LLM-specific additions
  */
 export const shortcuts: ShortcutConfig[] = [
   {
@@ -29,6 +30,12 @@ export const shortcuts: ShortcutConfig[] = [
     ctrl: true,
     description: 'Focus URL input (address bar)',
     action: 'focusUrlInput',
+  },
+  {
+    key: '.',
+    ctrl: true,
+    description: 'Focus LLM query input',
+    action: 'focusLLMInput',
   },
   {
     key: 'w',
