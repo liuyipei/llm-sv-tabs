@@ -22,7 +22,8 @@
       "$lib/*": ["src/ui/lib/*"],
       "$components/*": ["src/ui/components/*"],
       "$stores/*": ["src/ui/stores/*"],
-      "$utils/*": ["src/ui/utils/*"]
+      "$utils/*": ["src/ui/utils/*"],
+      "$config/*": ["src/ui/config/*"]
     }
   },
   "include": [
