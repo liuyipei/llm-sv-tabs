@@ -102,6 +102,100 @@ class TabManager {
     return { tabId, tab: this.getTabData(tabId)! };
   }
 
+  openNoteTab(noteId: number, title: string, content: string): { tabId: string; tab: TabData } {
+    const tabId = this.createTabId();
+
+    const view = new BrowserView({
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    const tab: TabWithView = {
+      id: tabId,
+      title: title,
+      url: `note://${noteId}`,
+      type: 'notes' as TabType,
+      view: view,
+      created: Date.now(),
+      lastViewed: Date.now(),
+    };
+
+    this.tabs.set(tabId, tab);
+
+    // Create HTML content for the note
+    const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${this.escapeHtml(title)}</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      background-color: #1e1e1e;
+      color: #d4d4d4;
+      line-height: 1.6;
+    }
+    h1 {
+      color: #ffffff;
+      border-bottom: 2px solid #007acc;
+      padding-bottom: 10px;
+      margin-bottom: 30px;
+    }
+    pre {
+      background-color: #2d2d30;
+      border: 1px solid #3e3e42;
+      border-radius: 4px;
+      padding: 15px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .note-content {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <h1>${this.escapeHtml(title)}</h1>
+  <div class="note-content">${this.escapeHtml(content)}</div>
+</body>
+</html>
+    `.trim();
+
+    // Load HTML content using data URI
+    const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent);
+    view.webContents.loadURL(dataUrl);
+
+    // Set as active tab
+    this.setActiveTab(tabId);
+
+    // Notify renderer
+    this.sendToRenderer('tab-created', { tab: this.getTabData(tabId) });
+
+    // Save session after tab change
+    this.saveSession();
+
+    return { tabId, tab: this.getTabData(tabId)! };
+  }
+
+  private escapeHtml(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   closeTab(tabId: string): { success: boolean; error?: string } {
     const tab = this.tabs.get(tabId);
     if (!tab) return { success: false, error: 'Tab not found' };
@@ -228,7 +322,9 @@ class TabManager {
    * Save current session to disk
    */
   private saveSession(): void {
-    const tabs = Array.from(this.tabs.values()).map((tab) => this.getTabData(tab.id)!);
+    const tabs = Array.from(this.tabs.values())
+      .map((tab) => this.getTabData(tab.id)!)
+      .filter((tab) => tab.type !== 'notes' && tab.type !== 'upload'); // Don't persist note tabs
     this.sessionManager.saveSession(tabs, this.activeTabId);
   }
 
