@@ -27,10 +27,11 @@
 
 <style>
   .chat-container {
-    flex: 1;
+    flex: 0 1 auto;
     overflow-y: auto;
     padding: 10px;
     background-color: #1e1e1e;
+    max-height: 40%;
   }
 
   .messages {

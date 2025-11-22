@@ -98,14 +98,18 @@
 
 <style>
   .input-controls {
+    flex: 1;
     padding: 10px;
     background-color: #252526;
     border-top: 1px solid #3e3e42;
+    display: flex;
+    flex-direction: column;
   }
 
   .query-input-container {
     position: relative;
     display: flex;
+    flex: 1;
   }
 
   .query-input {
@@ -117,8 +121,8 @@
     padding: 10px 50px 10px 10px;
     font-family: inherit;
     font-size: 14px;
-    resize: vertical;
-    min-height: 150px;
+    resize: none;
+    min-height: 100px;
   }
 
   .query-input:focus {
