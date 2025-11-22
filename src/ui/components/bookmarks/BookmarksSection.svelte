@@ -1,6 +1,11 @@
 <script lang="ts">
+  import { getContext } from 'svelte';
   import BookmarkList from './BookmarkList.svelte';
   import { bookmarksCollapsed } from '$stores/ui';
+  import { activeTabId, sortedTabs } from '$stores/tabs';
+  import type { IPCBridgeAPI } from '$lib/ipc-bridge';
+
+  const ipc = getContext<IPCBridgeAPI>('ipc');
 
   function toggleBookmarks(): void {
     bookmarksCollapsed.update((collapsed) => !collapsed);
@@ -12,12 +17,42 @@
       toggleBookmarks();
     }
   }
+
+  async function addBookmarkFromCurrentTab(event: MouseEvent): Promise<void> {
+    event.stopPropagation(); // Prevent toggling the bookmarks section
+
+    const currentActiveTabId = $activeTabId;
+    if (!currentActiveTabId || !ipc) return;
+
+    // Find the active tab
+    const activeTab = $sortedTabs.find((tab) => tab.id === currentActiveTabId);
+    if (!activeTab) return;
+
+    try {
+      await ipc.addBookmark({
+        title: activeTab.title,
+        url: activeTab.url,
+      });
+      console.log('Bookmark added:', activeTab.title);
+    } catch (error) {
+      console.error('Failed to bookmark tab:', error);
+    }
+  }
 </script>
 
 <div class="bookmarks-section">
   <div class="section-header" onclick={toggleBookmarks} onkeydown={handleKeydown} role="button" tabindex="0">
     <h2>Bookmarks</h2>
-    <span class="toggle-icon">{$bookmarksCollapsed ? '▶' : '▼'}</span>
+    <div class="header-actions">
+      <button
+        class="add-bookmark-btn"
+        onclick={addBookmarkFromCurrentTab}
+        title="Bookmark current tab (Ctrl+D)"
+      >
+        +
+      </button>
+      <span class="toggle-icon">{$bookmarksCollapsed ? '▶' : '▼'}</span>
+    </div>
   </div>
   {#if !$bookmarksCollapsed}
     <BookmarkList />
@@ -52,6 +87,33 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: #cccccc;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .add-bookmark-btn {
+    background-color: #007acc;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    width: 24px;
+    height: 24px;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+    padding: 0;
+    line-height: 1;
+  }
+
+  .add-bookmark-btn:hover {
+    background-color: #005a9e;
   }
 
   .toggle-icon {

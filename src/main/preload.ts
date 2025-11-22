@@ -9,6 +9,7 @@ import type {
   TabClosedEvent,
   TabTitleUpdatedEvent,
   TabUrlUpdatedEvent,
+  TabThumbnailUpdatedEvent,
   ActiveTabChangedEvent,
   ExtractedContent,
   ProviderType,
@@ -79,6 +80,10 @@ const electronAPI = {
 
   onTabUrlUpdated: (callback: (data: TabUrlUpdatedEvent) => void): void => {
     ipcRenderer.on('tab-url-updated', (_event, data) => callback(data));
+  },
+
+  onTabThumbnailUpdated: (callback: (data: TabThumbnailUpdatedEvent) => void): void => {
+    ipcRenderer.on('tab-thumbnail-updated', (_event, data) => callback(data));
   },
 
   onActiveTabChanged: (callback: (data: ActiveTabChangedEvent) => void): void => {

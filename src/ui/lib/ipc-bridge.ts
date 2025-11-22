@@ -6,6 +6,7 @@ import {
   removeTab,
   updateTabTitle,
   updateTabUrl,
+  updateTabThumbnail,
 } from '$stores/tabs';
 import type { QueryOptions, LLMResponse, Bookmark, Tab, IPCResponse, TabData, ProviderType, LLMModel } from '../../types';
 
@@ -53,6 +54,10 @@ export function initializeIPC(): IPCBridgeAPI {
 
   window.electronAPI.onTabUrlUpdated((data) => {
     updateTabUrl(data.id, data.url);
+  });
+
+  window.electronAPI.onTabThumbnailUpdated((data) => {
+    updateTabThumbnail(data.id, data.thumbnail);
   });
 
   window.electronAPI.onActiveTabChanged((data) => {

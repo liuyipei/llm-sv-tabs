@@ -97,6 +97,10 @@ export function updateTabUrl(tabId: string, url: string): void {
   updateTab(tabId, { url });
 }
 
+export function updateTabThumbnail(tabId: string, thumbnail: string): void {
+  updateTab(tabId, { thumbnail });
+}
+
 export function toggleTabSelection(tabId: string): void {
   selectedTabs.update((selected) => {
     if (selected.has(tabId)) {
