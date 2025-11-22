@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Modal from '../common/Modal.svelte';
   import { formatFileSize } from '$utils/file-utils';
 
   type Props = {
@@ -10,71 +11,46 @@
   let { files, onconfirm, oncancel }: Props = $props();
 </script>
 
-<div class="modal-overlay" onclick={oncancel}>
-  <div class="modal-content" onclick={(e) => e.stopPropagation()}>
-    <h3>Large File Warning</h3>
-    {#if files.length === 1}
-      <p>
-        The file <strong>{files[0].name}</strong> is {formatFileSize(files[0].size)}.
-      </p>
-      <p>This exceeds the recommended size limit of 50 MB. Do you want to continue?</p>
-    {:else}
-      <p>
-        You are trying to upload <strong>{files.length} files</strong> that exceed the recommended size limit of 50 MB:
-      </p>
-      <ul class="large-files-list">
-        {#each files as file}
-          <li>{file.name} ({formatFileSize(file.size)})</li>
-        {/each}
-      </ul>
-      <p>Do you want to continue?</p>
-    {/if}
-    <div class="modal-actions">
-      <button onclick={onconfirm} class="confirm-btn">Upload Anyway</button>
-      <button onclick={oncancel} class="cancel-btn">Cancel</button>
-    </div>
+<Modal onclose={oncancel} ariaLabel="Large file warning">
+  <h3>Large File Warning</h3>
+  {#if files.length === 1}
+    <p>
+      The file <strong>{files[0].name}</strong> is {formatFileSize(files[0].size)}.
+    </p>
+    <p>This exceeds the recommended size limit of 50 MB. Do you want to continue?</p>
+  {:else}
+    <p>
+      You are trying to upload <strong>{files.length} files</strong> that exceed the recommended size limit of 50 MB:
+    </p>
+    <ul class="large-files-list">
+      {#each files as file}
+        <li>{file.name} ({formatFileSize(file.size)})</li>
+      {/each}
+    </ul>
+    <p>Do you want to continue?</p>
+  {/if}
+  <div class="modal-actions">
+    <button onclick={onconfirm} class="confirm-btn">Upload Anyway</button>
+    <button onclick={oncancel} class="cancel-btn">Cancel</button>
   </div>
-</div>
+</Modal>
 
 <style>
-  .modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-  }
-
-  .modal-content {
-    background-color: #252526;
-    border: 1px solid #3e3e42;
-    border-radius: 6px;
-    padding: 24px;
-    max-width: 500px;
-    width: 90%;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-  }
-
-  .modal-content h3 {
+  h3 {
     margin: 0 0 16px 0;
     font-size: 18px;
     font-weight: 600;
     color: #cccccc;
   }
 
-  .modal-content p {
+  p {
     margin: 0 0 12px 0;
     font-size: 14px;
     color: #d4d4d4;
     line-height: 1.5;
   }
 
-  .modal-content p strong {
+  p strong {
     color: #ffffff;
     word-break: break-all;
   }
