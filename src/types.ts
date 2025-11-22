@@ -16,6 +16,21 @@ export interface Tab {
   favicon?: string;
   lastViewed?: number;
   created?: number;
+  metadata?: TabMetadata;
+}
+
+export interface TabMetadata {
+  // For LLM response tabs
+  isLLMResponse?: boolean;
+  query?: string;
+  fullQuery?: string; // query with context from selected tabs
+  response?: string;
+  tokensIn?: number;
+  tokensOut?: number;
+  model?: string;
+  selectedTabIds?: string[];
+  isStreaming?: boolean;
+  error?: string;
 }
 
 export interface TabData {
@@ -109,9 +124,12 @@ export interface QueryOptions {
 export interface LLMResponse {
   response: string;
   tokensUsed?: number;
+  tokensIn?: number;
+  tokensOut?: number;
   responseTime?: number;
   model?: string;
   error?: string;
+  fullQuery?: string; // The query with context from selected tabs
 }
 
 // ============================================================================
@@ -222,6 +240,9 @@ export interface IPCBridge {
 
   // LLM queries
   sendQuery(query: string, options?: QueryOptions): Promise<LLMResponse>;
+  openLLMResponseTab(query: string, response?: string, error?: string): Promise<IPCResponse<{ tabId: string }>>;
+  updateLLMResponseTab(tabId: string, response: string, metadata?: Partial<TabMetadata>): Promise<IPCResponse>;
+  openRawMessageViewer(tabId: string): Promise<IPCResponse>;
 
   // Bookmarks
   getBookmarks(): Promise<IPCResponse<Bookmark[]>>;

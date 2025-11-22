@@ -2,6 +2,7 @@
   import { getContext, onMount } from 'svelte';
   import { queryInput, isLoading } from '$stores/ui';
   import { provider, model, apiKeys, endpoint, temperature, maxTokens, systemPrompt } from '$stores/config';
+  import { selectedTabs } from '$stores/tabs';
   import type { IPCBridgeAPI } from '$lib/ipc-bridge';
   import type { QueryOptions } from '$types';
 
@@ -19,6 +20,11 @@
 
     if (ipc) {
       isLoading.set(true);
+
+      // Create tab immediately with query only (streaming-ready design)
+      const tabResult = await ipc.openLLMResponseTab(query);
+      const tabId = tabResult.data?.tabId;
+
       try {
         // Build query options from config stores
         const options: QueryOptions = {
@@ -29,19 +35,41 @@
           temperature: $temperature,
           maxTokens: $maxTokens,
           systemPrompt: $systemPrompt || undefined,
+          selectedTabIds: Array.from($selectedTabs),
         };
 
         const response = await ipc.sendQuery(query, options);
 
-        // Create a tab with the LLM response
-        if (response.error) {
-          await ipc.openLLMResponseTab(query, '', response.error);
-          console.error('LLM Error:', response.error);
-        } else {
-          await ipc.openLLMResponseTab(query, response.response);
+        // Update the tab with the response
+        if (tabId) {
+          if (response.error) {
+            await ipc.updateLLMResponseTab(tabId, '', {
+              error: response.error,
+              tokensIn: response.tokensIn,
+              tokensOut: response.tokensOut,
+              model: response.model,
+              selectedTabIds: options.selectedTabIds,
+              fullQuery: response.fullQuery,
+            });
+            console.error('LLM Error:', response.error);
+          } else {
+            await ipc.updateLLMResponseTab(tabId, response.response, {
+              tokensIn: response.tokensIn,
+              tokensOut: response.tokensOut,
+              model: response.model,
+              selectedTabIds: options.selectedTabIds,
+              fullQuery: response.fullQuery,
+            });
+          }
         }
       } catch (error) {
         console.error('Failed to send query:', error);
+        // Update tab with error if we have a tabId
+        if (tabId) {
+          await ipc.updateLLMResponseTab(tabId, '', {
+            error: String(error),
+          });
+        }
       } finally {
         isLoading.set(false);
       }
