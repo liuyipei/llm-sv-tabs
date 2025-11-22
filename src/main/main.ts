@@ -65,7 +65,7 @@ function createWindow(): void {
 
 function setupDownloadHandler(): void {
   // Handle downloads from BrowserViews
-  session.defaultSession.on('will-download', (event, item, webContents) => {
+  session.defaultSession.on('will-download', (_event, item, _webContents) => {
     // Show save dialog
     const savePath = dialog.showSaveDialogSync(mainWindow!, {
       defaultPath: item.getFilename(),
@@ -79,7 +79,7 @@ function setupDownloadHandler(): void {
     }
 
     // Handle download events
-    item.once('done', (event, state) => {
+    item.once('done', (_event, state) => {
       if (state === 'completed') {
         console.log('Download completed successfully');
       } else {
