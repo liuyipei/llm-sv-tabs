@@ -12,8 +12,8 @@ class TabManager {
   private activeTabId: string | null;
   private tabCounter: number;
   private sessionManager: SessionManager;
-  private readonly SIDEBAR_WIDTH = 300;
-  private readonly HEADER_HEIGHT = 50;
+  private readonly SIDEBAR_WIDTH = 350;
+  private readonly HEADER_HEIGHT = 53;
 
   constructor(mainWindow: BrowserWindow) {
     this.mainWindow = mainWindow;
