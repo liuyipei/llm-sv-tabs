@@ -37,7 +37,8 @@ llm-sv-tabs/
 │   │   ├── tab-manager.ts # Tab management
 │   │   ├── preload.ts     # IPC preload
 │   │   ├── providers/     # LLM providers
-│   │   └── services/      # Content extraction
+│   │   ├── services/      # Content extraction
+│   │   └── templates/     # HTML templates
 │   └── ui/                # Svelte UI
 │       ├── components/    # UI components
 │       ├── stores/        # Svelte stores

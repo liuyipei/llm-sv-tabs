@@ -41,7 +41,8 @@ llm-sv-tabs/
 │   │   ├── tab-manager.ts # BrowserView tab management
 │   │   ├── preload.ts     # IPC bridge
 │   │   ├── providers/     # LLM provider integrations
-│   │   └── services/      # Content extraction
+│   │   ├── services/      # Content extraction
+│   │   └── templates/     # HTML templates for tab content
 │   └── ui/                # Svelte 5 renderer process
 │       ├── components/    # Svelte components
 │       ├── stores/        # Svelte stores (reactive state)
