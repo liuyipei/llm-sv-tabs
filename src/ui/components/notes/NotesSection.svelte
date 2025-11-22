@@ -18,6 +18,9 @@
   let isDragging = $state(false);
   let showSizeConfirmDialog = $state(false);
   let pendingLargeFile: File | null = $state(null);
+  let uploadProgress = $state<{ current: number; total: number; fileName: string } | null>(null);
+  let pendingLargeFiles: File[] = $state([]);
+  let uploadErrors: string[] = $state([]);
 
   // Load notes from localStorage on mount
   onMount(() => {
@@ -87,13 +90,74 @@
     const input = event.target as HTMLInputElement;
     const files = input.files;
 
-    if (files) {
-      for (const file of Array.from(files)) {
-        await processFile(file);
-      }
+    if (files && files.length > 0) {
+      await processMultipleFiles(Array.from(files));
     }
     // Reset input value to allow uploading the same file again
     input.value = '';
+  }
+
+  async function processMultipleFiles(files: File[]): Promise<void> {
+    const MAX_SIZE = 50 * 1024 * 1024; // 50MB in bytes
+
+    // Reset errors
+    uploadErrors = [];
+
+    // Separate files into normal and large files
+    const normalFiles: File[] = [];
+    const largeFiles: File[] = [];
+
+    for (const file of files) {
+      if (file.size > MAX_SIZE) {
+        largeFiles.push(file);
+      } else {
+        normalFiles.push(file);
+      }
+    }
+
+    // If there are large files, show confirmation dialog
+    if (largeFiles.length > 0) {
+      pendingLargeFiles = largeFiles;
+      showSizeConfirmDialog = true;
+      // Process normal files first
+      if (normalFiles.length > 0) {
+        await processFilesInParallel(normalFiles);
+      }
+      return;
+    }
+
+    // Process all files
+    await processFilesInParallel(files);
+  }
+
+  async function processFilesInParallel(files: File[]): Promise<void> {
+    if (files.length === 0) return;
+
+    // Show progress
+    uploadProgress = { current: 0, total: files.length, fileName: '' };
+
+    // Process files in parallel
+    const promises = files.map(async (file, index) => {
+      try {
+        uploadProgress = { current: index + 1, total: files.length, fileName: file.name };
+        await processFile(file, true);
+      } catch (error) {
+        uploadErrors = [...uploadErrors, `Failed to upload ${file.name}: ${error}`];
+        console.error(`Error processing file ${file.name}:`, error);
+      }
+    });
+
+    await Promise.all(promises);
+
+    // Clear progress
+    uploadProgress = null;
+
+    // Show errors if any
+    if (uploadErrors.length > 0) {
+      setTimeout(() => {
+        uploadErrors = [];
+      }, 5000);
+    }
   }
 
   async function processFile(file: File, skipSizeCheck = false): Promise<void> {
@@ -174,23 +238,21 @@
     isDragging = false;
 
     const files = event.dataTransfer?.files;
-    if (files) {
-      for (const file of Array.from(files)) {
-        await processFile(file);
-      }
+    if (files && files.length > 0) {
+      await processMultipleFiles(Array.from(files));
     }
   }
 
-  function confirmLargeFileUpload(): void {
-    if (pendingLargeFile) {
-      processFile(pendingLargeFile, true);
-      pendingLargeFile = null;
+  async function confirmLargeFileUpload(): Promise<void> {
+    if (pendingLargeFiles.length > 0) {
+      await processFilesInParallel(pendingLargeFiles);
+      pendingLargeFiles = [];
     }
     showSizeConfirmDialog = false;
   }
 
   function cancelLargeFileUpload(): void {
-    pendingLargeFile = null;
+    pendingLargeFiles = [];
     showSizeConfirmDialog = false;
   }
 
@@ -243,18 +305,50 @@
       ondrop={handleDrop}
     >
       <p class="drop-zone-text">Drag and drop files here or use the buttons above</p>
-      <p class="drop-zone-hint">Files will open in new tabs</p>
+      <p class="drop-zone-hint">Support for multiple files - each will open in a new tab</p>
     </div>
   {/if}
 
-  {#if showSizeConfirmDialog && pendingLargeFile}
+  {#if uploadProgress}
+    <div class="upload-progress">
+      <div class="progress-text">
+        Uploading file {uploadProgress.current} of {uploadProgress.total}...
+      </div>
+      <div class="progress-filename">{uploadProgress.fileName}</div>
+      <div class="progress-bar">
+        <div class="progress-fill" style="width: {(uploadProgress.current / uploadProgress.total) * 100}%"></div>
+      </div>
+    </div>
+  {/if}
+
+  {#if uploadErrors.length > 0}
+    <div class="upload-errors">
+      {#each uploadErrors as error}
+        <div class="error-message">{error}</div>
+      {/each}
+    </div>
+  {/if}
+
+  {#if showSizeConfirmDialog && pendingLargeFiles.length > 0}
     <div class="modal-overlay" onclick={cancelLargeFileUpload}>
       <div class="modal-content" onclick={(e) => e.stopPropagation()}>
         <h3>Large File Warning</h3>
-        <p>
-          The file <strong>{pendingLargeFile.name}</strong> is {formatFileSize(pendingLargeFile.size)}.
-        </p>
-        <p>This exceeds the recommended size limit of 50 MB. Do you want to continue?</p>
+        {#if pendingLargeFiles.length === 1}
+          <p>
+            The file <strong>{pendingLargeFiles[0].name}</strong> is {formatFileSize(pendingLargeFiles[0].size)}.
+          </p>
+          <p>This exceeds the recommended size limit of 50 MB. Do you want to continue?</p>
+        {:else}
+          <p>
+            You are trying to upload <strong>{pendingLargeFiles.length} files</strong> that exceed the recommended size limit of 50 MB:
+          </p>
+          <ul class="large-files-list">
+            {#each pendingLargeFiles as file}
+              <li>{file.name} ({formatFileSize(file.size)})</li>
+            {/each}
+          </ul>
+          <p>Do you want to continue?</p>
+        {/if}
         <div class="modal-actions">
           <button onclick={confirmLargeFileUpload} class="confirm-btn">Upload Anyway</button>
           <button onclick={cancelLargeFileUpload} class="cancel-btn">Cancel</button>
@@ -493,5 +587,82 @@
 
   .confirm-btn:hover {
     background-color: #005a9e;
+  }
+
+  .large-files-list {
+    margin: 10px 0;
+    padding-left: 20px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .large-files-list li {
+    color: #d4d4d4;
+    margin: 5px 0;
+    font-size: 13px;
+  }
+
+  /* Upload progress styles */
+  .upload-progress {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background-color: #252526;
+    border: 1px solid #007acc;
+    border-radius: 6px;
+    padding: 15px 20px;
+    min-width: 300px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+  }
+
+  .progress-text {
+    color: #cccccc;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 5px;
+  }
+
+  .progress-filename {
+    color: #808080;
+    font-size: 12px;
+    margin-bottom: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .progress-bar {
+    width: 100%;
+    height: 8px;
+    background-color: #3e3e42;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background-color: #007acc;
+    transition: width 0.3s ease;
+  }
+
+  /* Upload errors styles */
+  .upload-errors {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    max-width: 400px;
+    z-index: 1000;
+  }
+
+  .error-message {
+    background-color: #5a1d1d;
+    border: 1px solid #be1100;
+    border-radius: 4px;
+    padding: 12px 15px;
+    margin-bottom: 10px;
+    color: #f48771;
+    font-size: 13px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   }
 </style>

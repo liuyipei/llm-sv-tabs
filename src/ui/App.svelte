@@ -102,8 +102,14 @@
     const files = event.dataTransfer?.files;
     if (!files || files.length === 0) return;
 
-    for (const file of Array.from(files)) {
-      await processDroppedFile(file);
+    // Process all files in parallel
+    const fileArray = Array.from(files);
+    const promises = fileArray.map(file => processDroppedFile(file));
+
+    try {
+      await Promise.all(promises);
+    } catch (error) {
+      console.error('Error processing dropped files:', error);
     }
   }
 
