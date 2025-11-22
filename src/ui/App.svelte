@@ -84,6 +84,61 @@
     }
   }
 
+  // Global drag and drop handler to open files in tabs
+  function handleGlobalDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  async function handleGlobalDrop(event: DragEvent): Promise<void> {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const files = event.dataTransfer?.files;
+    if (!files || files.length === 0) return;
+
+    for (const file of Array.from(files)) {
+      await processDroppedFile(file);
+    }
+  }
+
+  async function processDroppedFile(file: File): Promise<void> {
+    const fileType = detectFileType(file);
+    const reader = new FileReader();
+
+    reader.onload = async (e) => {
+      const content = e.target?.result as string;
+      if (ipc) {
+        try {
+          await ipc.openNoteTab(Date.now(), file.name, content, fileType);
+        } catch (error) {
+          console.error('Failed to create tab for dropped file:', error);
+        }
+      }
+    };
+
+    if (fileType === 'image' || fileType === 'pdf') {
+      reader.readAsDataURL(file);
+    } else {
+      reader.readAsText(file);
+    }
+  }
+
+  function detectFileType(file: File): 'text' | 'pdf' | 'image' {
+    const mimeType = file.type.toLowerCase();
+    const fileName = file.name.toLowerCase();
+
+    if (mimeType.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|bmp|svg|ico)$/i.test(fileName)) {
+      return 'image';
+    }
+
+    if (mimeType === 'application/pdf' || fileName.endsWith('.pdf')) {
+      return 'pdf';
+    }
+
+    return 'text';
+  }
+
   // Initialize keyboard shortcuts on mount
   onMount(() => {
     const cleanup = initKeyboardShortcuts({
@@ -98,7 +153,7 @@
   });
 </script>
 
-<main class="app-container">
+<main class="app-container" ondragover={handleGlobalDragOver} ondrop={handleGlobalDrop}>
   <div class="app-content">
     <aside class="sidebar">
       <div class="sidebar-nav">

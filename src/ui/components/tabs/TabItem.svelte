@@ -212,7 +212,7 @@
 
   .tab-thumbnail {
     width: 48px;
-    height: 27px;
+    height: 14px;
     border-radius: 2px;
     overflow: hidden;
     background-color: #1e1e1e;

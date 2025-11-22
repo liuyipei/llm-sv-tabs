@@ -236,35 +236,14 @@
     </div>
   {:else}
     <div
-      class="notes-list"
+      class="drop-zone"
       class:dragging={isDragging}
       ondragover={handleDragOver}
       ondragleave={handleDragLeave}
       ondrop={handleDrop}
     >
-      {#each $notes as note (note.id)}
-        <div class="note-item" class:selected={note.selected}>
-          <input
-            type="checkbox"
-            checked={note.selected}
-            onchange={() => toggleNoteSelection(note)}
-            title="Include in context"
-          />
-          <div
-            class="note-info"
-            onclick={() => editNote(note)}
-            onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && editNote(note)}
-            role="button"
-            tabindex="0"
-          >
-            <div class="note-title">{note.title}</div>
-            <div class="note-preview">{note.body.slice(0, 50)}{note.body.length > 50 ? '...' : ''}</div>
-          </div>
-          <button class="delete-btn" onclick={() => deleteNote(note.id)} title="Delete note">
-            ×
-          </button>
-        </div>
-      {/each}
+      <p class="drop-zone-text">Drag and drop files here or use the buttons above</p>
+      <p class="drop-zone-hint">Files will open in new tabs</p>
     </div>
   {/if}
 
@@ -338,104 +317,39 @@
     justify-content: center;
   }
 
-  .notes-list {
+  .drop-zone {
     flex: 1;
-    overflow-y: auto;
-    padding: 10px;
-    transition: background-color 0.2s;
-    position: relative;
-  }
-
-  .notes-list.dragging {
-    background-color: #094771;
-    border: 2px dashed #007acc;
-  }
-
-  .notes-list.dragging::before {
-    content: 'Drop files here';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    color: #007acc;
-    font-size: 16px;
-    font-weight: 600;
-    pointer-events: none;
-    z-index: 1;
-  }
-
-  .note-item {
     display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px;
-    margin-bottom: 5px;
-    background-color: #2d2d30;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-  }
-
-  .note-item:hover {
-    background-color: #3e3e42;
-  }
-
-  .note-item.selected {
-    background-color: #094771;
-    border-left: 3px solid #007acc;
-  }
-
-  .note-info {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-  }
-
-  .note-title {
-    font-size: 13px;
-    font-weight: 500;
-    color: #d4d4d4;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin-bottom: 2px;
-  }
-
-  .note-preview {
-    font-size: 11px;
-    color: #808080;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .delete-btn {
-    flex-shrink: 0;
-    background: none;
-    border: none;
-    color: #d4d4d4;
-    font-size: 20px;
-    cursor: pointer;
-    padding: 0;
-    width: 24px;
-    height: 24px;
-    border-radius: 4px;
-    display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    opacity: 0.6;
-    transition: all 0.2s;
+    padding: 40px 20px;
+    transition: background-color 0.2s, border 0.2s;
+    position: relative;
+    background-color: #1e1e1e;
+    border: 2px dashed #3e3e42;
+    margin: 10px;
+    border-radius: 8px;
   }
 
-  .delete-btn:hover {
-    opacity: 1;
-    background-color: #e81123;
+  .drop-zone.dragging {
+    background-color: #094771;
+    border-color: #007acc;
   }
 
-  input[type='checkbox'] {
-    flex-shrink: 0;
-    cursor: pointer;
+  .drop-zone-text {
+    color: #d4d4d4;
+    font-size: 14px;
+    margin: 0 0 8px 0;
+    font-weight: 500;
   }
+
+  .drop-zone-hint {
+    color: #808080;
+    font-size: 12px;
+    margin: 0;
+  }
+
 
   .note-editor {
     display: flex;
