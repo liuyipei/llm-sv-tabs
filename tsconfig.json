@@ -21,7 +21,8 @@
     "paths": {
       "$lib/*": ["src/ui/lib/*"],
       "$components/*": ["src/ui/components/*"],
-      "$stores/*": ["src/ui/stores/*"]
+      "$stores/*": ["src/ui/stores/*"],
+      "$utils/*": ["src/ui/utils/*"]
     }
   },
   "include": [

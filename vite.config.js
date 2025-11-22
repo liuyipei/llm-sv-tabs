@@ -23,6 +23,7 @@ export default defineConfig({
       '$stores': resolve(__dirname, 'src/ui/stores'),
       '$components': resolve(__dirname, 'src/ui/components'),
       '$lib': resolve(__dirname, 'src/ui/lib'),
+      '$utils': resolve(__dirname, 'src/ui/utils'),
       '~': resolve(__dirname, 'node_modules'),
     },
     // Ensure node_modules resolution works from project root
