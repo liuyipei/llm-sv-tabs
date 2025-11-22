@@ -46,6 +46,9 @@
   }
 
   function focusLLMInput(): void {
+    // Switch to chat view
+    activeSidebarView.set('chat');
+    // Focus the input
     if (focusLLMInputCallback) {
       focusLLMInputCallback();
     }

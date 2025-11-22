@@ -4,6 +4,7 @@ import { SessionManager } from './services/session-manager.js';
 
 interface TabWithView extends Tab {
   view: BrowserView;
+  thumbnail?: string;
 }
 
 class TabManager {
@@ -88,6 +89,11 @@ class TabManager {
     view.webContents.on('did-navigate', (_event, url) => {
       tab.url = url;
       this.sendToRenderer('tab-url-updated', { id: tabId, url });
+    });
+
+    // Capture thumbnail when page finishes loading
+    view.webContents.on('did-finish-load', () => {
+      this.captureThumbnail(tabId);
     });
 
     // Set as active tab
@@ -280,7 +286,38 @@ class TabManager {
       title: tab.title,
       url: tab.url,
       type: tab.type,
+      thumbnail: tab.thumbnail,
     };
+  }
+
+  /**
+   * Capture thumbnail for a tab
+   */
+  private async captureThumbnail(tabId: string): Promise<void> {
+    const tab = this.tabs.get(tabId);
+    if (!tab || !tab.view || !tab.view.webContents) return;
+
+    try {
+      // Capture page at smaller size for thumbnail (160x90 for 16:9 aspect ratio)
+      const image = await tab.view.webContents.capturePage({
+        x: 0,
+        y: 0,
+        width: 1280,
+        height: 720,
+      });
+
+      // Resize to thumbnail size
+      const thumbnail = image.resize({ width: 160, height: 90 });
+      const dataUrl = thumbnail.toDataURL();
+
+      // Store thumbnail
+      tab.thumbnail = dataUrl;
+
+      // Notify renderer
+      this.sendToRenderer('tab-thumbnail-updated', { id: tabId, thumbnail: dataUrl });
+    } catch (error) {
+      console.error('Failed to capture thumbnail:', error);
+    }
   }
 
   selectTabs(tabIds: string[]): { success: boolean; selectedTabs: string[] } {

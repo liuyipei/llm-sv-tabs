@@ -114,6 +114,12 @@
     onclick={(e) => e.stopPropagation()}
   />
 
+  {#if tab.thumbnail}
+    <div class="tab-thumbnail">
+      <img src={tab.thumbnail} alt="Tab preview" />
+    </div>
+  {/if}
+
   <div class="tab-content">
     <div class="tab-title" title={tab.title}>
       {tab.title || 'Untitled'}
@@ -175,6 +181,22 @@
   input[type='checkbox'] {
     flex-shrink: 0;
     cursor: pointer;
+  }
+
+  .tab-thumbnail {
+    flex-shrink: 0;
+    width: 80px;
+    height: 45px;
+    border-radius: 3px;
+    overflow: hidden;
+    background-color: #1e1e1e;
+    border: 1px solid #3e3e42;
+  }
+
+  .tab-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
 
   .tab-content {
