@@ -89,22 +89,23 @@
       onclick={handleQuerySubmit}
       class="query-submit-btn"
       disabled={!$queryInput.trim() || $isLoading}
+      title={$isLoading ? 'Sending...' : 'Send (Enter)'}
     >
-      {$isLoading ? 'Sending...' : 'Send'}
+      {$isLoading ? '⏳' : '➤'}
     </button>
   </div>
 </div>
 
 <style>
   .input-controls {
-    padding: 15px;
+    padding: 10px;
     background-color: #252526;
     border-top: 1px solid #3e3e42;
   }
 
   .query-input-container {
+    position: relative;
     display: flex;
-    gap: 10px;
   }
 
   .query-input {
@@ -113,7 +114,7 @@
     color: #d4d4d4;
     border: 1px solid #3e3e42;
     border-radius: 4px;
-    padding: 10px;
+    padding: 10px 50px 10px 10px;
     font-family: inherit;
     font-size: 14px;
     resize: vertical;
@@ -126,16 +127,22 @@
   }
 
   .query-submit-btn {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
     background-color: #007acc;
     color: white;
     border: none;
     border-radius: 4px;
-    padding: 10px 20px;
-    font-size: 14px;
-    font-weight: 500;
+    padding: 8px 12px;
+    font-size: 18px;
     cursor: pointer;
     transition: background-color 0.2s;
-    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
   }
 
   .query-submit-btn:hover:not(:disabled) {

@@ -29,7 +29,7 @@
   .chat-container {
     flex: 1;
     overflow-y: auto;
-    padding: 20px;
+    padding: 10px;
     background-color: #1e1e1e;
   }
 

@@ -113,11 +113,14 @@
 
   .sidebar {
     width: 350px;
+    flex-shrink: 0;
     background-color: #252526;
     border-right: 1px solid #3e3e42;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    position: relative;
+    z-index: 10;
   }
 
   .sidebar-nav {
@@ -169,9 +172,12 @@
 
   .main-content {
     flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    position: relative;
+    z-index: 1;
   }
 
   .browser-view {
