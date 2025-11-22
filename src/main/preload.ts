@@ -56,6 +56,9 @@ const electronAPI = {
   openRawMessageViewer: (tabId: string): Promise<IPCResponse> =>
     ipcRenderer.invoke('open-raw-message-viewer', tabId),
 
+  openDebugInfoWindow: (tabId: string): Promise<IPCResponse> =>
+    ipcRenderer.invoke('open-debug-info-window', tabId),
+
   // Content extraction
   extractContent: (tabId: string): Promise<IPCResponse<ExtractedContent>> =>
     ipcRenderer.invoke('extract-content', tabId),

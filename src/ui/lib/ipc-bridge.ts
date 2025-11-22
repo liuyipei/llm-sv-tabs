@@ -20,6 +20,7 @@ export interface IPCBridgeAPI {
   openLLMResponseTab(query: string, response?: string, error?: string): Promise<IPCResponse<{ tabId: string; tab: TabData }> | { tabId: string; tab: Tab }>;
   updateLLMResponseTab(tabId: string, response: string, metadata?: any): Promise<IPCResponse | { success: boolean }>;
   openRawMessageViewer(tabId: string): Promise<IPCResponse | { success: boolean }>;
+  openDebugInfoWindow(tabId: string): Promise<IPCResponse | { success: boolean }>;
   getBookmarks(): Promise<IPCResponse<Bookmark[]> | Bookmark[]>;
   addBookmark(bookmark: Omit<Bookmark, 'id' | 'created'>): Promise<IPCResponse<Bookmark> | { success: boolean }>;
   sendQuery(query: string, options?: QueryOptions): Promise<LLMResponse | { response: string }>;
@@ -78,6 +79,7 @@ export function initializeIPC(): IPCBridgeAPI {
     openLLMResponseTab: (query: string, response?: string, error?: string) => window.electronAPI.openLLMResponseTab(query, response, error),
     updateLLMResponseTab: (tabId: string, response: string, metadata?: any) => window.electronAPI.updateLLMResponseTab(tabId, response, metadata),
     openRawMessageViewer: (tabId: string) => window.electronAPI.openRawMessageViewer(tabId),
+    openDebugInfoWindow: (tabId: string) => window.electronAPI.openDebugInfoWindow(tabId),
     getBookmarks: () => window.electronAPI.getBookmarks(),
     addBookmark: (bookmark: Omit<Bookmark, 'id' | 'created'>) => window.electronAPI.addBookmark(bookmark),
     sendQuery: (query: string, options?: QueryOptions) => window.electronAPI.sendQuery(query, options),
@@ -190,6 +192,10 @@ function createMockAPI(): IPCBridgeAPI {
     },
     openRawMessageViewer: async (tabId: string) => {
       console.log('Mock: openRawMessageViewer', tabId);
+      return { success: true };
+    },
+    openDebugInfoWindow: async (tabId: string) => {
+      console.log('Mock: openDebugInfoWindow', tabId);
       return { success: true };
     },
     getBookmarks: async (): Promise<Bookmark[]> => {
