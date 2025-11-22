@@ -53,16 +53,49 @@
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
   }
+
+  function handleKeyDown(event: KeyboardEvent): void {
+    const step = 5; // 5% adjustment per key press
+    const keys = orientation === 'horizontal'
+      ? ['ArrowUp', 'ArrowDown']
+      : ['ArrowLeft', 'ArrowRight'];
+
+    if (!keys.includes(event.key)) return;
+
+    event.preventDefault();
+
+    const parent = (event.target as HTMLElement).parentElement;
+    if (!parent) return;
+
+    // Get current size from parent styles or use a default
+    const currentPercentage = 50; // This could be tracked in state if needed
+
+    if (orientation === 'horizontal') {
+      const newPercentage = event.key === 'ArrowUp'
+        ? Math.min(80, currentPercentage + step)
+        : Math.max(20, currentPercentage - step);
+      onResize(newPercentage);
+    } else {
+      const newPercentage = event.key === 'ArrowLeft'
+        ? Math.min(80, currentPercentage + step)
+        : Math.max(20, currentPercentage - step);
+      onResize(newPercentage);
+    }
+  }
 </script>
 
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div
   class="resizable-divider"
   class:horizontal={orientation === 'horizontal'}
   class:vertical={orientation === 'vertical'}
   class:dragging={isDragging}
   onmousedown={handleMouseDown}
+  onkeydown={handleKeyDown}
   role="separator"
   aria-orientation={orientation}
+  aria-label={`${orientation} resizable divider`}
   tabindex="0"
 ></div>
 

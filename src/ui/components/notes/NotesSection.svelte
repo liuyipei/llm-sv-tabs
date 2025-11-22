@@ -244,6 +244,8 @@
       ondragover={handleDragOver}
       ondragleave={handleDragLeave}
       ondrop={handleDrop}
+      role="region"
+      aria-label="File drop zone for uploading files"
     >
       <p class="drop-zone-text">Drag and drop files here or use the buttons above</p>
       <p class="drop-zone-hint">Support for multiple files - each will open in a new tab</p>
