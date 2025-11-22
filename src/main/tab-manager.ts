@@ -1,4 +1,4 @@
-import { BrowserView, BrowserWindow, Menu, MenuItem, shell } from 'electron';
+import { BrowserView, BrowserWindow, Menu, MenuItem } from 'electron';
 import type { Tab, TabData, TabType } from '../types';
 import { SessionManager } from './services/session-manager.js';
 
@@ -57,7 +57,7 @@ class TabManager {
   /**
    * Set up context menu for a BrowserView to handle right-clicks on links
    */
-  private setupContextMenu(view: BrowserView, tabId: string): void {
+  private setupContextMenu(view: BrowserView, _tabId: string): void {
     view.webContents.on('context-menu', (_event, params) => {
       const { linkURL, x, y } = params;
 
@@ -425,7 +425,6 @@ class TabManager {
       url: tab.url,
       type: tab.type,
       thumbnail: tab.thumbnail,
-      favicon: tab.favicon,
     };
   }
 
