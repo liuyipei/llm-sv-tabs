@@ -1,9 +1,13 @@
 <script lang="ts">
-  import { getContext } from 'svelte';
+  import { getContext, onMount } from 'svelte';
   import { urlInput } from '$stores/ui';
   import type { IPCBridgeAPI } from '$lib/ipc-bridge';
 
   const ipc = getContext<IPCBridgeAPI>('ipc');
+  const setFocusUrlInputCallback = getContext<(callback: () => void) => void>('setFocusUrlInputCallback');
+
+  // Reference to the URL input element
+  let urlInputElement: HTMLInputElement;
 
   async function handleUrlSubmit(): Promise<void> {
     if (!$urlInput.trim()) return;
@@ -29,11 +33,26 @@
       handleUrlSubmit();
     }
   }
+
+  function focusUrlInputElement(): void {
+    if (urlInputElement) {
+      urlInputElement.focus();
+      urlInputElement.select();
+    }
+  }
+
+  // Register focus callback on mount
+  onMount(() => {
+    if (setFocusUrlInputCallback) {
+      setFocusUrlInputCallback(focusUrlInputElement);
+    }
+  });
 </script>
 
 <div class="url-bar">
   <input
     type="text"
+    bind:this={urlInputElement}
     bind:value={$urlInput}
     onkeydown={handleUrlKeydown}
     placeholder="Enter URL to open a new tab..."
