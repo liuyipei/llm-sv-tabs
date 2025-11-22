@@ -103,7 +103,7 @@ class TabManager {
     });
   }
 
-  openUrl(url: string): { tabId: string; tab: TabData } {
+  openUrl(url: string, autoSelect: boolean = true): { tabId: string; tab: TabData } {
     const tabId = this.createTabId();
 
     const view = new BrowserView({
@@ -152,8 +152,10 @@ class TabManager {
       }
     });
 
-    // Set as active tab
-    this.setActiveTab(tabId);
+    // Set as active tab (if autoSelect is true)
+    if (autoSelect) {
+      this.setActiveTab(tabId);
+    }
 
     // Notify renderer
     this.sendToRenderer('tab-created', { tab: this.getTabData(tabId) });
@@ -164,7 +166,7 @@ class TabManager {
     return { tabId, tab: this.getTabData(tabId)! };
   }
 
-  openNoteTab(noteId: number, title: string, content: string, fileType: 'text' | 'pdf' | 'image' = 'text'): { tabId: string; tab: TabData } {
+  openNoteTab(noteId: number, title: string, content: string, fileType: 'text' | 'pdf' | 'image' = 'text', autoSelect: boolean = true): { tabId: string; tab: TabData } {
     const tabId = this.createTabId();
 
     const view = new BrowserView({
@@ -196,8 +198,10 @@ class TabManager {
     // Set up context menu for links
     this.setupContextMenu(view, tabId);
 
-    // Set as active tab
-    this.setActiveTab(tabId);
+    // Set as active tab (if autoSelect is true)
+    if (autoSelect) {
+      this.setActiveTab(tabId);
+    }
 
     // Notify renderer
     this.sendToRenderer('tab-created', { tab: this.getTabData(tabId) });
@@ -208,7 +212,7 @@ class TabManager {
     return { tabId, tab: this.getTabData(tabId)! };
   }
 
-  openLLMResponseTab(query: string, response?: string, error?: string): { tabId: string; tab: TabData } {
+  openLLMResponseTab(query: string, response?: string, error?: string, autoSelect: boolean = true): { tabId: string; tab: TabData } {
     const tabId = this.createTabId();
 
     const view = new BrowserView({
@@ -250,8 +254,10 @@ class TabManager {
     // Set up context menu for links
     this.setupContextMenu(view, tabId);
 
-    // Set as active tab
-    this.setActiveTab(tabId);
+    // Set as active tab (if autoSelect is true)
+    if (autoSelect) {
+      this.setActiveTab(tabId);
+    }
 
     // Notify renderer
     this.sendToRenderer('tab-created', { tab: this.getTabData(tabId) });
@@ -296,7 +302,7 @@ class TabManager {
     return { success: true };
   }
 
-  openRawMessageViewer(tabId: string): { success: boolean; error?: string } {
+  openRawMessageViewer(tabId: string, autoSelect: boolean = true): { success: boolean; error?: string } {
     const tab = this.tabs.get(tabId);
     if (!tab) return { success: false, error: 'Tab not found' };
     if (!tab.metadata?.isLLMResponse) return { success: false, error: 'Not an LLM response tab' };
@@ -332,8 +338,10 @@ class TabManager {
     // Set up context menu
     this.setupContextMenu(view, rawViewId);
 
-    // Set as active tab
-    this.setActiveTab(rawViewId);
+    // Set as active tab (if autoSelect is true)
+    if (autoSelect) {
+      this.setActiveTab(rawViewId);
+    }
 
     // Notify renderer
     this.sendToRenderer('tab-created', { tab: this.getTabData(rawViewId) });
@@ -1174,18 +1182,31 @@ class TabManager {
       return false;
     }
 
-    // Restore each tab
+    // Find the index of the previously active tab
+    let activeTabIndex = -1;
+    if (session.activeTabId) {
+      activeTabIndex = session.tabs.findIndex(tab => tab.id === session.activeTabId);
+    }
+
+    // Track the new tab IDs as we restore
+    const restoredTabIds: string[] = [];
+
+    // Restore each tab without auto-selecting
     for (const tabData of session.tabs) {
-      const { tabId } = this.openUrl(tabData.url);
+      const { tabId } = this.openUrl(tabData.url, false); // Don't auto-select during restoration
+      restoredTabIds.push(tabId);
       const tab = this.tabs.get(tabId);
       if (tab && tabData.title !== 'Loading...') {
         tab.title = tabData.title;
       }
     }
 
-    // Restore active tab
-    if (session.activeTabId && this.tabs.has(session.activeTabId)) {
-      this.setActiveTab(session.activeTabId);
+    // Restore the active tab based on its index position
+    if (activeTabIndex >= 0 && activeTabIndex < restoredTabIds.length) {
+      this.setActiveTab(restoredTabIds[activeTabIndex]);
+    } else if (restoredTabIds.length > 0) {
+      // Fallback: activate the first tab if the active tab index is invalid
+      this.setActiveTab(restoredTabIds[0]);
     }
 
     return true;
