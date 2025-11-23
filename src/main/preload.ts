@@ -39,6 +39,9 @@ const electronAPI = {
   reloadTab: (tabId: string): Promise<IPCResponse> =>
     ipcRenderer.invoke('reload-tab', tabId),
 
+  updateTabTitle: (tabId: string, title: string): Promise<IPCResponse> =>
+    ipcRenderer.invoke('update-tab-title', tabId, title),
+
   copyTabUrl: (tabId: string): Promise<IPCResponse<{ url?: string }>> =>
     ipcRenderer.invoke('copy-tab-url', tabId),
 

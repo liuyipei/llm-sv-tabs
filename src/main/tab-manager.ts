@@ -319,6 +319,22 @@ class TabManager {
     return { success: true };
   }
 
+  updateTabTitle(tabId: string, title: string): { success: boolean; error?: string } {
+    const tab = this.tabs.get(tabId);
+    if (!tab) return { success: false, error: 'Tab not found' };
+
+    // Update the title
+    tab.title = title;
+
+    // Notify renderer of title update
+    this.sendToRenderer('tab-title-updated', { id: tabId, title: tab.title });
+
+    // Save session
+    this.saveSession();
+
+    return { success: true };
+  }
+
   openRawMessageViewer(tabId: string, autoSelect: boolean = true): { success: boolean; error?: string } {
     const tab = this.tabs.get(tabId);
     if (!tab) return { success: false, error: 'Tab not found' };

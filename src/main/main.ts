@@ -136,6 +136,11 @@ function setupIPCHandlers(): void {
     return tabManager.reloadTab(tabId);
   });
 
+  ipcMain.handle('update-tab-title', async (_event, tabId: string, title: string) => {
+    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
+    return tabManager.updateTabTitle(tabId, title);
+  });
+
   ipcMain.handle('copy-tab-url', async (_event, tabId: string) => {
     if (!tabManager) return { success: false, error: 'TabManager not initialized' };
     return tabManager.copyTabUrl(tabId);

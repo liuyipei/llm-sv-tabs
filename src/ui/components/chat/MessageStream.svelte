@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { marked } from 'marked';
   import DOMPurify from 'dompurify';
+  import { activeTabs } from '$stores/tabs';
 
   declare global {
     interface Window {
@@ -25,6 +26,16 @@
 
   let unsubscribe: (() => void) | null = null;
   let renderScheduled = false;
+
+  // Get tab metadata
+  const tab = $derived($activeTabs.get(tabId));
+  const metadata = $derived(tab?.metadata);
+  const query = $derived(metadata?.query || metadata?.fullQuery || '');
+  const tokensIn = $derived(metadata?.tokensIn);
+  const tokensOut = $derived(metadata?.tokensOut);
+  const model = $derived(metadata?.model);
+  const isStreaming = $derived(metadata?.isStreaming);
+  const error = $derived(metadata?.error);
 
   function updateBuffers() {
     // Simple block split: last blank line as boundary
@@ -70,19 +81,120 @@
 </script>
 
 <div class="llm-message-stream" bind:this={container}>
-  <div class="stable">{@html stableHtml}</div>
-  <div class="unstable">{@html unstableHtml}</div>
+  {#if query}
+    <div class="query-header">
+      <div class="query-label">Query:</div>
+      <div class="query-text">{query}</div>
+    </div>
+  {/if}
+
+  {#if error}
+    <div class="error-message">
+      <strong>Error:</strong> {error}
+    </div>
+  {:else}
+    <div class="response-header">
+      <div class="response-label">Response:</div>
+      {#if model || tokensIn !== undefined || tokensOut !== undefined}
+        <div class="metadata">
+          {#if model}
+            <span class="metadata-item">Model: {model}</span>
+          {/if}
+          {#if tokensIn !== undefined}
+            <span class="metadata-item">In: {tokensIn.toLocaleString()} tokens</span>
+          {/if}
+          {#if tokensOut !== undefined}
+            <span class="metadata-item">Out: {tokensOut.toLocaleString()} tokens</span>
+          {/if}
+          {#if isStreaming}
+            <span class="metadata-item streaming">Streaming...</span>
+          {/if}
+        </div>
+      {/if}
+    </div>
+
+    <div class="response-content">
+      <div class="stable">{@html stableHtml}</div>
+      <div class="unstable">{@html unstableHtml}</div>
+    </div>
+  {/if}
 </div>
 
 <style>
   .llm-message-stream {
     overflow-y: auto;
     height: 100%;
-    white-space: pre-wrap;
     font-family: system-ui, sans-serif;
-    padding: 0.75rem 1rem;
+    padding: 1rem;
     background-color: #252526;
     color: #d4d4d4;
+  }
+
+  .query-header {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background-color: #1e1e1e;
+    border-left: 3px solid #007acc;
+    border-radius: 4px;
+  }
+
+  .query-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #007acc;
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.5px;
+  }
+
+  .query-text {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+
+  .response-header {
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #3e3e42;
+  }
+
+  .response-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #4ec9b0;
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.5px;
+  }
+
+  .metadata {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    font-size: 0.85rem;
+  }
+
+  .metadata-item {
+    color: #8c8c8c;
+  }
+
+  .metadata-item.streaming {
+    color: #4ec9b0;
+    font-weight: 500;
+  }
+
+  .error-message {
+    padding: 1rem;
+    background-color: #5a1d1d;
+    border-left: 3px solid #f48771;
+    border-radius: 4px;
+    color: #f48771;
+  }
+
+  .response-content {
+    white-space: pre-wrap;
   }
 
   .unstable {
