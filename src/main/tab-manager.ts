@@ -661,6 +661,7 @@ class TabManager {
       title: tab.title,
       url: tab.url,
       type: tab.type,
+      component: tab.component,
     };
   }
 

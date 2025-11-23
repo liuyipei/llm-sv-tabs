@@ -38,6 +38,7 @@ export interface TabData {
   title: string;
   url: string;
   type: TabType;
+  component?: 'llm-response' | 'note';
 }
 
 export type SortMode = 'time' | 'url' | 'title' | 'manual';
