@@ -120,6 +120,116 @@ export class GeminiProvider extends BaseProvider {
     }
   }
 
+  async queryStream(
+    messages: Array<{ role: string; content: string }>,
+    options: QueryOptions | undefined,
+    onChunk: (chunk: string) => void
+  ): Promise<LLMResponse> {
+    if (!this.apiKey) {
+      return { response: '', error: 'API key is required' };
+    }
+
+    const model = options?.model || 'gemini-1.5-flash';
+    const startTime = Date.now();
+
+    try {
+      // Convert messages to Gemini format
+      const contents = [];
+      let systemInstruction = '';
+
+      for (const message of messages) {
+        if (message.role === 'system') {
+          systemInstruction = message.content;
+        } else {
+          contents.push({
+            role: message.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: message.content }],
+          });
+        }
+      }
+
+      const requestBody: any = {
+        contents,
+        generationConfig: {
+          temperature: options?.temperature ?? 0.7,
+          maxOutputTokens: options?.maxTokens ?? 2000,
+        },
+      };
+
+      if (systemInstruction || options?.systemPrompt) {
+        requestBody.systemInstruction = {
+          parts: [{ text: systemInstruction || options?.systemPrompt }],
+        };
+      }
+
+      const url = `${this.baseUrl}/models/${model}:streamGenerateContent?key=${this.apiKey}&alt=sse`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`HTTP ${response.status}: ${error}`);
+      }
+
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+      let buffer = '';
+      let tokensIn = 0;
+      let tokensOut = 0;
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.trim() || line.startsWith(':')) continue;
+          if (!line.startsWith('data: ')) continue;
+
+          const data = line.slice(6);
+
+          try {
+            const parsed = JSON.parse(data);
+            const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            if (text) {
+              fullText += text;
+              onChunk(text);
+            }
+
+            if (parsed.usageMetadata) {
+              tokensIn = parsed.usageMetadata.promptTokenCount || tokensIn;
+              tokensOut = parsed.usageMetadata.candidatesTokenCount || tokensOut;
+            }
+          } catch (e) {
+            // Skip malformed JSON
+          }
+        }
+      }
+
+      return {
+        response: fullText,
+        tokensIn,
+        tokensOut,
+        responseTime: Date.now() - startTime,
+        model,
+      };
+    } catch (error) {
+      return {
+        response: '',
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
   async validate(): Promise<{ valid: boolean; error?: string }> {
     if (!this.apiKey) {
       return { valid: false, error: 'API key is required' };

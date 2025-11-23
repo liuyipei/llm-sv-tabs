@@ -12,6 +12,9 @@
   let showContextMenu = $state(false);
   let contextMenuX = $state(0);
   let contextMenuY = $state(0);
+  let isEditing = $state(false);
+  let editingTitle = $state('');
+  let titleInputElement = $state<HTMLInputElement | null>(null);
 
   const isActive = $derived(tab.id === $activeTabId);
   const isSelected = $derived($selectedTabs.has(tab.id));
@@ -126,6 +129,46 @@
       handleClick();
     }
   }
+
+  function handleTitleDoubleClick(event: MouseEvent): void {
+    if (!isLLMResponse) return; // Only allow editing LLM response tab titles
+    event.stopPropagation();
+    isEditing = true;
+    editingTitle = tab.title || '';
+    // Focus the input after it's rendered
+    setTimeout(() => {
+      titleInputElement?.focus();
+      titleInputElement?.select();
+    }, 0);
+  }
+
+  async function saveTitle(): Promise<void> {
+    if (!isEditing) return;
+    const newTitle = editingTitle.trim();
+    if (newTitle && newTitle !== tab.title && ipc) {
+      await ipc.updateTabTitle(tab.id, newTitle);
+    }
+    isEditing = false;
+  }
+
+  function cancelEditing(): void {
+    isEditing = false;
+    editingTitle = '';
+  }
+
+  function handleTitleInputKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      saveTitle();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      cancelEditing();
+    }
+  }
+
+  function handleTitleInputBlur(): void {
+    saveTitle();
+  }
 </script>
 
 <div
@@ -146,9 +189,28 @@
     />
 
     <div class="tab-content">
-      <div class="tab-title" title={tab.title}>
-        {tab.title || 'Untitled'}
-      </div>
+      {#if isEditing}
+        <input
+          bind:this={titleInputElement}
+          bind:value={editingTitle}
+          class="tab-title-input"
+          type="text"
+          onkeydown={handleTitleInputKeydown}
+          onblur={handleTitleInputBlur}
+          onclick={(e) => e.stopPropagation()}
+        />
+      {:else}
+        <div
+          class="tab-title"
+          class:editable={isLLMResponse}
+          title={isLLMResponse ? `${tab.title} (double-click to edit)` : tab.title}
+          ondblclick={handleTitleDoubleClick}
+          role={isLLMResponse ? 'button' : undefined}
+          tabindex={isLLMResponse ? 0 : undefined}
+        >
+          {tab.title || 'Untitled'}
+        </div>
+      {/if}
       <div class="tab-url" title={tab.url}>
         {tab.url}
       </div>
@@ -246,6 +308,30 @@
     overflow: hidden;
     text-overflow: ellipsis;
     margin-bottom: 2px;
+  }
+
+  .tab-title.editable {
+    cursor: text;
+  }
+
+  .tab-title.editable:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 2px;
+    padding: 1px 2px;
+    margin: -1px -2px;
+  }
+
+  .tab-title-input {
+    font-size: 12px;
+    font-weight: 500;
+    color: #d4d4d4;
+    background-color: #3c3c3c;
+    border: 1px solid #007acc;
+    border-radius: 2px;
+    padding: 1px 4px;
+    margin-bottom: 2px;
+    width: 100%;
+    outline: none;
   }
 
   .tab-url {

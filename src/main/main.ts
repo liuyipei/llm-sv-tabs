@@ -136,6 +136,11 @@ function setupIPCHandlers(): void {
     return tabManager.reloadTab(tabId);
   });
 
+  ipcMain.handle('update-tab-title', async (_event, tabId: string, title: string) => {
+    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
+    return tabManager.updateTabTitle(tabId, title);
+  });
+
   ipcMain.handle('copy-tab-url', async (_event, tabId: string) => {
     if (!tabManager) return { success: false, error: 'TabManager not initialized' };
     return tabManager.copyTabUrl(tabId);
@@ -222,7 +227,7 @@ function setupIPCHandlers(): void {
     }
   });
 
-  // LLM Query
+  // LLM Query with Streaming
   ipcMain.handle('send-query', async (_event, query: string, options?: QueryOptions): Promise<LLMResponse> => {
     if (!options?.provider) {
       return {
@@ -230,6 +235,16 @@ function setupIPCHandlers(): void {
         error: 'Provider is required',
       };
     }
+
+    if (!tabManager) {
+      return {
+        response: '',
+        error: 'TabManager not initialized',
+      };
+    }
+
+    // Create LLM response tab
+    const { tabId } = tabManager.openLLMResponseTab(query);
 
     try {
       // Get provider instance
@@ -249,21 +264,21 @@ function setupIPCHandlers(): void {
 
       // Extract content from selected tabs if requested
       let contextContent = '';
-      if (tabManager && options.selectedTabIds && options.selectedTabIds.length > 0) {
+      if (options.selectedTabIds && options.selectedTabIds.length > 0) {
         const extractedContents: ExtractedContent[] = [];
 
-        for (const tabId of options.selectedTabIds) {
-          const view = tabManager.getTabView(tabId);
+        for (const selectedTabId of options.selectedTabIds) {
+          const view = tabManager.getTabView(selectedTabId);
           if (view) {
             try {
               const content = await ContentExtractor.extractFromTab(
                 view,
-                tabId,
+                selectedTabId,
                 options.includeMedia ?? false
               );
               extractedContents.push(content);
             } catch (error) {
-              console.error(`Failed to extract content from tab ${tabId}:`, error);
+              console.error(`Failed to extract content from tab ${selectedTabId}:`, error);
             }
           }
         }
@@ -290,8 +305,40 @@ ${dom.mainContent || ''}
       const fullQuery = contextContent ? `${contextContent}${query}` : query;
       messages.push({ role: 'user', content: fullQuery });
 
-      // Send query to provider
-      const response = await provider.query(messages, options);
+      // Stream response
+      const response = await provider.queryStream(messages, options, (chunk) => {
+        // Send chunk to renderer
+        tabManager!.sendStreamChunk(tabId, chunk);
+      });
+
+      // Update tab metadata after streaming completes
+      const tab = tabManager.getTab(tabId);
+      if (tab?.metadata) {
+        tab.metadata.response = response.response;
+        tab.metadata.isStreaming = false;
+        tab.metadata.tokensIn = response.tokensIn;
+        tab.metadata.tokensOut = response.tokensOut;
+        tab.metadata.model = response.model;
+        tab.metadata.fullQuery = fullQuery !== query ? fullQuery : undefined;
+
+        // Update title
+        const modelName = response.model || '';
+        const tokensIn = response.tokensIn || 0;
+        const tokensOut = response.tokensOut || 0;
+
+        if (modelName && tokensIn > 0 && tokensOut > 0) {
+          tab.title = `Response ${modelName} up: ${tokensIn.toLocaleString()} down: ${tokensOut.toLocaleString()}`;
+        } else if (modelName) {
+          tab.title = `Response ${modelName}`;
+        }
+
+        tabManager.updateLLMResponseTab(tabId, response.response, {
+          tokensIn: response.tokensIn,
+          tokensOut: response.tokensOut,
+          model: response.model,
+          error: response.error,
+        });
+      }
 
       // Add fullQuery to response metadata
       return {
@@ -299,6 +346,13 @@ ${dom.mainContent || ''}
         fullQuery: fullQuery !== query ? fullQuery : undefined,
       };
     } catch (error) {
+      // Update tab with error
+      const tab = tabManager.getTab(tabId);
+      if (tab?.metadata) {
+        tab.metadata.error = error instanceof Error ? error.message : String(error);
+        tab.metadata.isStreaming = false;
+      }
+
       return {
         response: '',
         error: error instanceof Error ? error.message : String(error),

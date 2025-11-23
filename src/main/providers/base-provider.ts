@@ -45,6 +45,19 @@ export abstract class BaseProvider {
   ): Promise<LLMResponse>;
 
   /**
+   * Stream a query to the LLM provider
+   * @param messages - Array of messages to send
+   * @param options - Query options
+   * @param onChunk - Callback invoked for each chunk of text
+   * @returns Promise that resolves with the complete response
+   */
+  abstract queryStream(
+    messages: Array<{ role: string; content: string }>,
+    options: QueryOptions | undefined,
+    onChunk: (chunk: string) => void
+  ): Promise<LLMResponse>;
+
+  /**
    * Validate provider configuration
    */
   abstract validate(): Promise<{ valid: boolean; error?: string }>;

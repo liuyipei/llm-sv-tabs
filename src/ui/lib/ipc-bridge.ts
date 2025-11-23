@@ -15,6 +15,7 @@ export interface IPCBridgeAPI {
   setActiveTab(tabId: string): Promise<IPCResponse | { success: boolean }>;
   selectTabs(tabIds: string[]): Promise<IPCResponse | { success: boolean }>;
   reloadTab(tabId: string): Promise<IPCResponse | { success: boolean }>;
+  updateTabTitle(tabId: string, title: string): Promise<IPCResponse | { success: boolean }>;
   copyTabUrl(tabId: string): Promise<IPCResponse<{ url?: string }> | { success: boolean; url?: string }>;
   openNoteTab(noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image'): Promise<IPCResponse<{ tabId: string; tab: TabData }> | { tabId: string; tab: Tab }>;
   openLLMResponseTab(query: string, response?: string, error?: string): Promise<IPCResponse<{ tabId: string; tab: TabData }> | { tabId: string; tab: Tab }>;
@@ -25,6 +26,7 @@ export interface IPCBridgeAPI {
   addBookmark(bookmark: Omit<Bookmark, 'id' | 'created'>): Promise<IPCResponse<Bookmark> | { success: boolean }>;
   sendQuery(query: string, options?: QueryOptions): Promise<LLMResponse | { response: string }>;
   discoverModels(provider: ProviderType, apiKey?: string, endpoint?: string): Promise<IPCResponse<LLMModel[]> | LLMModel[]>;
+  onLLMChunk?(callback: (payload: { tabId: string; chunk: string }) => void): () => void;
 }
 
 /**
@@ -74,6 +76,7 @@ export function initializeIPC(): IPCBridgeAPI {
     setActiveTab: (tabId: string) => window.electronAPI.setActiveTab(tabId),
     selectTabs: (tabIds: string[]) => window.electronAPI.selectTabs(tabIds),
     reloadTab: (tabId: string) => window.electronAPI.reloadTab(tabId),
+    updateTabTitle: (tabId: string, title: string) => window.electronAPI.updateTabTitle(tabId, title),
     copyTabUrl: (tabId: string) => window.electronAPI.copyTabUrl(tabId),
     openNoteTab: (noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image') => window.electronAPI.openNoteTab(noteId, title, content, fileType),
     openLLMResponseTab: (query: string, response?: string, error?: string) => window.electronAPI.openLLMResponseTab(query, response, error),
@@ -149,6 +152,11 @@ function createMockAPI(): IPCBridgeAPI {
     },
     reloadTab: async (tabId: string) => {
       console.log('Mock: reloadTab', tabId);
+      return { success: true };
+    },
+    updateTabTitle: async (tabId: string, title: string) => {
+      console.log('Mock: updateTabTitle', tabId, title);
+      updateTabTitle(tabId, title);
       return { success: true };
     },
     copyTabUrl: async (tabId: string) => {
