@@ -295,13 +295,17 @@ class TabManager {
       tab.title = 'Error';
     } else {
       const modelName = metadata?.model || '';
+      // Extract just the model name (last part after final /)
+      const shortModelName = modelName.includes('/')
+        ? modelName.split('/').pop() || modelName
+        : modelName;
       const tokensIn = metadata?.tokensIn || 0;
       const tokensOut = metadata?.tokensOut || 0;
 
-      if (modelName && tokensIn > 0 && tokensOut > 0) {
-        tab.title = `Response ${modelName} up: ${tokensIn.toLocaleString()} down: ${tokensOut.toLocaleString()}`;
-      } else if (modelName) {
-        tab.title = `Response ${modelName}`;
+      if (shortModelName && tokensIn > 0 && tokensOut > 0) {
+        tab.title = `Response ${shortModelName} up: ${tokensIn.toLocaleString()} down: ${tokensOut.toLocaleString()}`;
+      } else if (shortModelName) {
+        tab.title = `Response ${shortModelName}`;
       } else {
         tab.title = 'LLM Response';
       }
