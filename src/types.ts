@@ -39,6 +39,7 @@ export interface TabData {
   url: string;
   type: TabType;
   component?: 'llm-response' | 'note';
+  metadata?: TabMetadata;
 }
 
 export type SortMode = 'time' | 'url' | 'title' | 'manual';

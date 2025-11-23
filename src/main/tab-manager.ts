@@ -678,6 +678,7 @@ class TabManager {
       url: tab.url,
       type: tab.type,
       component: tab.component,
+      metadata: tab.metadata,
     };
   }
 
