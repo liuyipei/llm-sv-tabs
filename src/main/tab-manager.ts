@@ -576,14 +576,46 @@ class TabManager {
   <script>
     function copyMetadata() {
       const text = document.getElementById('metadata-json').textContent;
-      navigator.clipboard.writeText(text).then(() => {
-        const btn = document.querySelector('.copy-btn');
-        const originalText = btn.textContent;
+      const btn = document.querySelector('.copy-btn');
+      const originalText = btn.textContent;
+
+      // Try modern clipboard API first, fallback to execCommand for better compatibility
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+          btn.textContent = 'Copied!';
+          setTimeout(() => {
+            btn.textContent = originalText;
+          }, 2000);
+        }).catch(() => {
+          // Fallback to execCommand
+          copyUsingExecCommand(text, btn, originalText);
+        });
+      } else {
+        // Use execCommand fallback
+        copyUsingExecCommand(text, btn, originalText);
+      }
+    }
+
+    function copyUsingExecCommand(text, btn, originalText) {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
         btn.textContent = 'Copied!';
         setTimeout(() => {
           btn.textContent = originalText;
         }, 2000);
-      });
+      } catch (err) {
+        btn.textContent = 'Copy failed';
+        setTimeout(() => {
+          btn.textContent = originalText;
+        }, 2000);
+      }
+      document.body.removeChild(textarea);
     }
   </script>
 </body>
