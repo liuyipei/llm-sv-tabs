@@ -3,7 +3,7 @@
  */
 
 import { BaseProvider, type ProviderCapabilities } from './base-provider.js';
-import type { LLMModel, LLMResponse, QueryOptions, MessageContent, ContentBlock } from '../../types';
+import type { LLMModel, LLMResponse, QueryOptions, MessageContent } from '../../types';
 
 export class OpenAIProvider extends BaseProvider {
   private static readonly API_BASE = 'https://api.openai.com/v1';

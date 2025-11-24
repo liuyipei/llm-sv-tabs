@@ -3,7 +3,7 @@
  */
 
 import { BaseProvider, type ProviderCapabilities } from './base-provider.js';
-import type { LLMModel, LLMResponse, QueryOptions, ProviderType } from '../../types';
+import type { LLMModel, LLMResponse, QueryOptions, ProviderType, MessageContent } from '../../types';
 
 export class OpenAICompatibleProvider extends BaseProvider {
   constructor(

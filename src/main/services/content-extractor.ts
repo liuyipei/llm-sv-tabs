@@ -124,9 +124,6 @@ export class ContentExtractor {
       // Resize image if needed (max 512px on long side)
       const resizedDataUrl = ImageResizer.resizeImage(imageDataUrl, 512);
 
-      // Parse the data URL to extract base64 data
-      const { data } = ImageResizer.parseDataUrl(resizedDataUrl);
-
       return {
         type: 'image',
         title: tabData.title,
