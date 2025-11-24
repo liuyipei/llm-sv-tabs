@@ -1,10 +1,12 @@
 <script lang="ts">
+  import { getContext } from 'svelte';
   import { apiKeys, provider as providerStore } from '../../stores/config.js';
   import type { ProviderType } from '../../../types';
-  import ApiKeyInstructionsModal from './ApiKeyInstructionsModal.svelte';
+  import type { IPCBridgeAPI } from '$lib/ipc-bridge';
+
+  const ipc = getContext<IPCBridgeAPI>('ipc');
 
   let showKey = $state(false);
-  let showModal = $state(false);
 
   // Providers that require API keys
   const requiresApiKey: ProviderType[] = [
@@ -31,12 +33,14 @@
     showKey = !showKey;
   }
 
-  function openModal() {
-    showModal = true;
-  }
-
-  function closeModal() {
-    showModal = false;
+  async function openApiKeyInstructions() {
+    if (ipc) {
+      try {
+        await ipc.openUrl('api-keys://instructions');
+      } catch (error) {
+        console.error('Failed to open API key instructions:', error);
+      }
+    }
   }
 </script>
 
@@ -46,7 +50,7 @@
       <label for="api-key">API Key:</label>
       <button
         type="button"
-        onclick={openModal}
+        onclick={openApiKeyInstructions}
         class="info-icon"
         title="Where to get API keys"
         aria-label="Where to get API keys"
@@ -76,8 +80,6 @@
       <div class="hint">Required for {currentProvider}</div>
     {/if}
   </div>
-
-  <ApiKeyInstructionsModal isOpen={showModal} onClose={closeModal} />
 {/if}
 
 <style>
