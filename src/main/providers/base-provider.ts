@@ -2,7 +2,7 @@
  * Base provider class for LLM integrations
  */
 
-import type { ProviderType, LLMModel, LLMResponse, QueryOptions } from '../../types';
+import type { ProviderType, LLMModel, LLMResponse, QueryOptions, MessageContent } from '../../types';
 
 export interface ProviderCapabilities {
   supportsStreaming: boolean;
@@ -40,19 +40,19 @@ export abstract class BaseProvider {
    * Send a query to the LLM provider
    */
   abstract query(
-    messages: Array<{ role: string; content: string }>,
+    messages: Array<{ role: string; content: MessageContent }>,
     options?: QueryOptions
   ): Promise<LLMResponse>;
 
   /**
    * Stream a query to the LLM provider
-   * @param messages - Array of messages to send
+   * @param messages - Array of messages to send (supports multimodal content)
    * @param options - Query options
    * @param onChunk - Callback invoked for each chunk of text
    * @returns Promise that resolves with the complete response
    */
   abstract queryStream(
-    messages: Array<{ role: string; content: string }>,
+    messages: Array<{ role: string; content: MessageContent }>,
     options: QueryOptions | undefined,
     onChunk: (chunk: string) => void
   ): Promise<LLMResponse>;

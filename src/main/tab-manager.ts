@@ -206,6 +206,15 @@ class TabManager {
       view: view,
       created: Date.now(),
       lastViewed: Date.now(),
+      metadata: {
+        fileType: fileType,
+        // For image tabs, store the data URL
+        imageData: fileType === 'image' ? content : undefined,
+        // Extract MIME type from data URL if it's an image
+        mimeType: fileType === 'image' && content.startsWith('data:')
+          ? content.split(';')[0].split(':')[1]
+          : undefined,
+      },
     };
 
     this.tabs.set(tabId, tab);

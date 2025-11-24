@@ -3,7 +3,7 @@
  */
 
 import { BaseProvider, type ProviderCapabilities } from './base-provider.js';
-import type { LLMModel, LLMResponse, QueryOptions } from '../../types';
+import type { LLMModel, LLMResponse, QueryOptions, MessageContent } from '../../types';
 
 export class FireworksProvider extends BaseProvider {
   private readonly baseUrl = 'https://api.fireworks.ai/inference/v1';
@@ -52,7 +52,7 @@ export class FireworksProvider extends BaseProvider {
   }
 
   async query(
-    messages: Array<{ role: string; content: string }>,
+    messages: Array<{ role: string; content: MessageContent }>,
     options?: QueryOptions
   ): Promise<LLMResponse> {
     if (!this.apiKey) {
@@ -102,7 +102,7 @@ export class FireworksProvider extends BaseProvider {
   }
 
   async queryStream(
-    messages: Array<{ role: string; content: string }>,
+    messages: Array<{ role: string; content: MessageContent }>,
     options: QueryOptions | undefined,
     onChunk: (chunk: string) => void
   ): Promise<LLMResponse> {

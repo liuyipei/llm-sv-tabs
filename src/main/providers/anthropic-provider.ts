@@ -3,7 +3,7 @@
  */
 
 import { BaseProvider, type ProviderCapabilities } from './base-provider.js';
-import type { LLMModel, LLMResponse, QueryOptions } from '../../types';
+import type { LLMModel, LLMResponse, QueryOptions, MessageContent } from '../../types';
 
 export class AnthropicProvider extends BaseProvider {
   private static readonly API_BASE = 'https://api.anthropic.com/v1';
@@ -34,7 +34,7 @@ export class AnthropicProvider extends BaseProvider {
   }
 
   async query(
-    messages: Array<{ role: string; content: string }>,
+    messages: Array<{ role: string; content: MessageContent }>,
     options?: QueryOptions
   ): Promise<LLMResponse> {
     const startTime = Date.now();
@@ -91,7 +91,7 @@ export class AnthropicProvider extends BaseProvider {
   }
 
   async queryStream(
-    messages: Array<{ role: string; content: string }>,
+    messages: Array<{ role: string; content: MessageContent }>,
     options: QueryOptions | undefined,
     onChunk: (chunk: string) => void
   ): Promise<LLMResponse> {

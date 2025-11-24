@@ -1,5 +1,6 @@
 import { BrowserView } from 'electron';
-import type { ExtractedContent, SerializedDOM } from '../../types';
+import type { ExtractedContent, SerializedDOM, TabData } from '../../types';
+import { ImageResizer } from './image-resizer.js';
 
 /**
  * Content Extraction Service
@@ -7,6 +8,7 @@ import type { ExtractedContent, SerializedDOM } from '../../types';
  * Extracts content from tabs for LLM context:
  * - DOM serialization (headings, paragraphs, links)
  * - Screenshots for vision models
+ * - Images from uploaded image tabs
  */
 export class ContentExtractor {
   /**
@@ -108,5 +110,42 @@ export class ContentExtractor {
   private static async captureScreenshot(view: BrowserView): Promise<string> {
     const image = await view.webContents.capturePage();
     return image.toDataURL();
+  }
+
+  /**
+   * Extract content from a note tab (especially image tabs)
+   */
+  static async extractFromNoteTab(tabData: TabData): Promise<ExtractedContent> {
+    // Check if this is an image tab
+    if (tabData.metadata?.fileType === 'image' && tabData.metadata?.imageData) {
+      const imageDataUrl = tabData.metadata.imageData;
+      const mimeType = tabData.metadata.mimeType || 'image/png';
+
+      // Resize image if needed (max 512px on long side)
+      const resizedDataUrl = ImageResizer.resizeImage(imageDataUrl, 512);
+
+      // Parse the data URL to extract base64 data
+      const { data } = ImageResizer.parseDataUrl(resizedDataUrl);
+
+      return {
+        type: 'image',
+        title: tabData.title,
+        url: tabData.url,
+        content: '', // No text content for pure image tabs
+        imageData: {
+          data: resizedDataUrl,
+          mimeType: mimeType,
+        },
+      };
+    }
+
+    // For non-image note tabs, return text content
+    // The content would be stored in the note's body (via metadata or needs to be passed)
+    return {
+      type: 'text',
+      title: tabData.title,
+      url: tabData.url,
+      content: tabData.metadata?.response || '', // For LLM response tabs
+    };
   }
 }
