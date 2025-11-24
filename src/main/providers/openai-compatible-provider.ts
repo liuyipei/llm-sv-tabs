@@ -53,6 +53,31 @@ export class OpenAICompatibleProvider extends BaseProvider {
     }
   }
 
+  /**
+   * Convert our internal content format to OpenAI's format
+   */
+  private convertToOpenAIContent(content: MessageContent): any {
+    if (typeof content === 'string') {
+      return content;
+    }
+
+    // Convert ContentBlock[] to OpenAI format
+    return content.map(block => {
+      if (block.type === 'text') {
+        return { type: 'text', text: block.text };
+      } else if (block.type === 'image') {
+        // OpenAI uses image_url with data URL
+        const dataUrl = `data:${block.source.media_type};base64,${block.source.data}`;
+        return {
+          type: 'image_url',
+          image_url: { url: dataUrl }
+        };
+      }
+      return block;
+    });
+  }
+
+
   async query(
     messages: Array<{ role: string; content: MessageContent }>,
     options?: QueryOptions
@@ -82,6 +107,12 @@ export class OpenAICompatibleProvider extends BaseProvider {
     const maxTokens = options?.maxTokens ?? 4096;
 
     try {
+      // Convert messages to OpenAI format
+      const openAIMessages = messages.map(msg => ({
+        role: msg.role,
+        content: this.convertToOpenAIContent(msg.content)
+      }));
+
       const headers: Record<string, string> = {};
       if (apiKey) {
         headers['Authorization'] = `Bearer ${apiKey}`;
@@ -92,7 +123,7 @@ export class OpenAICompatibleProvider extends BaseProvider {
         headers,
         body: JSON.stringify({
           model,
-          messages,
+          messages: openAIMessages,
           temperature,
           max_tokens: maxTokens,
         }),
@@ -147,6 +178,12 @@ export class OpenAICompatibleProvider extends BaseProvider {
     const maxTokens = options?.maxTokens ?? 4096;
 
     try {
+      // Convert messages to OpenAI format
+      const openAIMessages = messages.map(msg => ({
+        role: msg.role,
+        content: this.convertToOpenAIContent(msg.content)
+      }));
+
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
@@ -159,7 +196,7 @@ export class OpenAICompatibleProvider extends BaseProvider {
         headers,
         body: JSON.stringify({
           model,
-          messages,
+          messages: openAIMessages,
           temperature,
           max_tokens: maxTokens,
           stream: true,
