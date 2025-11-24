@@ -31,6 +31,11 @@ export interface TabMetadata {
   selectedTabIds?: string[];
   isStreaming?: boolean;
   error?: string;
+
+  // For file/image tabs
+  fileType?: 'text' | 'pdf' | 'image';
+  mimeType?: string;
+  imageData?: string; // base64 data URL for images
 }
 
 export interface TabData {
@@ -63,10 +68,29 @@ export interface Bookmark {
 
 export type MessageRole = 'user' | 'assistant' | 'system';
 
+// Support for multimodal content (text + images)
+export type MessageContent = string | ContentBlock[];
+
+export interface TextContent {
+  type: 'text';
+  text: string;
+}
+
+export interface ImageContent {
+  type: 'image';
+  source: {
+    type: 'base64';
+    media_type: string;
+    data: string;
+  };
+}
+
+export type ContentBlock = TextContent | ImageContent;
+
 export interface ChatMessage {
   id: number;
   role: MessageRole;
-  content: string;
+  content: MessageContent;
   timestamp?: number;
   stats?: MessageStats;
 }
@@ -157,11 +181,15 @@ export interface PDFContent {
 }
 
 export interface ExtractedContent {
-  type: 'html' | 'pdf' | 'text';
+  type: 'html' | 'pdf' | 'text' | 'image';
   title: string;
   url: string;
   content: string | SerializedDOM | PDFContent;
   screenshot?: string; // base64 encoded image
+  imageData?: {
+    data: string; // base64 encoded image (data URL or just base64)
+    mimeType: string; // e.g., 'image/png', 'image/jpeg'
+  };
 }
 
 // ============================================================================

@@ -3,7 +3,7 @@
  */
 
 import { BaseProvider, type ProviderCapabilities } from './base-provider.js';
-import type { LLMModel, LLMResponse, QueryOptions } from '../../types';
+import type { LLMModel, LLMResponse, QueryOptions, MessageContent } from '../../types';
 
 export class OllamaProvider extends BaseProvider {
   private static readonly DEFAULT_ENDPOINT = 'http://localhost:11434';
@@ -48,8 +48,33 @@ export class OllamaProvider extends BaseProvider {
     }
   }
 
+  /**
+   * Convert our internal content format to OpenAI's format
+   */
+  private convertToOpenAIContent(content: MessageContent): any {
+    if (typeof content === 'string') {
+      return content;
+    }
+
+    // Convert ContentBlock[] to OpenAI format
+    return content.map(block => {
+      if (block.type === 'text') {
+        return { type: 'text', text: block.text };
+      } else if (block.type === 'image') {
+        // OpenAI uses image_url with data URL
+        const dataUrl = `data:${block.source.media_type};base64,${block.source.data}`;
+        return {
+          type: 'image_url',
+          image_url: { url: dataUrl }
+        };
+      }
+      return block;
+    });
+  }
+
+
   async query(
-    messages: Array<{ role: string; content: string }>,
+    messages: Array<{ role: string; content: MessageContent }>,
     options?: QueryOptions
   ): Promise<LLMResponse> {
     const startTime = Date.now();
@@ -59,11 +84,17 @@ export class OllamaProvider extends BaseProvider {
     const temperature = options?.temperature ?? 0.7;
 
     try {
+      // Convert messages to OpenAI format
+      const openAIMessages = messages.map(msg => ({
+        role: msg.role,
+        content: this.convertToOpenAIContent(msg.content)
+      }));
+
       const response = await this.makeRequest(`${endpoint}/api/chat`, {
         method: 'POST',
         body: JSON.stringify({
           model,
-          messages,
+          messages: openAIMessages,
           stream: false,
           options: {
             temperature,
@@ -91,7 +122,7 @@ export class OllamaProvider extends BaseProvider {
   }
 
   async queryStream(
-    messages: Array<{ role: string; content: string }>,
+    messages: Array<{ role: string; content: MessageContent }>,
     options: QueryOptions | undefined,
     onChunk: (chunk: string) => void
   ): Promise<LLMResponse> {
@@ -102,6 +133,12 @@ export class OllamaProvider extends BaseProvider {
     const temperature = options?.temperature ?? 0.7;
 
     try {
+      // Convert messages to OpenAI format
+      const openAIMessages = messages.map(msg => ({
+        role: msg.role,
+        content: this.convertToOpenAIContent(msg.content)
+      }));
+
       const response = await fetch(`${endpoint}/api/chat`, {
         method: 'POST',
         headers: {
@@ -109,7 +146,7 @@ export class OllamaProvider extends BaseProvider {
         },
         body: JSON.stringify({
           model,
-          messages,
+          messages: openAIMessages,
           stream: true,
           options: {
             temperature,

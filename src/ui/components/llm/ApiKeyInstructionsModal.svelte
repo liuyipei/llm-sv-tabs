@@ -2,6 +2,8 @@
   interface ApiKeyInstruction {
     provider: string;
     url: string;
+    visionSupport: 'Full' | 'Partial' | 'No';
+    visionNote?: string;
   }
 
   interface Props {
@@ -14,27 +16,39 @@
   const apiKeyInstructions: ApiKeyInstruction[] = [
     {
       provider: 'OpenAI',
-      url: 'https://platform.openai.com/api-keys',
+      url: 'https://www.google.com/search?q=OpenAI+API+key+creation',
+      visionSupport: 'Full',
+      visionNote: 'GPT-4o, GPT-4 Turbo support images',
     },
     {
       provider: 'Anthropic',
-      url: 'https://console.anthropic.com/settings/keys',
+      url: 'https://www.google.com/search?q=Anthropic+Claude+API+key',
+      visionSupport: 'Full',
+      visionNote: 'Claude 3.5 Sonnet, Claude 3 Opus/Sonnet support images',
     },
     {
       provider: 'OpenRouter',
-      url: 'https://openrouter.ai/docs/api-reference/api-keys/create-keys',
+      url: 'https://www.google.com/search?q=OpenRouter+API+key+creation',
+      visionSupport: 'Full',
+      visionNote: 'Routes to vision models (Claude, GPT-4o, Gemini, etc.)',
     },
     {
       provider: 'Fireworks AI',
-      url: 'https://docs.fireworks.ai/api-reference/create-api-key',
+      url: 'https://www.google.com/search?q=Fireworks+AI+API+key',
+      visionSupport: 'Full',
+      visionNote: 'Qwen VL and other vision models',
     },
     {
       provider: 'Google (Gemini / Vertex AI)',
-      url: 'https://ai.google.dev/gemini-api/docs/api-key',
+      url: 'https://www.google.com/search?q=Google+Gemini+API+key',
+      visionSupport: 'Partial',
+      visionNote: 'Gemini vision models (text fallback currently)',
     },
     {
       provider: 'xAI (Grok)',
-      url: 'https://docs.x.ai/docs/overview',
+      url: 'https://www.google.com/search?q=xAI+Grok+API+key',
+      visionSupport: 'Full',
+      visionNote: 'Grok 2 Vision and Grok Vision models',
     },
   ];
 
@@ -75,13 +89,18 @@
       </div>
       <div class="modal-body">
         <p class="description">
-          Get your API keys from the following providers to use their services:
+          Get your API keys from the following providers to use their services.
+          Upload images to use vision models (select image tab with your query).
+        </p>
+        <p class="apology">
+          Note: API key URLs change frequently, so we provide Google searches instead of direct links.
         </p>
         <table class="providers-table">
           <thead>
             <tr>
               <th>Provider</th>
-              <th>API Key Creation URL</th>
+              <th>Vision Support</th>
+              <th>Search for API Key</th>
             </tr>
           </thead>
           <tbody>
@@ -89,8 +108,16 @@
               <tr>
                 <td>{instruction.provider}</td>
                 <td>
-                  <a href={instruction.url} target="_blank" rel="noopener noreferrer">
-                    {instruction.url}
+                  <span class="vision-badge vision-{instruction.visionSupport.toLowerCase()}">
+                    {instruction.visionSupport}
+                  </span>
+                  {#if instruction.visionNote}
+                    <div class="vision-note">{instruction.visionNote}</div>
+                  {/if}
+                </td>
+                <td>
+                  <a href={instruction.url} target="_blank" rel="noopener noreferrer" class="search-link">
+                    🔍 Search Google
                   </a>
                 </td>
               </tr>
@@ -175,9 +202,16 @@
   }
 
   .description {
-    margin: 0 0 1rem 0;
+    margin: 0 0 0.5rem 0;
     font-size: 0.875rem;
     color: var(--text-secondary, #666);
+  }
+
+  .apology {
+    margin: 0 0 1rem 0;
+    font-size: 0.8rem;
+    color: var(--text-tertiary, #999);
+    font-style: italic;
   }
 
   .providers-table {
@@ -221,5 +255,51 @@
 
   .providers-table a:visited {
     color: var(--primary-color-visited, #551a8b);
+  }
+
+  .search-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+  }
+
+  .search-link:hover {
+    background-color: var(--bg-secondary, #f0f0f0);
+    text-decoration: none;
+  }
+
+  .vision-badge {
+    display: inline-block;
+    padding: 0.125rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+  }
+
+  .vision-badge.vision-full {
+    background: #d4edda;
+    color: #155724;
+  }
+
+  .vision-badge.vision-partial {
+    background: #fff3cd;
+    color: #856404;
+  }
+
+  .vision-badge.vision-no {
+    background: #f8d7da;
+    color: #721c24;
+  }
+
+  .vision-note {
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--text-tertiary, #999);
+    font-style: italic;
   }
 </style>

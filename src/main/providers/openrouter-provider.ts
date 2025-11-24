@@ -3,7 +3,7 @@
  */
 
 import { BaseProvider, type ProviderCapabilities } from './base-provider.js';
-import type { LLMModel, LLMResponse, QueryOptions } from '../../types';
+import type { LLMModel, LLMResponse, QueryOptions, MessageContent } from '../../types';
 
 export class OpenRouterProvider extends BaseProvider {
   private readonly baseUrl = 'https://openrouter.ai/api/v1';
@@ -56,8 +56,32 @@ export class OpenRouterProvider extends BaseProvider {
     ];
   }
 
+  /**
+   * Convert our internal content format to OpenAI's format
+   */
+  private convertToOpenAIContent(content: MessageContent): any {
+    if (typeof content === 'string') {
+      return content;
+    }
+
+    // Convert ContentBlock[] to OpenAI format
+    return content.map(block => {
+      if (block.type === 'text') {
+        return { type: 'text', text: block.text };
+      } else if (block.type === 'image') {
+        // OpenAI uses image_url with data URL
+        const dataUrl = `data:${block.source.media_type};base64,${block.source.data}`;
+        return {
+          type: 'image_url',
+          image_url: { url: dataUrl }
+        };
+      }
+      return block;
+    });
+  }
+
   async query(
-    messages: Array<{ role: string; content: string }>,
+    messages: Array<{ role: string; content: MessageContent }>,
     options?: QueryOptions
   ): Promise<LLMResponse> {
     if (!this.apiKey) {
@@ -68,9 +92,15 @@ export class OpenRouterProvider extends BaseProvider {
     const startTime = Date.now();
 
     try {
+      // Convert messages to OpenAI format
+      const openAIMessages = messages.map(msg => ({
+        role: msg.role,
+        content: this.convertToOpenAIContent(msg.content)
+      }));
+
       const requestBody = {
         model,
-        messages,
+        messages: openAIMessages,
         temperature: options?.temperature ?? 0.7,
         max_tokens: options?.maxTokens ?? 2000,
       };
@@ -108,7 +138,7 @@ export class OpenRouterProvider extends BaseProvider {
   }
 
   async queryStream(
-    messages: Array<{ role: string; content: string }>,
+    messages: Array<{ role: string; content: MessageContent }>,
     options: QueryOptions | undefined,
     onChunk: (chunk: string) => void
   ): Promise<LLMResponse> {
@@ -120,9 +150,15 @@ export class OpenRouterProvider extends BaseProvider {
     const startTime = Date.now();
 
     try {
+      // Convert messages to OpenAI format
+      const openAIMessages = messages.map(msg => ({
+        role: msg.role,
+        content: this.convertToOpenAIContent(msg.content)
+      }));
+
       const requestBody = {
         model,
-        messages,
+        messages: openAIMessages,
         temperature: options?.temperature ?? 0.7,
         max_tokens: options?.maxTokens ?? 2000,
         stream: true,

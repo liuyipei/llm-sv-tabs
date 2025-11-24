@@ -6,7 +6,7 @@ import { ProviderFactory } from './providers/provider-factory.js';
 import { ContentExtractor } from './services/content-extractor.js';
 import { ModelDiscovery } from './providers/model-discovery.js';
 import { BookmarkManager } from './services/bookmark-manager.js';
-import type { QueryOptions, LLMResponse, Bookmark, ExtractedContent, ProviderType } from '../types';
+import type { QueryOptions, LLMResponse, Bookmark, ExtractedContent, ProviderType, ContentBlock, MessageContent } from '../types';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -254,8 +254,8 @@ function setupIPCHandlers(): void {
         options.endpoint
       );
 
-      // Build messages array
-      const messages: Array<{ role: string; content: string }> = [];
+      // Build messages array (supporting multimodal content)
+      const messages: Array<{ role: string; content: MessageContent }> = [];
 
       // Add system prompt if provided
       if (options.systemPrompt) {
@@ -263,47 +263,118 @@ function setupIPCHandlers(): void {
       }
 
       // Extract content from selected tabs if requested
-      let contextContent = '';
+      const extractedContents: ExtractedContent[] = [];
       if (options.selectedTabIds && options.selectedTabIds.length > 0) {
-        const extractedContents: ExtractedContent[] = [];
-
         for (const selectedTabId of options.selectedTabIds) {
-          const view = tabManager.getTabView(selectedTabId);
-          if (view) {
-            try {
-              const content = await ContentExtractor.extractFromTab(
-                view,
-                selectedTabId,
-                options.includeMedia ?? false
-              );
-              extractedContents.push(content);
-            } catch (error) {
-              console.error(`Failed to extract content from tab ${selectedTabId}:`, error);
+          const tab = tabManager.getTab(selectedTabId);
+          if (!tab) continue;
+
+          try {
+            // Check if this is a note tab (could be image, text, or LLM response)
+            if (tab.type === 'notes' || tab.component === 'llm-response') {
+              const tabData = tabManager.getTabData(selectedTabId);
+              if (tabData) {
+                const content = await ContentExtractor.extractFromNoteTab(tabData);
+                extractedContents.push(content);
+              }
+            } else {
+              // Regular webpage tab with BrowserView
+              const view = tabManager.getTabView(selectedTabId);
+              if (view) {
+                const content = await ContentExtractor.extractFromTab(
+                  view,
+                  selectedTabId,
+                  options.includeMedia ?? false
+                );
+                extractedContents.push(content);
+              }
             }
+          } catch (error) {
+            console.error(`Failed to extract content from tab ${selectedTabId}:`, error);
           }
-        }
-
-        // Format extracted content for LLM
-        if (extractedContents.length > 0) {
-          contextContent = extractedContents
-            .map((content) => {
-              const dom = content.content as any;
-              return `
-Tab: ${content.title}
-URL: ${content.url}
-
-${dom.mainContent || ''}
-              `.trim();
-            })
-            .join('\n\n---\n\n');
-
-          contextContent = `Here is the content from the selected tabs:\n\n${contextContent}\n\n`;
         }
       }
 
-      // Add user query with context
-      const fullQuery = contextContent ? `${contextContent}${query}` : query;
-      messages.push({ role: 'user', content: fullQuery });
+      // Check if we have any images
+      const hasImages = extractedContents.some(c => c.type === 'image' || c.imageData);
+
+      // Build user message content
+      let userMessageContent: MessageContent;
+      let fullQuery = query;
+
+      if (hasImages) {
+        // Build multimodal content array
+        const contentBlocks: ContentBlock[] = [];
+
+        // Add text context from tabs first
+        const textContents = extractedContents
+          .filter(c => c.type !== 'image')
+          .map((content) => {
+            const dom = content.content as any;
+            return `
+Tab: ${content.title}
+URL: ${content.url}
+
+${dom.mainContent || content.content || ''}
+            `.trim();
+          })
+          .filter(text => text.length > 0);
+
+        if (textContents.length > 0) {
+          const contextText = `Here is the content from the selected tabs:\n\n${textContents.join('\n\n---\n\n')}\n\n`;
+          fullQuery = `${contextText}${query}`;
+        }
+
+        // Add text block with query
+        contentBlocks.push({
+          type: 'text',
+          text: fullQuery,
+        });
+
+        // Add image blocks
+        for (const content of extractedContents) {
+          if (content.imageData) {
+            // Parse data URL to get base64 data without prefix
+            const dataUrlMatch = content.imageData.data.match(/^data:([^;]+);base64,(.+)$/);
+            const base64Data = dataUrlMatch ? dataUrlMatch[2] : content.imageData.data;
+            const mimeType = dataUrlMatch ? dataUrlMatch[1] : content.imageData.mimeType;
+
+            contentBlocks.push({
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: mimeType,
+                data: base64Data,
+              },
+            });
+          }
+        }
+
+        userMessageContent = contentBlocks;
+      } else {
+        // Text-only content
+        const textContents = extractedContents
+          .map((content) => {
+            const dom = content.content as any;
+            return `
+Tab: ${content.title}
+URL: ${content.url}
+
+${dom.mainContent || content.content || ''}
+            `.trim();
+          })
+          .filter(text => text.length > 0);
+
+        if (textContents.length > 0) {
+          const contextText = `Here is the content from the selected tabs:\n\n${textContents.join('\n\n---\n\n')}\n\n`;
+          fullQuery = `${contextText}${query}`;
+        }
+
+        userMessageContent = fullQuery;
+      }
+
+      // Add user message
+      messages.push({ role: 'user', content: userMessageContent });
 
       // Stream response
       const response = await provider.queryStream(messages, options, (chunk) => {
@@ -319,7 +390,7 @@ ${dom.mainContent || ''}
         tab.metadata.tokensIn = response.tokensIn;
         tab.metadata.tokensOut = response.tokensOut;
         tab.metadata.model = response.model;
-        tab.metadata.fullQuery = fullQuery !== query ? fullQuery : undefined;
+        tab.metadata.fullQuery = typeof fullQuery === 'string' && fullQuery !== query ? fullQuery : undefined;
 
         // Update title
         const modelName = response.model || '';
@@ -340,10 +411,10 @@ ${dom.mainContent || ''}
         });
       }
 
-      // Add fullQuery to response metadata
+      // Add fullQuery to response metadata (only for text queries)
       return {
         ...response,
-        fullQuery: fullQuery !== query ? fullQuery : undefined,
+        fullQuery: typeof fullQuery === 'string' && fullQuery !== query ? fullQuery : undefined,
       };
     } catch (error) {
       // Update tab with error

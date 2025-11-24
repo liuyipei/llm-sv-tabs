@@ -3,7 +3,7 @@
  */
 
 import { BaseProvider, type ProviderCapabilities } from './base-provider.js';
-import type { LLMModel, LLMResponse, QueryOptions } from '../../types';
+import type { LLMModel, LLMResponse, QueryOptions, MessageContent } from '../../types';
 
 export class GeminiProvider extends BaseProvider {
   private readonly baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
@@ -48,8 +48,19 @@ export class GeminiProvider extends BaseProvider {
     ];
   }
 
+  private convertToString(content: MessageContent): string {
+    if (typeof content === 'string') {
+      return content;
+    }
+    // For now, just extract text from content blocks (TODO: support vision)
+    return content
+      .filter(block => block.type === 'text')
+      .map(block => (block as any).text)
+      .join('\n');
+  }
+
   async query(
-    messages: Array<{ role: string; content: string }>,
+    messages: Array<{ role: string; content: MessageContent }>,
     options?: QueryOptions
   ): Promise<LLMResponse> {
     if (!this.apiKey) {
@@ -66,11 +77,11 @@ export class GeminiProvider extends BaseProvider {
 
       for (const message of messages) {
         if (message.role === 'system') {
-          systemInstruction = message.content;
+          systemInstruction = this.convertToString(message.content);
         } else {
           contents.push({
             role: message.role === 'assistant' ? 'model' : 'user',
-            parts: [{ text: message.content }],
+            parts: [{ text: this.convertToString(message.content) }],
           });
         }
       }
@@ -121,7 +132,7 @@ export class GeminiProvider extends BaseProvider {
   }
 
   async queryStream(
-    messages: Array<{ role: string; content: string }>,
+    messages: Array<{ role: string; content: MessageContent }>,
     options: QueryOptions | undefined,
     onChunk: (chunk: string) => void
   ): Promise<LLMResponse> {
@@ -139,11 +150,11 @@ export class GeminiProvider extends BaseProvider {
 
       for (const message of messages) {
         if (message.role === 'system') {
-          systemInstruction = message.content;
+          systemInstruction = this.convertToString(message.content);
         } else {
           contents.push({
             role: message.role === 'assistant' ? 'model' : 'user',
-            parts: [{ text: message.content }],
+            parts: [{ text: this.convertToString(message.content) }],
           });
         }
       }
