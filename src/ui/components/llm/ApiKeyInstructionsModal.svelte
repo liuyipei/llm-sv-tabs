@@ -13,40 +13,57 @@
 
   let { isOpen = $bindable(false), onClose }: Props = $props();
 
+  // Portal action to move element to document.body
+  function portal(node: HTMLElement) {
+    const target = document.body;
+
+    // Move the node to body immediately
+    target.appendChild(node);
+
+    return {
+      destroy() {
+        // Clean up when the modal component is destroyed
+        if (node.parentNode) {
+          node.parentNode.removeChild(node);
+        }
+      }
+    };
+  }
+
   const apiKeyInstructions: ApiKeyInstruction[] = [
     {
       provider: 'OpenAI',
-      url: 'https://www.google.com/search?q=OpenAI+API+key+creation',
+      url: 'https://www.google.com/search?q=OpenAI+API+key+console',
       visionSupport: 'Full',
       visionNote: 'GPT-4o, GPT-4 Turbo support images',
     },
     {
       provider: 'Anthropic',
-      url: 'https://www.google.com/search?q=Anthropic+Claude+API+key',
+      url: 'https://www.google.com/search?q=Anthropic+API+key+console',
       visionSupport: 'Full',
       visionNote: 'Claude 3.5 Sonnet, Claude 3 Opus/Sonnet support images',
     },
     {
       provider: 'OpenRouter',
-      url: 'https://www.google.com/search?q=OpenRouter+API+key+creation',
+      url: 'https://www.google.com/search?q=OpenRouter+API+key+console',
       visionSupport: 'Full',
       visionNote: 'Routes to vision models (Claude, GPT-4o, Gemini, etc.)',
     },
     {
       provider: 'Fireworks AI',
-      url: 'https://www.google.com/search?q=Fireworks+AI+API+key',
+      url: 'https://www.google.com/search?q=Fireworks+API+key+console',
       visionSupport: 'Full',
       visionNote: 'Qwen VL and other vision models',
     },
     {
       provider: 'Google (Gemini / Vertex AI)',
-      url: 'https://www.google.com/search?q=Google+Gemini+API+key',
+      url: 'https://www.google.com/search?q=Google+Gemini+API+key+console',
       visionSupport: 'Partial',
       visionNote: 'Gemini vision models (text fallback currently)',
     },
     {
       provider: 'xAI (Grok)',
-      url: 'https://www.google.com/search?q=xAI+Grok+API+key',
+      url: 'https://www.google.com/search?q=xAI+API+key+console',
       visionSupport: 'Full',
       visionNote: 'Grok 2 Vision and Grok Vision models',
     },
@@ -68,6 +85,7 @@
 {#if isOpen}
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <div
+    use:portal
     class="modal-backdrop"
     onclick={handleBackdropClick}
     onkeydown={handleKeydown}
@@ -134,17 +152,18 @@
     position: fixed;
     top: 0;
     left: 0;
-    right: 0;
-    bottom: 0;
+    width: 100vw;
+    height: 100vh;
     background: rgba(0, 0, 0, 0.5);
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
+    z-index: 9999;
     padding: 1rem;
   }
 
   .modal-content {
+    position: relative;
     background: var(--bg-primary, white);
     border-radius: 8px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);

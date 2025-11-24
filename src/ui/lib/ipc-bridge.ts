@@ -124,9 +124,10 @@ function createMockAPI(): IPCBridgeAPI {
   return {
     openUrl: async (url: string) => {
       console.log('Mock: openUrl', url);
+      const title = url.startsWith('api-keys://') ? 'API Key Instructions' : url;
       const tab: Tab = {
         id: `mock-${Date.now()}`,
-        title: url,
+        title: title,
         url: url,
         type: 'webpage',
         created: Date.now(),

@@ -9,6 +9,7 @@
   import NotesSection from '$components/notes/NotesSection.svelte';
   import ResizableDivider from '$components/ResizableDivider.svelte';
   import MessageStream from '$components/chat/MessageStream.svelte';
+  import ApiKeyInstructionsView from '$components/llm/ApiKeyInstructionsView.svelte';
   import { activeSidebarView, sidebarTabsHeightPercent } from '$stores/ui';
   import { activeTabId, activeTabs, sortedTabs } from '$stores/tabs';
   import { initKeyboardShortcuts } from '$utils/keyboard-shortcuts';
@@ -20,6 +21,7 @@
   // Reactive computed properties
   $: activeTab = $activeTabId ? $activeTabs.get($activeTabId) : null;
   $: showSvelteContent = activeTab?.component === 'llm-response';
+  $: showApiKeyInstructions = activeTab?.url?.startsWith('api-keys://');
 
   // Initialize IPC and make it available to all child components
   const ipc: IPCBridgeAPI = initializeIPC();
@@ -229,7 +231,9 @@
     <section class="main-content">
       <UrlBar />
       <div class="browser-view">
-        {#if showSvelteContent && activeTab}
+        {#if showApiKeyInstructions && activeTab}
+          <ApiKeyInstructionsView />
+        {:else if showSvelteContent && activeTab}
           <MessageStream tabId={activeTab.id} />
         {:else}
           <div class="browser-placeholder">
