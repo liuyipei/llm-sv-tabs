@@ -2,6 +2,8 @@
   interface ApiKeyInstruction {
     provider: string;
     url: string;
+    visionSupport: 'Full' | 'Partial' | 'No';
+    visionNote?: string;
   }
 
   interface Props {
@@ -15,26 +17,38 @@
     {
       provider: 'OpenAI',
       url: 'https://platform.openai.com/api-keys',
+      visionSupport: 'Full',
+      visionNote: 'GPT-4o, GPT-4 Turbo support images',
     },
     {
       provider: 'Anthropic',
       url: 'https://console.anthropic.com/settings/keys',
+      visionSupport: 'Full',
+      visionNote: 'Claude 3.5 Sonnet, Claude 3 Opus/Sonnet support images',
     },
     {
       provider: 'OpenRouter',
       url: 'https://openrouter.ai/docs/api-reference/api-keys/create-keys',
+      visionSupport: 'Full',
+      visionNote: 'Routes to vision models (Claude, GPT-4o, Gemini, etc.)',
     },
     {
       provider: 'Fireworks AI',
       url: 'https://docs.fireworks.ai/api-reference/create-api-key',
+      visionSupport: 'Full',
+      visionNote: 'Qwen VL and other vision models',
     },
     {
       provider: 'Google (Gemini / Vertex AI)',
       url: 'https://ai.google.dev/gemini-api/docs/api-key',
+      visionSupport: 'Partial',
+      visionNote: 'Gemini vision models (text fallback currently)',
     },
     {
       provider: 'xAI (Grok)',
       url: 'https://docs.x.ai/docs/overview',
+      visionSupport: 'Full',
+      visionNote: 'Grok 2 Vision and Grok Vision models',
     },
   ];
 
@@ -75,12 +89,14 @@
       </div>
       <div class="modal-body">
         <p class="description">
-          Get your API keys from the following providers to use their services:
+          Get your API keys from the following providers to use their services.
+          Upload images to use vision models (select image tab with your query).
         </p>
         <table class="providers-table">
           <thead>
             <tr>
               <th>Provider</th>
+              <th>Vision Support</th>
               <th>API Key Creation URL</th>
             </tr>
           </thead>
@@ -88,6 +104,14 @@
             {#each apiKeyInstructions as instruction}
               <tr>
                 <td>{instruction.provider}</td>
+                <td>
+                  <span class="vision-badge vision-{instruction.visionSupport.toLowerCase()}">
+                    {instruction.visionSupport}
+                  </span>
+                  {#if instruction.visionNote}
+                    <div class="vision-note">{instruction.visionNote}</div>
+                  {/if}
+                </td>
                 <td>
                   <a href={instruction.url} target="_blank" rel="noopener noreferrer">
                     {instruction.url}
@@ -221,5 +245,37 @@
 
   .providers-table a:visited {
     color: var(--primary-color-visited, #551a8b);
+  }
+
+  .vision-badge {
+    display: inline-block;
+    padding: 0.125rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+  }
+
+  .vision-badge.vision-full {
+    background: #d4edda;
+    color: #155724;
+  }
+
+  .vision-badge.vision-partial {
+    background: #fff3cd;
+    color: #856404;
+  }
+
+  .vision-badge.vision-no {
+    background: #f8d7da;
+    color: #721c24;
+  }
+
+  .vision-note {
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--text-tertiary, #999);
+    font-style: italic;
   }
 </style>
