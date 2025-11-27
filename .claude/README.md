@@ -1,7 +1,7 @@
 # Project Setup for Claude Code
 
 ## Electron Binary Download
-- In restricted environments, use `npm install --ignore-scripts` to skip Electron binary download
+- In restricted environments, including Claude Code, use `npm install --ignore-scripts` to skip Electron binary download
 - This is safe for building/testing (Electron runtime not needed)
 - The SessionStart hook automatically handles this
 
