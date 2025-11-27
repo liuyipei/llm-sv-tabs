@@ -6,7 +6,7 @@ import { createRawMessageViewerHTML } from './templates/raw-message-template.js'
 
 interface TabWithView extends Tab {
   view?: BrowserView;  // Optional for Svelte-rendered tabs
-  component?: 'llm-response' | 'note';  // For Svelte-rendered tabs
+  component?: 'llm-response' | 'note' | 'api-key-instructions';  // For Svelte-rendered tabs
 }
 
 class TabManager {
@@ -268,6 +268,37 @@ class TabManager {
         error: error,
         isStreaming: isLoading,
       },
+    };
+
+    this.tabs.set(tabId, tab);
+
+    // Set as active tab (if autoSelect is true)
+    if (autoSelect) {
+      this.setActiveTab(tabId);
+    }
+
+    // Notify renderer
+    this.sendToRenderer('tab-created', { tab: this.getTabData(tabId) });
+
+    // Save session after tab change
+    this.saveSession();
+
+    return { tabId, tab: this.getTabData(tabId)! };
+  }
+
+  openApiKeyInstructionsTab(autoSelect: boolean = true): { tabId: string; tab: TabData } {
+    const tabId = this.createTabId();
+    const timestamp = Date.now();
+
+    // No BrowserView for API key instructions - use Svelte component instead
+    const tab: TabWithView = {
+      id: tabId,
+      title: 'Where to get API Keys',
+      url: `api-keys://instructions`,
+      type: 'notes' as TabType,
+      component: 'api-key-instructions',  // Render using Svelte component
+      created: timestamp,
+      lastViewed: timestamp,
     };
 
     this.tabs.set(tabId, tab);

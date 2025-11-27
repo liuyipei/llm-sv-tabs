@@ -43,7 +43,7 @@ export interface TabData {
   title: string;
   url: string;
   type: TabType;
-  component?: 'llm-response' | 'note';
+  component?: 'llm-response' | 'note' | 'api-key-instructions';
   metadata?: TabMetadata;
 }
 
