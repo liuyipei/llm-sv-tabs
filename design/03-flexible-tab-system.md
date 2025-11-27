@@ -722,3 +722,19 @@ async exportTabs(tabIds: string[]): Promise<string> {
   return JSON.stringify(exportData);
 }
 ```
+
+---
+
+## Screenshot Capture Integration
+
+The tab system includes built-in screenshot capture functionality that creates image tabs from user-selected screen regions.
+
+**For complete implementation details, see:** [Screenshot Capture Design Document](./05-screenshot-capture.md)
+
+### Quick Overview
+
+- **User trigger:** Click "📸 Screenshot" button or press `Ctrl+Alt+S` / `Cmd+Alt+S`
+- **Selection:** Drag-to-select overlay with real-time dimension display
+- **Integration:** Screenshots automatically open as image tabs
+- **Technology:** Electron's native `desktopCapturer` API (zero external dependencies)
+- **Cross-platform:** Windows, macOS (with Screen Recording permission), Linux

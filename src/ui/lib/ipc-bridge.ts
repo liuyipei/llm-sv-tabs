@@ -26,6 +26,7 @@ export interface IPCBridgeAPI {
   addBookmark(bookmark: Omit<Bookmark, 'id' | 'created'>): Promise<IPCResponse<Bookmark> | { success: boolean }>;
   sendQuery(query: string, options?: QueryOptions): Promise<LLMResponse | { response: string }>;
   discoverModels(provider: ProviderType, apiKey?: string, endpoint?: string): Promise<IPCResponse<LLMModel[]> | LLMModel[]>;
+  triggerScreenshot(): Promise<IPCResponse<{ success: boolean }>>;
   onLLMChunk?(callback: (payload: { tabId: string; chunk: string }) => void): () => void;
 }
 
@@ -87,6 +88,7 @@ export function initializeIPC(): IPCBridgeAPI {
     addBookmark: (bookmark: Omit<Bookmark, 'id' | 'created'>) => window.electronAPI.addBookmark(bookmark),
     sendQuery: (query: string, options?: QueryOptions) => window.electronAPI.sendQuery(query, options),
     discoverModels: (provider: ProviderType, apiKey?: string, endpoint?: string) => window.electronAPI.discoverModels(provider, apiKey, endpoint),
+    triggerScreenshot: () => window.electronAPI.triggerScreenshot(),
   };
 }
 
@@ -230,6 +232,10 @@ function createMockAPI(): IPCBridgeAPI {
         { id: 'mock-model-1', name: 'Mock Model 1', provider },
         { id: 'mock-model-2', name: 'Mock Model 2', provider },
       ];
+    },
+    triggerScreenshot: async () => {
+      console.log('Mock: triggerScreenshot');
+      return { success: true, data: { success: true } };
     },
   };
 }

@@ -18,11 +18,12 @@ Each tab can be selected as part of a query. This works for webpages, PDFs, file
 
 This allows you to build a working set of pages, documents, data sources, and model outputs that evolve with your task.
 
-### Notes, Files, and Piecemeal Conversations
+### Notes, Files, Screenshots, and Piecemeal Conversations
 
 Along with web pages, the browser supports:
 
 - Uploaded files (for vision or document models)
+- Screenshot capture with region selection (desktop or any application)
 - Free-form notes that sit alongside tabs
 - LLM response tabs stored individually rather than as a single long chat thread
 
@@ -40,12 +41,15 @@ For a deep dive into the architecture and design philosophy:
 - [Token Streaming & API Providers](./design/01-token-streaming-and-providers.md) - Provider architecture and real-time streaming
 - [Visual Layout Architecture](./design/02-visual-layout.md) - Hybrid rendering system combining Electron and Svelte
 - [Flexible Tab System](./design/03-flexible-tab-system.md) - How tabs handle URLs, files, text, and LLM responses
+- [Screenshot Capture](./design/05-screenshot-capture.md) - Native screenshot implementation with region selection
 
 ## Features
 
-- **Tab Management**: Create, switch, close tabs with BrowserView
+- **Tab Management**: Create, switch, close tabs with BrowserView for web content, notes, files, and LLM responses
 - **LLM Integration**: Query tabs with Fireworks AI, OpenRouter, Anthropic, OpenAI, and more
-- **Content Extraction**: DOM serialization and screenshots for vision models
+- **Screenshot Capture**: Native region-based screenshots with drag-to-select overlay (Ctrl+Alt+S / Cmd+Alt+S)
+- **Content Extraction**: DOM serialization and webpage screenshots for vision models
+- **File Upload**: Support for images, PDFs, and text files as tab content
 - **Reactive UI**: Svelte 5 components with automatic updates
 - **Type-Safe**: Full TypeScript with comprehensive type definitions
 
@@ -72,11 +76,11 @@ npm test
 llm-sv-tabs/
 ├── src/
 │   ├── main/              # Electron main process
-│   │   ├── main.ts        # Entry point
+│   │   ├── main.ts        # Entry point, global shortcuts
 │   │   ├── tab-manager.ts # Tab management
 │   │   ├── preload.ts     # IPC preload
 │   │   ├── providers/     # LLM providers
-│   │   ├── services/      # Content extraction
+│   │   ├── services/      # Screenshot, content extraction
 │   │   └── templates/     # HTML templates
 │   └── ui/                # Svelte UI
 │       ├── components/    # UI components

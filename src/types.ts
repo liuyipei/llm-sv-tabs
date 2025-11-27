@@ -279,6 +279,9 @@ export interface IPCBridge {
   addBookmark(bookmark: Omit<Bookmark, 'id' | 'created'>): Promise<IPCResponse<Bookmark>>;
   deleteBookmark(id: string): Promise<IPCResponse>;
 
+  // Screenshot capture
+  triggerScreenshot(): Promise<IPCResponse<{ success: boolean }>>;
+
   // Event listeners
   onTabCreated(callback: (event: TabCreatedEvent) => void): void;
   onTabClosed(callback: (event: TabClosedEvent) => void): void;
@@ -294,3 +297,14 @@ export interface IPCBridge {
 export type Nullable<T> = T | null;
 export type Optional<T> = T | undefined;
 export type AsyncResult<T> = Promise<IPCResponse<T>>;
+
+// ============================================================================
+// Screenshot Types
+// ============================================================================
+
+export interface Rectangle {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}

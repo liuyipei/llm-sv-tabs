@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Screenshot Region Selector</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      overflow: hidden;
+      cursor: crosshair;
+      background: rgba(0, 0, 0, 0.3);
+      width: 100vw;
+      height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    #canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: block;
+    }
+
+    .instructions {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      z-index: 1000;
+      pointer-events: none;
+    }
+
+    .instructions kbd {
+      background: rgba(255, 255, 255, 0.15);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      margin: 0 4px;
+    }
+
+    .dimensions {
+      position: absolute;
+      color: white;
+      background: rgba(0, 170, 255, 0.9);
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: monospace;
+      pointer-events: none;
+      display: none;
+      z-index: 1001;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+  </style>
+</head>
+<body>
+  <div class="instructions">
+    Drag to select region • <kbd>ESC</kbd> to cancel
+  </div>
+  <div class="dimensions" id="dimensions"></div>
+  <canvas id="canvas"></canvas>
+
+  <script>
+    const { ipcRenderer } = require('electron');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const dimensionsEl = document.getElementById('dimensions');
+
+    // Set canvas size to window size
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    let isSelecting = false;
+    let startX = 0;
+    let startY = 0;
+    let endX = 0;
+    let endY = 0;
+
+    // Mouse down - start selection
+    canvas.addEventListener('mousedown', (e) => {
+      isSelecting = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      endX = startX;
+      endY = startY;
+    });
+
+    // Mouse move - update selection
+    canvas.addEventListener('mousemove', (e) => {
+      if (!isSelecting) return;
+
+      endX = e.clientX;
+      endY = e.clientY;
+
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Calculate selection bounds
+      const x = Math.min(startX, endX);
+      const y = Math.min(startY, endY);
+      const width = Math.abs(endX - startX);
+      const height = Math.abs(endY - startY);
+
+      // Draw selection rectangle
+      ctx.strokeStyle = '#00aaff';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, width, height);
+
+      // Draw semi-transparent fill
+      ctx.fillStyle = 'rgba(0, 170, 255, 0.15)';
+      ctx.fillRect(x, y, width, height);
+
+      // Draw corner handles
+      const handleSize = 8;
+      ctx.fillStyle = '#00aaff';
+      // Top-left
+      ctx.fillRect(x - handleSize / 2, y - handleSize / 2, handleSize, handleSize);
+      // Top-right
+      ctx.fillRect(x + width - handleSize / 2, y - handleSize / 2, handleSize, handleSize);
+      // Bottom-left
+      ctx.fillRect(x - handleSize / 2, y + height - handleSize / 2, handleSize, handleSize);
+      // Bottom-right
+      ctx.fillRect(x + width - handleSize / 2, y + height - handleSize / 2, handleSize, handleSize);
+
+      // Show dimensions
+      if (width > 0 && height > 0) {
+        dimensionsEl.textContent = `${width} × ${height}`;
+        dimensionsEl.style.display = 'block';
+        dimensionsEl.style.left = `${x + width / 2 - dimensionsEl.offsetWidth / 2}px`;
+        dimensionsEl.style.top = `${y + height + 10}px`;
+
+        // Keep dimensions within viewport
+        if (parseInt(dimensionsEl.style.top) + dimensionsEl.offsetHeight > window.innerHeight) {
+          dimensionsEl.style.top = `${y - dimensionsEl.offsetHeight - 10}px`;
+        }
+        if (parseInt(dimensionsEl.style.left) < 0) {
+          dimensionsEl.style.left = '10px';
+        }
+        if (parseInt(dimensionsEl.style.left) + dimensionsEl.offsetWidth > window.innerWidth) {
+          dimensionsEl.style.left = `${window.innerWidth - dimensionsEl.offsetWidth - 10}px`;
+        }
+      }
+    });
+
+    // Mouse up - complete selection
+    canvas.addEventListener('mouseup', (e) => {
+      if (!isSelecting) return;
+
+      endX = e.clientX;
+      endY = e.clientY;
+      isSelecting = false;
+
+      // Calculate final bounds
+      const bounds = {
+        x: Math.min(startX, endX),
+        y: Math.min(startY, endY),
+        width: Math.abs(endX - startX),
+        height: Math.abs(endY - startY)
+      };
+
+      // Only send if selection is meaningful (at least 10x10 pixels)
+      if (bounds.width >= 10 && bounds.height >= 10) {
+        console.log('Selection complete:', bounds);
+        ipcRenderer.send('screenshot-region-selected', bounds);
+      } else {
+        console.log('Selection too small, cancelled');
+        ipcRenderer.send('screenshot-cancelled');
+      }
+    });
+
+    // ESC key - cancel
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        console.log('ESC pressed, cancelling');
+        ipcRenderer.send('screenshot-cancelled');
+      }
+    });
+
+    // Prevent context menu
+    canvas.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+    });
+
+    console.log('Screenshot overlay ready');
+  </script>
+</body>
+</html>
