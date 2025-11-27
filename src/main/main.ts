@@ -33,9 +33,6 @@ function createWindow(): void {
     },
   });
 
-  // Open DevTools automatically to see errors
-  mainWindow.webContents.openDevTools();
-
   // In development, load from Vite dev server
   // In production, load from built files
   if (process.env.VITE_DEV_SERVER_URL) {
