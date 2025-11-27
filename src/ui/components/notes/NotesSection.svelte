@@ -201,6 +201,23 @@
     pendingLargeFiles = [];
     showSizeConfirmDialog = false;
   }
+
+  // ========== Screenshot Handling ==========
+
+  async function handleScreenshotClick(): Promise<void> {
+    if (!ipc) return;
+
+    try {
+      const result = await ipc.triggerScreenshot();
+      if (!result.success) {
+        console.error('Screenshot failed:', result.error);
+        uploadErrors = [...uploadErrors, result.error || 'Screenshot failed'];
+      }
+    } catch (error) {
+      console.error('Screenshot error:', error);
+      uploadErrors = [...uploadErrors, 'Screenshot error: ' + String(error)];
+    }
+  }
 </script>
 
 <div class="notes-section">
@@ -211,6 +228,9 @@
   <div class="notes-actions">
     <button onclick={createNewNote} class="action-btn">
       + New Note
+    </button>
+    <button onclick={handleScreenshotClick} class="action-btn screenshot-btn" title="Capture screen region (Ctrl+Alt+S)">
+      📸 Screenshot
     </button>
     <label class="action-btn upload-btn">
       Upload File
@@ -315,6 +335,14 @@
 
   .action-btn:hover {
     background-color: #005a9e;
+  }
+
+  .screenshot-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+
+  .screenshot-btn:hover {
+    background: linear-gradient(135deg, #5568d3 0%, #6a3f8e 100%);
   }
 
   .upload-btn {

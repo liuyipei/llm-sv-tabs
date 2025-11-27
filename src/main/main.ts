@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, session } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, session, globalShortcut } from 'electron';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import TabManager from './tab-manager.js';
@@ -6,6 +6,7 @@ import { ProviderFactory } from './providers/provider-factory.js';
 import { ContentExtractor } from './services/content-extractor.js';
 import { ModelDiscovery } from './providers/model-discovery.js';
 import { BookmarkManager } from './services/bookmark-manager.js';
+import { ScreenshotService } from './services/screenshot-service.js';
 import type { QueryOptions, LLMResponse, Bookmark, ExtractedContent, ProviderType, ContentBlock, MessageContent } from '../types';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -14,6 +15,7 @@ const __dirname = dirname(__filename);
 let mainWindow: BrowserWindow | null = null;
 let tabManager: TabManager | null = null;
 let bookmarkManager: BookmarkManager | null = null;
+let screenshotService: ScreenshotService | null = null;
 
 function createWindow(): void {
   const preloadPath = join(__dirname, 'preload.js');
@@ -48,6 +50,9 @@ function createWindow(): void {
 
   // Initialize bookmark manager
   bookmarkManager = new BookmarkManager();
+
+  // Initialize screenshot service
+  screenshotService = new ScreenshotService(mainWindow);
 
   // Set up IPC handlers
   setupIPCHandlers();
@@ -463,16 +468,104 @@ ${dom.mainContent || content.content || ''}
       };
     }
   });
+
+  // Screenshot capture
+  ipcMain.handle('trigger-screenshot', async () => {
+    if (!screenshotService || !tabManager) {
+      console.error('Screenshot service or tab manager not initialized');
+      return { success: false, error: 'Screenshot service not initialized' };
+    }
+
+    try {
+      console.log('Main: Starting screenshot capture...');
+      const dataUrl = await screenshotService.startCapture();
+
+      if (!dataUrl) {
+        console.log('Main: Screenshot was cancelled by user');
+        return { success: false, error: 'Screenshot cancelled' };
+      }
+
+      console.log('Main: Screenshot captured successfully, creating tab...');
+
+      // Create a new image tab with the screenshot
+      const timestamp = new Date().toLocaleString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      }).replace(/\//g, '-').replace(',', '');
+
+      const title = `Screenshot ${timestamp}`;
+      const noteId = Date.now();
+
+      tabManager.openNoteTab(noteId, title, dataUrl, 'image', true);
+
+      console.log('Main: Screenshot tab created successfully');
+      return { success: true };
+    } catch (error) {
+      console.error('Screenshot error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  });
+}
+
+function setupGlobalShortcuts(): void {
+  // Register platform-specific screenshot shortcut
+  const shortcut = process.platform === 'darwin' ? 'CommandOrControl+Alt+S' : 'Ctrl+Alt+S';
+
+  const registered = globalShortcut.register(shortcut, () => {
+    console.log('Screenshot shortcut triggered:', shortcut);
+    if (screenshotService) {
+      screenshotService.startCapture().then((dataUrl) => {
+        if (dataUrl && tabManager) {
+          const timestamp = new Date().toLocaleString('en-US', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false,
+          }).replace(/\//g, '-').replace(',', '');
+
+          const title = `Screenshot ${timestamp}`;
+          const noteId = Date.now();
+
+          tabManager.openNoteTab(noteId, title, dataUrl, 'image', true);
+        }
+      }).catch((error) => {
+        console.error('Screenshot shortcut error:', error);
+      });
+    }
+  });
+
+  if (!registered) {
+    console.error('Failed to register screenshot shortcut:', shortcut);
+  } else {
+    console.log(`Screenshot shortcut registered: ${shortcut}`);
+  }
 }
 
 app.whenReady().then(() => {
   createWindow();
+  setupGlobalShortcuts();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
     }
   });
+});
+
+app.on('will-quit', () => {
+  // Unregister all global shortcuts
+  globalShortcut.unregisterAll();
 });
 
 app.on('window-all-closed', () => {

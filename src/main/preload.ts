@@ -84,6 +84,10 @@ const electronAPI = {
   discoverModels: (provider: ProviderType, apiKey?: string, endpoint?: string): Promise<IPCResponse<LLMModel[]>> =>
     ipcRenderer.invoke('discover-models', provider, apiKey, endpoint),
 
+  // Screenshot capture
+  triggerScreenshot: (): Promise<IPCResponse<{ success: boolean }>> =>
+    ipcRenderer.invoke('trigger-screenshot'),
+
   // Event listeners (from main to renderer)
   onTabCreated: (callback: (data: TabCreatedEvent) => void): void => {
     ipcRenderer.on('tab-created', (_event, data) => callback(data));
