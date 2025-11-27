@@ -99,6 +99,12 @@ function setupIPCHandlers(): void {
   ipcMain.handle('open-url', async (_event, url: string) => {
     if (!tabManager) return { success: false, error: 'TabManager not initialized' };
     try {
+      // Handle special URL schemes
+      if (url.startsWith('api-keys://')) {
+        const result = tabManager.openApiKeyInstructionsTab();
+        return { success: true, data: result };
+      }
+
       const result = tabManager.openUrl(url);
       return { success: true, data: result };
     } catch (error) {

@@ -21,7 +21,7 @@
   // Reactive computed properties
   $: activeTab = $activeTabId ? $activeTabs.get($activeTabId) : null;
   $: showSvelteContent = activeTab?.component === 'llm-response';
-  $: showApiKeyInstructions = activeTab?.url?.startsWith('api-keys://');
+  $: showApiKeyInstructions = activeTab?.component === 'api-key-instructions';
 
   // Initialize IPC and make it available to all child components
   const ipc: IPCBridgeAPI = initializeIPC();

@@ -1,9 +1,25 @@
 <script lang="ts">
+  import { getContext } from 'svelte';
+  import type { IPCBridgeAPI } from '$lib/ipc-bridge';
+
+  const ipc = getContext<IPCBridgeAPI>('ipc');
+
   interface ApiKeyInstruction {
     provider: string;
     url: string;
     visionSupport: 'Full' | 'Partial' | 'No';
     visionNote?: string;
+  }
+
+  async function openUrl(url: string, event: MouseEvent) {
+    event.preventDefault();
+    if (ipc) {
+      try {
+        await ipc.openUrl(url);
+      } catch (error) {
+        console.error('Failed to open URL:', error);
+      }
+    }
   }
 
   const apiKeyInstructions: ApiKeyInstruction[] = [
@@ -77,7 +93,7 @@
               {/if}
             </td>
             <td>
-              <a href={instruction.url} target="_blank" rel="noopener noreferrer" class="search-link">
+              <a href={instruction.url} onclick={(e) => openUrl(instruction.url, e)} class="search-link">
                 🔍 Find console
               </a>
             </td>
