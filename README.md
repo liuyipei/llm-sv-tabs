@@ -41,6 +41,7 @@ For a deep dive into the architecture and design philosophy:
 - [Token Streaming & API Providers](./design/01-token-streaming-and-providers.md) - Provider architecture and real-time streaming
 - [Visual Layout Architecture](./design/02-visual-layout.md) - Hybrid rendering system combining Electron and Svelte
 - [Flexible Tab System](./design/03-flexible-tab-system.md) - How tabs handle URLs, files, text, and LLM responses
+- [Screenshot Capture](./design/05-screenshot-capture.md) - Native screenshot implementation with region selection
 
 ## Features
 
