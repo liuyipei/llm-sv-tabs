@@ -2,20 +2,20 @@
 
 ## Overview
 
-This document outlines the migration to support streaming LLM responses using a **hybrid architecture**: keeping BrowserView for webpage/notes tabs while migrating LLM response tabs to Svelte components.
+This document outlines the migration to support streaming LLM responses using a **hybrid architecture**: keeping WebContentsView for webpage/notes tabs while migrating LLM response tabs to Svelte components.
 
 ## Architecture: Hybrid Tab Rendering
 
 ### Current State
-All tabs use `BrowserView`:
+All tabs use `WebContentsView`:
 - **Webpages**: Load real URLs via `view.webContents.loadURL(url)`
 - **Notes/Uploads**: Load data URIs with HTML templates
 - **LLM Responses**: Load data URIs with markdown-rendered HTML (full page reload on update)
 
 ### Target State
 Hybrid rendering:
-- **Webpages**: Keep `BrowserView` (essential for loading real websites)
-- **Notes/Uploads**: Keep `BrowserView` (built-in PDF viewer, image handling)
+- **Webpages**: Keep `WebContentsView` (essential for loading real websites)
+- **Notes/Uploads**: Keep `WebContentsView` (built-in PDF viewer, image handling)
 - **LLM Responses**: **Migrate to Svelte components** (enables efficient streaming)
 
 ## Implementation Plan
@@ -42,12 +42,12 @@ Hybrid rendering:
 **Modified Tab Interface** (`src/main/tab-manager.ts`):
 ```typescript
 interface TabWithView extends Tab {
-  view?: BrowserView;  // Optional! Only for BrowserView tabs
+  view?: WebContentsView;  // Optional! Only for WebContentsView tabs
   component?: 'llm-response' | 'note'; // For Svelte-rendered tabs
 }
 ```
 
-**LLM Response Tab Creation** (no BrowserView):
+**LLM Response Tab Creation** (no WebContentsView):
 ```typescript
 openLLMResponseTab(query: string): { tabId: string } {
   const tabId = this.createTabId();
@@ -57,7 +57,7 @@ openLLMResponseTab(query: string): { tabId: string } {
     title: 'Loading...',
     url: `llm-response://${Date.now()}`,
     type: 'notes',  // Or create new 'llm-response' type
-    component: 'llm-response', // No BrowserView!
+    component: 'llm-response', // No WebContentsView!
     metadata: {
       isLLMResponse: true,
       query: query,
@@ -79,19 +79,19 @@ setActiveTab(tabId: string): void {
   const tab = this.tabs.get(tabId);
   if (!tab) return;
 
-  // Hide previous BrowserView
-  if (this.activeBrowserView) {
-    this.mainWindow.removeBrowserView(this.activeBrowserView);
+  // Hide previous WebContentsView
+  if (this.activeWebContentsView) {
+    this.mainWindow.contentView.removeChildView(this.activeWebContentsView);
   }
 
   if (tab.view) {
-    // Traditional BrowserView tab (webpage, notes, uploads)
-    this.mainWindow.addBrowserView(tab.view);
-    this.updateBrowserViewBounds();
-    this.activeBrowserView = tab.view;
+    // Traditional WebContentsView tab (webpage, notes, uploads)
+    this.mainWindow.contentView.addChildView(tab.view);
+    this.updateWebContentsViewBounds();
+    this.activeWebContentsView = tab.view;
   } else {
     // Svelte component tab (LLM responses)
-    this.activeBrowserView = null;
+    this.activeWebContentsView = null;
     // Renderer shows Svelte component in the content area
   }
 
@@ -613,7 +613,7 @@ ${dom.mainContent || ''}
   {#if showSvelteContent && activeTab}
     <MessageStream tabId={activeTab.id} />
   {:else}
-    <!-- BrowserView renders here (managed by TabManager in main process) -->
+    <!-- WebContentsView renders here (managed by TabManager in main process) -->
     <div class="browser-view-placeholder"></div>
   {/if}
 </div>

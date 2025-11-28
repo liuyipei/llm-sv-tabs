@@ -16,7 +16,7 @@ The application uses a hybrid layout combining Electron's native WebContentsView
 │  │                  ├──────────────────────────────────────┤   │
 │  │    Sidebar       │                                      │   │
 │  │    (350px)       │       Main Content Area              │   │
-│  │                  │    (BrowserView or Svelte)           │   │
+│  │                  │    (WebContentsView or Svelte)       │   │
 │  │                  │                                      │   │
 │  │                  │                                      │   │
 │  └──────────────────┴──────────────────────────────────────┘   │

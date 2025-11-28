@@ -66,7 +66,7 @@ function createWindow(): void {
 }
 
 function setupDownloadHandler(): void {
-  // Handle downloads from BrowserViews
+  // Handle downloads from WebContentsViews
   session.defaultSession.on('will-download', (_event, item, _webContents) => {
     // Show save dialog
     const savePath = dialog.showSaveDialogSync(mainWindow!, {
@@ -286,7 +286,7 @@ function setupIPCHandlers(): void {
                 extractedContents.push(content);
               }
             } else {
-              // Regular webpage tab with BrowserView
+              // Regular webpage tab with WebContentsView
               const view = tabManager.getTabView(selectedTabId);
               if (view) {
                 const content = await ContentExtractor.extractFromTab(

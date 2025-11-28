@@ -1,11 +1,11 @@
-import { BrowserView, BrowserWindow, Menu, MenuItem } from 'electron';
+import { WebContentsView, BrowserWindow, Menu, MenuItem } from 'electron';
 import type { Tab, TabData, TabType } from '../types';
 import { SessionManager } from './services/session-manager.js';
 import { createNoteHTML } from './templates/note-template.js';
 import { createRawMessageViewerHTML } from './templates/raw-message-template.js';
 
 interface TabWithView extends Tab {
-  view?: BrowserView;  // Optional for Svelte-rendered tabs
+  view?: WebContentsView;  // Optional for Svelte-rendered tabs
   component?: 'llm-response' | 'note' | 'api-key-instructions';  // For Svelte-rendered tabs
 }
 
@@ -13,7 +13,7 @@ class TabManager {
   private mainWindow: BrowserWindow;
   private tabs: Map<string, TabWithView>;
   private activeTabId: string | null;
-  private activeBrowserView: BrowserView | null;
+  private activeWebContentsView: WebContentsView | null;
   private tabCounter: number;
   private sessionManager: SessionManager;
   private readonly SIDEBAR_WIDTH = 350;
@@ -23,12 +23,12 @@ class TabManager {
     this.mainWindow = mainWindow;
     this.tabs = new Map();
     this.activeTabId = null;
-    this.activeBrowserView = null;
+    this.activeWebContentsView = null;
     this.tabCounter = 0;
     this.sessionManager = new SessionManager();
 
-    // Handle window resize to update BrowserView bounds
-    this.mainWindow.on('resize', () => this.updateBrowserViewBounds());
+    // Handle window resize to update WebContentsView bounds
+    this.mainWindow.on('resize', () => this.updateWebContentsViewBounds());
 
     // Save session periodically (every 30 seconds)
     setInterval(() => this.saveSession(), 30000);
@@ -39,7 +39,7 @@ class TabManager {
     });
   }
 
-  private updateBrowserViewBounds(): void {
+  private updateWebContentsViewBounds(): void {
     if (!this.activeTabId) return;
 
     const tab = this.tabs.get(this.activeTabId);
@@ -59,9 +59,9 @@ class TabManager {
   }
 
   /**
-   * Set up context menu for a BrowserView to handle right-clicks on links
+   * Set up context menu for a WebContentsView to handle right-clicks on links
    */
-  private setupContextMenu(view: BrowserView, _tabId: string): void {
+  private setupContextMenu(view: WebContentsView, _tabId: string): void {
     view.webContents.on('context-menu', (_event, params) => {
       const { linkURL, x, y } = params;
 
@@ -112,7 +112,7 @@ class TabManager {
    * Set up window open handler to intercept control-click, cmd-click, and middle-click on links
    * This converts new window requests into new tabs
    */
-  private setupWindowOpenHandler(view: BrowserView): void {
+  private setupWindowOpenHandler(view: WebContentsView): void {
     view.webContents.setWindowOpenHandler((details) => {
       // Open the URL in a new tab instead of a new window
       this.openUrl(details.url);
@@ -125,7 +125,7 @@ class TabManager {
   openUrl(url: string, autoSelect: boolean = true): { tabId: string; tab: TabData } {
     const tabId = this.createTabId();
 
-    const view = new BrowserView({
+    const view = new WebContentsView({
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
@@ -191,7 +191,7 @@ class TabManager {
   openNoteTab(noteId: number, title: string, content: string, fileType: 'text' | 'pdf' | 'image' = 'text', autoSelect: boolean = true): { tabId: string; tab: TabData } {
     const tabId = this.createTabId();
 
-    const view = new BrowserView({
+    const view = new WebContentsView({
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
@@ -385,7 +385,7 @@ class TabManager {
     if (!tab.metadata?.isLLMResponse) return { success: false, error: 'Not an LLM response tab' };
 
     const rawViewId = this.createTabId();
-    const view = new BrowserView({
+    const view = new WebContentsView({
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
@@ -671,8 +671,8 @@ class TabManager {
 
     // Destroy the view
     if (tab.view) {
-      this.mainWindow.removeBrowserView(tab.view);
-      // Note: WebContents cleanup is handled automatically when BrowserView is removed
+      this.mainWindow.contentView.removeChildView(tab.view);
+      // Note: WebContents cleanup is handled automatically when view is removed
       // The destroy() method was removed in newer Electron versions
     }
 
@@ -701,10 +701,10 @@ class TabManager {
     const tab = this.tabs.get(tabId);
     if (!tab) return { success: false, error: 'Tab not found' };
 
-    // Hide previous BrowserView if there was one
-    if (this.activeBrowserView) {
-      this.mainWindow.removeBrowserView(this.activeBrowserView);
-      this.activeBrowserView = null;
+    // Hide previous WebContentsView if there was one
+    if (this.activeWebContentsView) {
+      this.mainWindow.contentView.removeChildView(this.activeWebContentsView);
+      this.activeWebContentsView = null;
     }
 
     // Show new active tab
@@ -712,9 +712,9 @@ class TabManager {
     tab.lastViewed = Date.now();
 
     if (tab.view) {
-      // Traditional BrowserView tab (webpage, notes, uploads)
-      this.mainWindow.addBrowserView(tab.view);
-      this.activeBrowserView = tab.view;
+      // Traditional WebContentsView tab (webpage, notes, uploads)
+      this.mainWindow.contentView.addChildView(tab.view);
+      this.activeWebContentsView = tab.view;
 
       // Position the view to the right of the sidebar and below the header
       const bounds = this.mainWindow.getContentBounds();
@@ -727,7 +727,7 @@ class TabManager {
     } else {
       // Svelte component tab (LLM responses)
       // Renderer will show Svelte component in the content area
-      this.activeBrowserView = null;
+      this.activeWebContentsView = null;
     }
 
     // Notify renderer
@@ -821,7 +821,7 @@ class TabManager {
     return { success: true, url: tab.url };
   }
 
-  getTabView(tabId: string): BrowserView | null {
+  getTabView(tabId: string): WebContentsView | null {
     const tab = this.tabs.get(tabId);
     return tab?.view ?? null;
   }

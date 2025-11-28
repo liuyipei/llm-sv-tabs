@@ -45,7 +45,7 @@ For a deep dive into the architecture and design philosophy:
 
 ## Features
 
-- **Tab Management**: Create, switch, close tabs with BrowserView for web content, notes, files, and LLM responses
+- **Tab Management**: Create, switch, close tabs with WebContentsView for web content, notes, files, and LLM responses
 - **LLM Integration**: Query tabs with Fireworks AI, OpenRouter, Anthropic, OpenAI, and more
 - **Screenshot Capture**: Native region-based screenshots with drag-to-select overlay (Ctrl+Alt+S / Cmd+Alt+S)
 - **Content Extraction**: DOM serialization and webpage screenshots for vision models
