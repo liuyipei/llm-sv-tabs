@@ -2,7 +2,7 @@
 
 ## Overview
 
-The application uses a hybrid layout combining Electron's native BrowserView for web content with Svelte components for UI controls. The layout is designed for efficient content browsing with integrated LLM interaction.
+The application uses a hybrid layout combining Electron's native WebContentsView for web content with Svelte components for UI controls. The layout is designed for efficient content browsing with integrated LLM interaction.
 
 ## Layout Structure
 
@@ -30,7 +30,7 @@ The application uses a hybrid layout combining Electron's native BrowserView for
 const SIDEBAR_WIDTH = 350;  // Fixed width
 const HEADER_HEIGHT = 53;   // URL bar height
 
-// BrowserView positioning
+// WebContentsView positioning
 const bounds = {
   x: SIDEBAR_WIDTH,
   y: HEADER_HEIGHT,
@@ -126,7 +126,7 @@ Fixed at the top (53px height):
 
 The main content area switches between two rendering modes:
 
-#### Mode 1: BrowserView (Native Electron)
+#### Mode 1: WebContentsView (Native Electron)
 
 Used for:
 - Webpages (HTTP/HTTPS)
@@ -135,7 +135,7 @@ Used for:
 
 ```typescript
 // tab-manager.ts
-const view = new BrowserView({
+const view = new WebContentsView({
   webPreferences: {
     nodeIntegration: false,
     contextIsolation: true,
@@ -149,7 +149,7 @@ view.setBounds({
   height: windowHeight - HEADER_HEIGHT,
 });
 
-mainWindow.addBrowserView(view);
+mainWindow.contentView.addChildView(view);
 view.webContents.loadURL(url);
 ```
 
@@ -192,17 +192,17 @@ $: showSvelteContent = activeTab && !activeTab.view;
 setActiveTab(tabId: string) {
   const tab = this.tabs.get(tabId);
 
-  // Remove current BrowserView
-  if (this.activeBrowserView) {
-    this.mainWindow.removeBrowserView(this.activeBrowserView);
-    this.activeBrowserView = null;
+  // Remove current WebContentsView
+  if (this.activeWebContentsView) {
+    this.mainWindow.contentView.removeChildView(this.activeWebContentsView);
+    this.activeWebContentsView = null;
   }
 
-  // Show new BrowserView (if exists)
+  // Show new WebContentsView (if exists)
   if (tab.view) {
-    this.mainWindow.addBrowserView(tab.view);
+    this.mainWindow.contentView.addChildView(tab.view);
     tab.view.setBounds(this.calculateBounds());
-    this.activeBrowserView = tab.view;
+    this.activeWebContentsView = tab.view;
   }
 
   // Notify renderer (triggers Svelte reactivity)
@@ -361,7 +361,7 @@ setActiveTab(tabId: string) {
 mainWindow.on('resize', () => {
   const [width, height] = mainWindow.getSize();
 
-  // Update all BrowserViews
+  // Update all WebContentsViews
   for (const tab of tabManager.getAllTabs()) {
     if (tab.view) {
       tab.view.setBounds({
@@ -522,9 +522,9 @@ When many tabs are open (>100), use virtual scrolling:
 </svelte-virtual-list>
 ```
 
-### BrowserView Pooling
+### WebContentsView Pooling
 
-Instead of destroying inactive BrowserViews, hide them:
+Instead of destroying inactive WebContentsViews, hide them:
 
 ```typescript
 // Future optimization

@@ -29,10 +29,10 @@ Different tab types use different URL schemes:
 
 | Tab Type | URL Scheme | Example | Rendering |
 |----------|------------|---------|-----------|
-| Webpage | `http://`, `https://` | `https://example.com` | BrowserView |
-| PDF | `file://` | `file:///path/to/doc.pdf` | BrowserView (PDF viewer) |
-| Notes | `file://`, `note://` | `note://12345` | BrowserView (HTML) |
-| Upload | `upload://` | `upload://document-12345` | BrowserView (converted) |
+| Webpage | `http://`, `https://` | `https://example.com` | WebContentsView |
+| PDF | `file://` | `file:///path/to/doc.pdf` | WebContentsView (PDF viewer) |
+| Notes | `file://`, `note://` | `note://12345` | WebContentsView (HTML) |
+| Upload | `upload://` | `upload://document-12345` | WebContentsView (converted) |
 | LLM Response | `llm-response://` | `llm-response://1699123456789` | Svelte component |
 
 ## Rendering Strategies
@@ -43,7 +43,7 @@ The system uses two rendering backends:
 
 ```typescript
 interface TabWithView extends Tab {
-  view?: BrowserView;                    // Electron native view
+  view?: WebContentsView;                // Electron native view
   component?: 'llm-response' | 'note';   // Svelte component name
 }
 ```
@@ -52,15 +52,15 @@ interface TabWithView extends Tab {
 ```typescript
 function createTab(type: TabType, url: string): TabWithView {
   if (type === 'notes' && url.startsWith('llm-response://')) {
-    // Svelte component (no BrowserView)
+    // Svelte component (no WebContentsView)
     return {
       type: 'notes',
       component: 'llm-response',
       view: undefined,
     };
   } else {
-    // BrowserView
-    const view = new BrowserView({
+    // WebContentsView
+    const view = new WebContentsView({
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
@@ -80,7 +80,7 @@ function createTab(type: TabType, url: string): TabWithView {
 
 ### Why Hybrid?
 
-**BrowserView Advantages**:
+**WebContentsView Advantages**:
 - Full web platform (JavaScript, CSS, Canvas, WebGL)
 - Isolated process per tab
 - Native scrolling and rendering
@@ -107,7 +107,7 @@ async openUrl(url: string): Promise<string> {
     url: url,
     type: 'webpage',
     created: Date.now(),
-    view: new BrowserView(),
+    view: new WebContentsView(),
   };
 
   tab.view.webContents.loadURL(url);
@@ -157,7 +157,7 @@ async openPdfTab(filePath: string): Promise<string> {
     title: path.basename(filePath),
     url: `file://${filePath}`,
     type: 'pdf',
-    view: new BrowserView(),
+    view: new WebContentsView(),
   };
 
   // Electron has built-in PDF viewer
@@ -204,7 +204,7 @@ async openNoteTab(
     title: title,
     url: `note://${noteId}`,
     type: 'notes',
-    view: new BrowserView(),
+    view: new WebContentsView(),
   };
 
   // Convert content to HTML
@@ -414,7 +414,7 @@ export interface TabMetadata {
 
 ### IPC Serialization
 
-BrowserViews cannot be serialized, so we use a simplified `TabData` type:
+WebContentsViews cannot be serialized, so we use a simplified `TabData` type:
 
 ```typescript
 export interface TabData {
@@ -475,11 +475,11 @@ const result = await ipc.openUrl('https://example.com');
 async closeTab(tabId: string): Promise<void> {
   const tab = this.tabs.get(tabId);
 
-  // Cleanup BrowserView
+  // Cleanup WebContentsView
   if (tab.view) {
-    if (this.activeBrowserView === tab.view) {
-      this.mainWindow.removeBrowserView(tab.view);
-      this.activeBrowserView = null;
+    if (this.activeWebContentsView === tab.view) {
+      this.mainWindow.contentView.removeChildView(tab.view);
+      this.activeWebContentsView = null;
     }
 
     // Destroy to free memory
@@ -508,17 +508,17 @@ async closeTab(tabId: string): Promise<void> {
 async setActiveTab(tabId: string): Promise<void> {
   const tab = this.tabs.get(tabId);
 
-  // Remove current BrowserView
-  if (this.activeBrowserView) {
-    this.mainWindow.removeBrowserView(this.activeBrowserView);
-    this.activeBrowserView = null;
+  // Remove current WebContentsView
+  if (this.activeWebContentsView) {
+    this.mainWindow.contentView.removeChildView(this.activeWebContentsView);
+    this.activeWebContentsView = null;
   }
 
-  // Add new BrowserView (if applicable)
+  // Add new WebContentsView (if applicable)
   if (tab.view) {
-    this.mainWindow.addBrowserView(tab.view);
+    this.mainWindow.contentView.addChildView(tab.view);
     tab.view.setBounds(this.calculateBounds());
-    this.activeBrowserView = tab.view;
+    this.activeWebContentsView = tab.view;
   }
 
   // Update state
