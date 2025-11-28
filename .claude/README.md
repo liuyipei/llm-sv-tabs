@@ -7,7 +7,8 @@
 
 ## Dependencies
 
-- **Node.js 18+** required
+- **Node.js 22+** recommended (matches Electron 39 runtime)
+  - Minimum: Node.js 18+
 - **npm** (comes with Node.js)
 - Install: `npm install` (or `npm install --ignore-scripts` in restricted environments)
 

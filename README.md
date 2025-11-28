@@ -53,6 +53,12 @@ For a deep dive into the architecture and design philosophy:
 - **Reactive UI**: Svelte 5 components with automatic updates
 - **Type-Safe**: Full TypeScript with comprehensive type definitions
 
+## Requirements
+
+- **Node.js 22+** recommended (matches Electron 39 runtime)
+  - Minimum: Node.js 18+
+- **npm** (comes with Node.js)
+
 ## Quick Start
 
 ```bash
