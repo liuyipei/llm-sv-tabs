@@ -262,7 +262,7 @@ async convertToHtml(content: string, fileType: string): Promise<string> {
 
 ### 4. LLM Response Tabs
 
-**Special Rendering**: Uses Svelte component instead of BrowserView
+**Special Rendering**: Uses Svelte component instead of WebContentsView
 
 **Creation**:
 ```typescript
@@ -279,7 +279,7 @@ async openLLMResponseTab(
     url: `llm-response://${timestamp}`,
     type: 'notes',
     component: 'llm-response',  // Key difference!
-    view: undefined,            // No BrowserView
+    view: undefined,            // No WebContentsView
     created: timestamp,
     metadata: {
       isLLMResponse: true,

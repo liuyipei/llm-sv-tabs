@@ -1,4 +1,4 @@
-import { BrowserView } from 'electron';
+import { WebContentsView } from 'electron';
 import type { ExtractedContent, SerializedDOM, TabData } from '../../types';
 import { ImageResizer } from './image-resizer.js';
 
@@ -12,10 +12,10 @@ import { ImageResizer } from './image-resizer.js';
  */
 export class ContentExtractor {
   /**
-   * Extract content from a tab's BrowserView
+   * Extract content from a tab's WebContentsView
    */
   static async extractFromTab(
-    view: BrowserView,
+    view: WebContentsView,
     _tabId: string,
     includeScreenshot = false
   ): Promise<ExtractedContent> {
@@ -43,7 +43,7 @@ export class ContentExtractor {
   /**
    * Serialize DOM content from the page
    */
-  private static async serializeDOM(view: BrowserView): Promise<SerializedDOM> {
+  private static async serializeDOM(view: WebContentsView): Promise<SerializedDOM> {
     const result = await view.webContents.executeJavaScript(`
       (function() {
         // Extract headings
@@ -107,7 +107,7 @@ export class ContentExtractor {
   /**
    * Capture screenshot of the current view
    */
-  private static async captureScreenshot(view: BrowserView): Promise<string> {
+  private static async captureScreenshot(view: WebContentsView): Promise<string> {
     const image = await view.webContents.capturePage();
     return image.toDataURL();
   }

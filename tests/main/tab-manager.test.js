@@ -9,11 +9,11 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
  * - Tab data extraction and serialization
  * - Active tab state management
  *
- * Note: These tests mock Electron dependencies to stay fast (no actual BrowserViews)
+ * Note: These tests mock Electron dependencies to stay fast (no actual WebContentsViews)
  */
 
 // Mock Electron modules
-class MockBrowserView {
+class MockWebContentsView {
   constructor() {
     this.webContents = {
       loadURL: vi.fn(),
@@ -28,11 +28,12 @@ class MockBrowserView {
       openDevTools: vi.fn(),
     };
     this.setBounds = vi.fn();
+    this.setAutoResize = vi.fn();
   }
 }
 
 vi.mock('electron', () => ({
-  BrowserView: MockBrowserView,
+  WebContentsView: MockWebContentsView,
   BrowserWindow: vi.fn(),
   app: {
     getPath: vi.fn((name) => {
@@ -54,11 +55,13 @@ describe('TabManager', () => {
   beforeEach(() => {
     // Create mock BrowserWindow
     mockWindow = {
-      addBrowserView: vi.fn(),
-      removeBrowserView: vi.fn(),
+      contentView: {
+        addChildView: vi.fn(),
+        removeChildView: vi.fn(),
+      },
       getBounds: vi.fn().mockReturnValue({ width: 1400, height: 900 }),
       getContentBounds: vi.fn().mockReturnValue({ width: 1400, height: 900 }),
-      on: vi.fn(), // For resize event listener
+      on: vi.fn(), // For event listeners
       webContents: {
         send: vi.fn(),
       },
@@ -142,7 +145,7 @@ describe('TabManager', () => {
       expect(tab).toBeNull();
     });
 
-    it('should not expose BrowserView in tab data', () => {
+    it('should not expose WebContentsView in tab data', () => {
       const tab = tabManager.getTabData('tab-1');
 
       expect(tab).not.toHaveProperty('view');
@@ -231,11 +234,11 @@ describe('TabManager', () => {
       );
     });
 
-    it('should position active tab BrowserView correctly', () => {
+    it('should position active tab WebContentsView correctly', () => {
       tabManager.setActiveTab('tab-1');
 
-      // Should call addBrowserView when switching
-      expect(mockWindow.addBrowserView).toHaveBeenCalled();
+      // Should call addChildView when switching
+      expect(mockWindow.contentView.addChildView).toHaveBeenCalled();
     });
   });
 
