@@ -17,13 +17,15 @@
   .llm-controls {
     display: flex;
     flex-direction: column;
-    padding: 1rem;
+    padding: 0.75rem;
     border-bottom: 1px solid var(--border-color, #ddd);
     background: var(--bg-secondary, #f9f9f9);
+    overflow-y: auto;
+    height: 100%;
   }
 
   h3 {
-    margin: 0 0 1rem 0;
+    margin: 0 0 0.5rem 0;
     font-size: 1rem;
     font-weight: 600;
     color: var(--text-primary, #333);
