@@ -36,6 +36,7 @@
           maxTokens: $maxTokens,
           systemPrompt: $systemPrompt || undefined,
           selectedTabIds: Array.from($selectedTabs),
+          tabId: tabId, // Pass the tab ID to avoid duplicate creation
         };
 
         const response = await ipc.sendQuery(query, options);

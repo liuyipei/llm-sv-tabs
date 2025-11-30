@@ -71,6 +71,7 @@ describe('IPC Bridge', () => {
         sendQuery: vi.fn().mockResolvedValue({ response: 'test response' }),
         getActiveTabs: vi.fn().mockResolvedValue({ success: true, data: { tabs: [], activeTabId: null } }),
         onTabCreated: vi.fn(),
+        onTabUpdated: vi.fn(),
         onTabClosed: vi.fn(),
         onTabTitleUpdated: vi.fn(),
         onTabUrlUpdated: vi.fn(),
@@ -92,6 +93,7 @@ describe('IPC Bridge', () => {
       initializeIPC();
 
       expect(mockElectronAPI.onTabCreated).toHaveBeenCalled();
+      expect(mockElectronAPI.onTabUpdated).toHaveBeenCalled();
       expect(mockElectronAPI.onTabClosed).toHaveBeenCalled();
       expect(mockElectronAPI.onTabTitleUpdated).toHaveBeenCalled();
       expect(mockElectronAPI.onTabUrlUpdated).toHaveBeenCalled();
@@ -165,6 +167,7 @@ describe('IPC Bridge', () => {
         sendQuery: vi.fn(),
         getActiveTabs: vi.fn().mockResolvedValue({ success: true, data: { tabs: [], activeTabId: null } }),
         onTabCreated: vi.fn((callback) => { eventHandlers.tabCreated = callback; }),
+        onTabUpdated: vi.fn((callback) => { eventHandlers.tabUpdated = callback; }),
         onTabClosed: vi.fn((callback) => { eventHandlers.tabClosed = callback; }),
         onTabTitleUpdated: vi.fn((callback) => { eventHandlers.tabTitleUpdated = callback; }),
         onTabUrlUpdated: vi.fn((callback) => { eventHandlers.tabUrlUpdated = callback; }),

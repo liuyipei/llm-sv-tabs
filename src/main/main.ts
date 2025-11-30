@@ -251,8 +251,8 @@ function setupIPCHandlers(): void {
       };
     }
 
-    // Create LLM response tab
-    const { tabId } = tabManager.openLLMResponseTab(query);
+    // Use existing tab ID if provided, otherwise create a new LLM response tab
+    const tabId = options.tabId || tabManager.openLLMResponseTab(query).tabId;
 
     try {
       // Get provider instance

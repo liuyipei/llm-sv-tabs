@@ -4,6 +4,7 @@ import {
   activeTabId,
   addTab,
   removeTab,
+  updateTab,
   updateTabTitle,
   updateTabUrl,
 } from '$stores/tabs';
@@ -49,6 +50,10 @@ export function initializeIPC(): IPCBridgeAPI {
   // Set up listeners from Electron main process -> Svelte stores
   window.electronAPI.onTabCreated((data) => {
     addTab(data.tab as Tab);
+  });
+
+  window.electronAPI.onTabUpdated((data) => {
+    updateTab(data.tab.id, data.tab as Partial<Tab>);
   });
 
   window.electronAPI.onTabClosed((data) => {

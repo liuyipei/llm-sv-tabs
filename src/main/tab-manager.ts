@@ -18,6 +18,8 @@ class TabManager {
   private sessionManager: SessionManager;
   private readonly SIDEBAR_WIDTH = 350;
   private readonly HEADER_HEIGHT = 53;
+  private lastMetadataUpdate: Map<string, number>; // Track last metadata update time per tab
+  private readonly METADATA_UPDATE_THROTTLE_MS = 500; // Send metadata updates at most every 500ms
 
   constructor(mainWindow: BrowserWindow) {
     this.mainWindow = mainWindow;
@@ -26,6 +28,7 @@ class TabManager {
     this.activeWebContentsView = null;
     this.tabCounter = 0;
     this.sessionManager = new SessionManager();
+    this.lastMetadataUpdate = new Map();
 
     // Handle window resize to update WebContentsView bounds
     this.mainWindow.on('resize', () => this.updateWebContentsViewBounds());
@@ -356,6 +359,12 @@ class TabManager {
 
     // Notify renderer of title update
     this.sendToRenderer('tab-title-updated', { id: tabId, title: tab.title });
+
+    // Notify renderer of metadata update (important for Svelte components)
+    this.sendToRenderer('tab-updated', { tab: this.getTabData(tabId) });
+
+    // Clear throttle tracking now that streaming is complete
+    this.lastMetadataUpdate.delete(tabId);
 
     // Save session
     this.saveSession();
@@ -834,8 +843,24 @@ class TabManager {
 
   /**
    * Send streaming chunk to renderer for LLM responses
+   * Also accumulates chunk in metadata for persistence during streaming
    */
   sendStreamChunk(tabId: string, chunk: string): void {
+    const tab = this.tabs.get(tabId);
+    if (tab?.metadata) {
+      // Accumulate response during streaming so it's available if user navigates away/back
+      tab.metadata.response = (tab.metadata.response || '') + chunk;
+
+      // Throttled metadata updates to keep renderer store in sync during streaming
+      const now = Date.now();
+      const lastUpdate = this.lastMetadataUpdate.get(tabId) || 0;
+
+      if (now - lastUpdate >= this.METADATA_UPDATE_THROTTLE_MS) {
+        this.sendToRenderer('tab-updated', { tab: this.getTabData(tabId) });
+        this.lastMetadataUpdate.set(tabId, now);
+      }
+    }
+
     this.mainWindow.webContents.send('llm-stream-chunk', { tabId, chunk });
   }
 
