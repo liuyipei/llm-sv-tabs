@@ -110,23 +110,24 @@
     </div>
   {:else}
     <div class="response-header">
-      <div class="response-label">Response:</div>
-      {#if model || tokensIn !== undefined || tokensOut !== undefined}
-        <div class="metadata">
-          {#if model}
-            <span class="metadata-item">Model: {model}</span>
-          {/if}
-          {#if tokensIn !== undefined}
-            <span class="metadata-item">In: {tokensIn.toLocaleString()} tokens</span>
-          {/if}
-          {#if tokensOut !== undefined}
-            <span class="metadata-item">Out: {tokensOut.toLocaleString()} tokens</span>
-          {/if}
-          {#if isStreaming}
-            <span class="metadata-item streaming">Streaming...</span>
-          {/if}
-        </div>
-      {/if}
+      <div class="response-label">Response</div>
+      <div class="metadata">
+        {#if model}
+          <span class="metadata-item"><span class="metadata-label">Model:</span> {model}</span>
+        {/if}
+        {#if tokensIn !== undefined && tokensIn !== null}
+          <span class="metadata-item"><span class="metadata-label">Tokens In:</span> <strong>{tokensIn.toLocaleString()}</strong></span>
+        {/if}
+        {#if tokensOut !== undefined && tokensOut !== null}
+          <span class="metadata-item"><span class="metadata-label">Tokens Out:</span> <strong>{tokensOut.toLocaleString()}</strong></span>
+        {/if}
+        {#if (tokensIn !== undefined && tokensIn !== null) && (tokensOut !== undefined && tokensOut !== null)}
+          <span class="metadata-item"><span class="metadata-label">Total:</span> <strong>{(tokensIn + tokensOut).toLocaleString()}</strong></span>
+        {/if}
+        {#if isStreaming}
+          <span class="metadata-item streaming">● Streaming...</span>
+        {/if}
+      </div>
     </div>
 
     <div class="response-content">
@@ -172,8 +173,10 @@
 
   .response-header {
     margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid #3e3e42;
+    padding: 0.75rem;
+    background-color: #1e1e1e;
+    border-left: 3px solid #4ec9b0;
+    border-radius: 4px;
   }
 
   .response-label {
@@ -188,12 +191,26 @@
   .metadata {
     display: flex;
     flex-wrap: wrap;
-    gap: 1rem;
-    font-size: 0.85rem;
+    gap: 1.25rem;
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
   }
 
   .metadata-item {
-    color: #8c8c8c;
+    color: #d4d4d4;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .metadata-label {
+    color: #9cdcfe;
+    font-weight: 500;
+  }
+
+  .metadata-item strong {
+    color: #dcdcaa;
+    font-weight: 600;
   }
 
   .metadata-item.streaming {
