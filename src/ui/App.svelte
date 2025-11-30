@@ -294,13 +294,14 @@
     color: #d4d4d4;
     border: none;
     border-radius: 4px;
-    padding: 10px;
-    font-size: 20px;
+    padding: 8px;
+    font-size: 18px;
     cursor: pointer;
     transition: all 0.2s;
     display: flex;
     align-items: center;
     justify-content: center;
+    height: 36px;
   }
 
   .nav-btn:hover {
