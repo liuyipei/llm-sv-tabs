@@ -37,6 +37,17 @@
   const model = $derived(metadata?.model);
   const isStreaming = $derived(metadata?.isStreaming);
   const error = $derived(metadata?.error);
+  const created = $derived(tab?.created);
+
+  // Get context tabs used in the query
+  const contextTabs = $derived(() => {
+    if (!metadata?.selectedTabIds || metadata.selectedTabIds.length === 0) {
+      return [];
+    }
+    return metadata.selectedTabIds
+      .map(id => $activeTabs.get(id))
+      .filter(t => t !== undefined);
+  });
 
   // Effect to load existing data when metadata becomes available
   $effect(() => {
@@ -75,6 +86,23 @@
     });
   }
 
+  function formatTimestamp(timestamp: number | undefined): string {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
   onMount(() => {
     // Load existing conversation data if present
     if (metadata?.response) {
@@ -99,8 +127,37 @@
 <div class="llm-message-stream" bind:this={container}>
   {#if query}
     <div class="query-header">
-      <div class="query-label">Query:</div>
+      <div class="query-header-top">
+        <div class="query-label">Query</div>
+        {#if created}
+          <div class="query-timestamp">{formatTimestamp(created)}</div>
+        {/if}
+      </div>
       <div class="query-text">{query}</div>
+    </div>
+  {/if}
+
+  {#if contextTabs.length > 0}
+    <div class="context-section">
+      <div class="context-label">Context ({contextTabs.length} tab{contextTabs.length === 1 ? '' : 's'})</div>
+      <div class="context-tabs">
+        {#each contextTabs as contextTab}
+          <div class="context-tab-item">
+            <div class="context-tab-header">
+              <div class="context-tab-title-container">
+                {#if contextTab.favicon}
+                  <img src={contextTab.favicon} alt="" class="context-tab-favicon" />
+                {/if}
+                <span class="context-tab-title">{contextTab.title}</span>
+              </div>
+              <span class="context-tab-type">{contextTab.type}</span>
+            </div>
+            {#if contextTab.url && contextTab.url !== 'about:blank'}
+              <div class="context-tab-url">{contextTab.url}</div>
+            {/if}
+          </div>
+        {/each}
+      </div>
     </div>
   {/if}
 
@@ -110,23 +167,24 @@
     </div>
   {:else}
     <div class="response-header">
-      <div class="response-label">Response:</div>
-      {#if model || tokensIn !== undefined || tokensOut !== undefined}
-        <div class="metadata">
-          {#if model}
-            <span class="metadata-item">Model: {model}</span>
-          {/if}
-          {#if tokensIn !== undefined}
-            <span class="metadata-item">In: {tokensIn.toLocaleString()} tokens</span>
-          {/if}
-          {#if tokensOut !== undefined}
-            <span class="metadata-item">Out: {tokensOut.toLocaleString()} tokens</span>
-          {/if}
-          {#if isStreaming}
-            <span class="metadata-item streaming">Streaming...</span>
-          {/if}
-        </div>
-      {/if}
+      <div class="response-label">Response</div>
+      <div class="metadata">
+        {#if model}
+          <span class="metadata-item"><span class="metadata-label">Model:</span> {model}</span>
+        {/if}
+        {#if tokensIn !== undefined && tokensIn !== null}
+          <span class="metadata-item"><span class="metadata-label">Tokens In:</span> <strong>{tokensIn.toLocaleString()}</strong></span>
+        {/if}
+        {#if tokensOut !== undefined && tokensOut !== null}
+          <span class="metadata-item"><span class="metadata-label">Tokens Out:</span> <strong>{tokensOut.toLocaleString()}</strong></span>
+        {/if}
+        {#if (tokensIn !== undefined && tokensIn !== null) && (tokensOut !== undefined && tokensOut !== null)}
+          <span class="metadata-item"><span class="metadata-label">Total:</span> <strong>{(tokensIn + tokensOut).toLocaleString()}</strong></span>
+        {/if}
+        {#if isStreaming}
+          <span class="metadata-item streaming">● Streaming...</span>
+        {/if}
+      </div>
     </div>
 
     <div class="response-content">
@@ -154,13 +212,25 @@
     border-radius: 4px;
   }
 
+  .query-header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+
   .query-label {
     font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
     color: #007acc;
-    margin-bottom: 0.5rem;
     letter-spacing: 0.5px;
+  }
+
+  .query-timestamp {
+    font-size: 0.75rem;
+    color: #8c8c8c;
+    font-style: italic;
   }
 
   .query-text {
@@ -170,10 +240,93 @@
     word-wrap: break-word;
   }
 
+  .context-section {
+    margin-bottom: 1.5rem;
+    padding: 0.75rem;
+    background-color: #1e1e1e;
+    border-left: 3px solid #c586c0;
+    border-radius: 4px;
+  }
+
+  .context-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #c586c0;
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.5px;
+  }
+
+  .context-tabs {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .context-tab-item {
+    padding: 0.5rem;
+    background-color: #252526;
+    border-radius: 3px;
+    border: 1px solid #3e3e42;
+  }
+
+  .context-tab-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .context-tab-title-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .context-tab-favicon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+
+  .context-tab-title {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #d4d4d4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .context-tab-type {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    padding: 0.15rem 0.4rem;
+    background-color: #3e3e42;
+    color: #9cdcfe;
+    border-radius: 3px;
+    letter-spacing: 0.5px;
+  }
+
+  .context-tab-url {
+    font-size: 0.75rem;
+    color: #8c8c8c;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  }
+
   .response-header {
     margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid #3e3e42;
+    padding: 0.75rem;
+    background-color: #1e1e1e;
+    border-left: 3px solid #4ec9b0;
+    border-radius: 4px;
   }
 
   .response-label {
@@ -188,12 +341,26 @@
   .metadata {
     display: flex;
     flex-wrap: wrap;
-    gap: 1rem;
-    font-size: 0.85rem;
+    gap: 1.25rem;
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
   }
 
   .metadata-item {
-    color: #8c8c8c;
+    color: #d4d4d4;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .metadata-label {
+    color: #9cdcfe;
+    font-weight: 500;
+  }
+
+  .metadata-item strong {
+    color: #dcdcaa;
+    font-weight: 600;
   }
 
   .metadata-item.streaming {
