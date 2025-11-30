@@ -86,8 +86,8 @@
   .api-key-input {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
+    gap: 0.375rem;
+    margin-bottom: 0.5rem;
   }
 
   .label-wrapper {
@@ -135,7 +135,7 @@
 
   .key-input {
     flex: 1;
-    padding: 0.5rem;
+    padding: 0.375rem 0.5rem;
     border: 1px solid var(--border-color, #ddd);
     border-radius: 4px;
     background: var(--input-bg, white);
@@ -152,7 +152,7 @@
   }
 
   .toggle-visibility {
-    padding: 0.5rem;
+    padding: 0.375rem 0.5rem;
     border: 1px solid var(--border-color, #ddd);
     border-radius: 4px;
     background: var(--button-bg, white);
