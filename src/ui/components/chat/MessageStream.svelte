@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { marked } from 'marked';
   import DOMPurify from 'dompurify';
-  import { activeTabs, updateTab } from '$stores/tabs';
+  import { activeTabs } from '$stores/tabs';
 
   declare global {
     interface Window {
@@ -107,26 +107,9 @@
 
       fullText += chunk;
 
-      console.log('[MessageStream] Persisting to store', {
+      console.log('[MessageStream] Updated fullText', {
         tabId,
-        newFullTextLength: fullText.length,
-        metadataBefore: metadata
-      });
-
-      // Persist to tab metadata so it survives component unmount
-      updateTab(tabId, {
-        metadata: {
-          ...metadata,
-          response: fullText,
-        },
-      });
-
-      console.log('[MessageStream] After updateTab - checking store');
-      // Check what's actually in the store
-      const currentTab = $activeTabs.get(tabId);
-      console.log('[MessageStream] Current tab in store:', {
-        hasMetadata: !!currentTab?.metadata,
-        responseLength: currentTab?.metadata?.response?.length || 0
+        newFullTextLength: fullText.length
       });
 
       scheduleRender();

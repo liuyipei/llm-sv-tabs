@@ -382,9 +382,19 @@ ${dom.mainContent || content.content || ''}
       messages.push({ role: 'user', content: userMessageContent });
 
       // Stream response
+      let accumulatedResponse = '';
       const response = await provider.queryStream(messages, options, (chunk) => {
+        // Accumulate chunks
+        accumulatedResponse += chunk;
+
         // Send chunk to renderer
         tabManager!.sendStreamChunk(tabId, chunk);
+
+        // Update tab metadata with accumulated response (for persistence across tab switches)
+        const tab = tabManager!.getTab(tabId);
+        if (tab?.metadata) {
+          tab.metadata.response = accumulatedResponse;
+        }
       });
 
       // Update tab metadata after streaming completes
