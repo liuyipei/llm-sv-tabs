@@ -6,6 +6,7 @@ import type {
   LLMResponse,
   Bookmark,
   TabCreatedEvent,
+  TabUpdatedEvent,
   TabClosedEvent,
   TabTitleUpdatedEvent,
   TabUrlUpdatedEvent,
@@ -91,6 +92,10 @@ const electronAPI = {
   // Event listeners (from main to renderer)
   onTabCreated: (callback: (data: TabCreatedEvent) => void): void => {
     ipcRenderer.on('tab-created', (_event, data) => callback(data));
+  },
+
+  onTabUpdated: (callback: (data: TabUpdatedEvent) => void): void => {
+    ipcRenderer.on('tab-updated', (_event, data) => callback(data));
   },
 
   onTabClosed: (callback: (data: TabClosedEvent) => void): void => {

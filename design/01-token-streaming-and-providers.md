@@ -195,6 +195,74 @@ window.electronAPI.on('llm-stream-chunk', (event) => {
 });
 ```
 
+### Data Persistence Architecture
+
+**Main Process as Source of Truth**
+
+Streaming data persists in the main process, independent of UI component lifecycle. This ensures zero data loss during tab switching or component unmounting.
+
+**Key Design Principles:**
+
+1. **Accumulation in Main Process**:
+   - Provider streams chunks → main process accumulates in `tab.metadata.response`
+   - Full response is built incrementally during streaming
+   - Stored in tab metadata, which persists across navigation
+
+2. **Fire-and-Forget Broadcasting**:
+   - Each chunk is sent via IPC event (`'llm-stream-chunk'`)
+   - Events are broadcast whether UI components are listening or not
+   - Main process doesn't wait for acknowledgment
+
+3. **Optional Component Subscription**:
+   - `MessageStream` component subscribes for real-time viewing
+   - On mount, loads existing data from `metadata.response` first
+   - Then subscribes to new chunks for live updates
+   - Subscription is purely for UI updates, not data persistence
+
+4. **Survives Navigation**:
+   - User can navigate away during streaming
+   - Streaming continues in main process
+   - Data accumulates in `tab.metadata.response`
+   - When user returns, component remounts and loads full response
+
+**Implementation in main.ts:**
+
+```typescript
+// Streaming continues regardless of component state
+const response = await provider.queryStream(messages, options, (chunk) => {
+  tabManager!.sendStreamChunk(tabId, chunk);  // Fire-and-forget broadcast
+});
+
+// After streaming completes, save full response to metadata
+const tab = tabManager.getTab(tabId);
+if (tab?.metadata) {
+  tab.metadata.response = response.response;  // Source of truth
+  tab.metadata.isStreaming = false;
+  // ... other metadata
+}
+```
+
+**Implementation in MessageStream.svelte:**
+
+```typescript
+onMount(() => {
+  // 1. Load existing data FIRST (source of truth)
+  if (metadata?.response) {
+    fullText = metadata.response;
+    updateBuffers();
+  }
+
+  // 2. THEN subscribe to live chunks (optional real-time updates)
+  unsubscribe = window.electronAPI.onLLMChunk(({ tabId: incomingId, chunk }) => {
+    if (incomingId !== tabId) return;
+    fullText += chunk;
+    scheduleRender();
+  });
+});
+```
+
+This architecture prevents the common bug where conversations disappear when navigating away during streaming. See `design/06-round-trip-test-pattern.md` for testing strategies.
+
 ## API Key Management
 
 ### Storage Strategy

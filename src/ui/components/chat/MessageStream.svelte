@@ -26,6 +26,7 @@
 
   let unsubscribe: (() => void) | null = null;
   let renderScheduled = false;
+  let hasLoadedInitialData = $state(false);
 
   // Get tab metadata
   const tab = $derived($activeTabs.get(tabId));
@@ -36,6 +37,15 @@
   const model = $derived(metadata?.model);
   const isStreaming = $derived(metadata?.isStreaming);
   const error = $derived(metadata?.error);
+
+  // Effect to load existing data when metadata becomes available
+  $effect(() => {
+    if (!hasLoadedInitialData && metadata?.response) {
+      fullText = metadata.response;
+      updateBuffers();
+      hasLoadedInitialData = true;
+    }
+  });
 
   function updateBuffers() {
     // Simple block split: last blank line as boundary

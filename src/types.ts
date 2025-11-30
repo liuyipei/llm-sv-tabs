@@ -145,6 +145,7 @@ export interface QueryOptions {
   systemPrompt?: string;
   includeMedia?: boolean;
   selectedTabIds?: string[];
+  tabId?: string; // Existing tab ID to update instead of creating a new tab
 }
 
 export interface LLMResponse {
@@ -203,6 +204,10 @@ export interface IPCResponse<T = any> {
 }
 
 export interface TabCreatedEvent {
+  tab: TabData;
+}
+
+export interface TabUpdatedEvent {
   tab: TabData;
 }
 
@@ -284,6 +289,7 @@ export interface IPCBridge {
 
   // Event listeners
   onTabCreated(callback: (event: TabCreatedEvent) => void): void;
+  onTabUpdated(callback: (event: TabUpdatedEvent) => void): void;
   onTabClosed(callback: (event: TabClosedEvent) => void): void;
   onTabTitleUpdated(callback: (event: TabTitleUpdatedEvent) => void): void;
   onTabUrlUpdated(callback: (event: TabUrlUpdatedEvent) => void): void;
