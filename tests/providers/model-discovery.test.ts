@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ModelDiscovery } from '../../src/main/providers/model-discovery';
+import { ProviderFactory } from '../../src/main/providers/provider-factory';
 
 describe('ModelDiscovery', () => {
   it('should return default model for OpenAI', () => {
@@ -45,5 +46,21 @@ describe('ModelDiscovery', () => {
     expect(models[0]).toHaveProperty('name');
     expect(models[0]).toHaveProperty('provider');
     expect(models[0].provider).toBe('openai');
+  });
+
+  it('should propagate errors from provider instead of swallowing them', async () => {
+    // Mock ProviderFactory to return a provider that throws an error
+    const mockProvider = {
+      getAvailableModels: vi.fn().mockRejectedValue(new Error('HTTP 401: Unauthorized')),
+      getType: () => 'fireworks',
+    };
+
+    const getProviderSpy = vi.spyOn(ProviderFactory, 'getProvider').mockReturnValue(mockProvider as any);
+
+    // Verify that discoverModels() re-throws the error instead of returning []
+    await expect(ModelDiscovery.discoverModels('fireworks', 'bad-api-key')).rejects.toThrow('HTTP 401: Unauthorized');
+
+    // Clean up
+    getProviderSpy.mockRestore();
   });
 });
