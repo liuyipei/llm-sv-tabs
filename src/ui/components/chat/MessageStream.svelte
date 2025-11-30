@@ -66,6 +66,12 @@
   }
 
   onMount(() => {
+    // Load existing conversation data if present
+    if (metadata?.response) {
+      fullText = metadata.response;
+      updateBuffers();
+    }
+
     if (!window.electronAPI?.onLLMChunk) return;
 
     unsubscribe = window.electronAPI.onLLMChunk(({ tabId: incomingId, chunk }) => {
