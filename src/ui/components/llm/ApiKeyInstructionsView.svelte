@@ -11,12 +11,19 @@
     visionNote?: string;
   }
 
+  let navigationError = $state<string | null>(null);
+
   async function openUrl(url: string, event: MouseEvent) {
     event.preventDefault();
+    navigationError = null; // Clear previous errors
     if (ipc) {
       try {
-        await ipc.openUrl(url);
+        const result = await ipc.openUrl(url);
+        if ('success' in result && !result.success) {
+          navigationError = result.error || 'Failed to open URL';
+        }
       } catch (error) {
+        navigationError = error instanceof Error ? error.message : 'Failed to open URL';
         console.error('Failed to open URL:', error);
       }
     }
@@ -72,6 +79,11 @@
     <p class="note">
       Note: API key URLs change frequently, so we provide Google searches instead of direct links.
     </p>
+    {#if navigationError}
+      <div class="error-banner">
+        ⚠️ {navigationError}
+      </div>
+    {/if}
     <table class="providers-table">
       <thead>
         <tr>
@@ -138,6 +150,17 @@
     font-size: 0.85rem;
     color: #999999;
     font-style: italic;
+  }
+
+  .error-banner {
+    margin: 0 0 1.5rem 0;
+    padding: 0.875rem;
+    background: rgba(244, 135, 113, 0.15);
+    border: 1px solid rgba(244, 135, 113, 0.3);
+    border-radius: 4px;
+    color: #f48771;
+    font-size: 0.9rem;
+    line-height: 1.5;
   }
 
   .providers-table {

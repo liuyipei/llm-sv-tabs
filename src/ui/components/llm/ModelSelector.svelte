@@ -59,6 +59,11 @@
             isLoading = false;
             return;
           }
+        } else if ('success' in response && !response.success) {
+          // API error - display to user instead of silently falling back
+          error = response.error || 'Failed to fetch models from API';
+          isLoading = false;
+          return;
         }
       }
 
