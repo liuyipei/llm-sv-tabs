@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { marked } from 'marked';
   import DOMPurify from 'dompurify';
-  import { activeTabs } from '$stores/tabs';
+  import { activeTabs, updateTab } from '$stores/tabs';
 
   declare global {
     interface Window {
@@ -26,6 +26,7 @@
 
   let unsubscribe: (() => void) | null = null;
   let renderScheduled = false;
+  let initialized = false;
 
   // Get tab metadata
   const tab = $derived($activeTabs.get(tabId));
@@ -36,6 +37,15 @@
   const model = $derived(metadata?.model);
   const isStreaming = $derived(metadata?.isStreaming);
   const error = $derived(metadata?.error);
+
+  // Initialize fullText from existing response (if tab was remounted)
+  $effect(() => {
+    if (!initialized && metadata?.response) {
+      fullText = metadata.response;
+      initialized = true;
+      updateBuffers();
+    }
+  });
 
   function updateBuffers() {
     // Simple block split: last blank line as boundary
@@ -71,6 +81,15 @@
     unsubscribe = window.electronAPI.onLLMChunk(({ tabId: incomingId, chunk }) => {
       if (incomingId !== tabId) return;
       fullText += chunk;
+
+      // Persist to tab metadata so it survives component unmount
+      updateTab(tabId, {
+        metadata: {
+          ...metadata,
+          response: fullText,
+        },
+      });
+
       scheduleRender();
     });
   });
