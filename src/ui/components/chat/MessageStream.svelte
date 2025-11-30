@@ -40,7 +40,17 @@
 
   // Initialize fullText from existing response (if tab was remounted)
   $effect(() => {
+    console.log('[MessageStream] $effect running', {
+      tabId,
+      initialized,
+      hasMetadata: !!metadata,
+      hasResponse: !!metadata?.response,
+      responseLength: metadata?.response?.length || 0,
+      currentFullTextLength: fullText.length
+    });
+
     if (!initialized && metadata?.response) {
+      console.log('[MessageStream] Initializing from stored response:', metadata.response.substring(0, 100) + '...');
       fullText = metadata.response;
       initialized = true;
       updateBuffers();
@@ -76,11 +86,32 @@
   }
 
   onMount(() => {
+    console.log('[MessageStream] Component mounted', {
+      tabId,
+      hasMetadata: !!metadata,
+      hasResponse: !!metadata?.response,
+      responseLength: metadata?.response?.length || 0
+    });
+
     if (!window.electronAPI?.onLLMChunk) return;
 
     unsubscribe = window.electronAPI.onLLMChunk(({ tabId: incomingId, chunk }) => {
       if (incomingId !== tabId) return;
+
+      console.log('[MessageStream] Chunk received', {
+        tabId,
+        chunkLength: chunk.length,
+        chunkPreview: chunk.substring(0, 50),
+        oldFullTextLength: fullText.length
+      });
+
       fullText += chunk;
+
+      console.log('[MessageStream] Persisting to store', {
+        tabId,
+        newFullTextLength: fullText.length,
+        metadataBefore: metadata
+      });
 
       // Persist to tab metadata so it survives component unmount
       updateTab(tabId, {
@@ -88,6 +119,14 @@
           ...metadata,
           response: fullText,
         },
+      });
+
+      console.log('[MessageStream] After updateTab - checking store');
+      // Check what's actually in the store
+      const currentTab = $activeTabs.get(tabId);
+      console.log('[MessageStream] Current tab in store:', {
+        hasMetadata: !!currentTab?.metadata,
+        responseLength: currentTab?.metadata?.response?.length || 0
       });
 
       scheduleRender();
