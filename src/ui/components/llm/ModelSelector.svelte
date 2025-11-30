@@ -47,7 +47,9 @@
       if (ipc) {
         const apiKey = $apiKeys[provider];
         const endpointUrl = $endpoint;
+        console.log('[ModelSelector] Calling discoverModels for provider:', provider);
         const response = await ipc.discoverModels(provider, apiKey, endpointUrl);
+        console.log('[ModelSelector] Response from discoverModels:', response);
 
         if ('success' in response && response.success && response.data) {
           const discoveredModelList = response.data;
@@ -61,6 +63,7 @@
           }
         } else if ('success' in response && !response.success) {
           // API error - display to user instead of silently falling back
+          console.log('[ModelSelector] Setting error state:', response.error);
           error = response.error || 'Failed to fetch models from API';
           isLoading = false;
           return;
@@ -167,7 +170,10 @@
   {#if isLoading}
     <div class="loading">Loading models...</div>
   {:else if error}
-    <div class="error">{error}</div>
+    <div class="error">
+      {#if console.log('[ModelSelector] Rendering error box:', error)}<!-- Debug log -->{/if}
+      {error}
+    </div>
   {:else}
     <input
       type="text"
