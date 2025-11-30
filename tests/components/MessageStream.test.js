@@ -194,10 +194,21 @@ describe('MessageStream - Conversation Persistence', () => {
       // Should show query
       expect(getByText(testQuery)).toBeTruthy();
 
-      // Should show metadata
+      // Should show metadata with specific labels
       expect(getByText(/claude-sonnet-4/i)).toBeTruthy();
-      expect(getByText(/50/)).toBeTruthy(); // tokens in
-      expect(getByText(/100/)).toBeTruthy(); // tokens out
+
+      // Use function matchers to find text split across elements (with space)
+      expect(getByText((content, element) => {
+        return element?.textContent === 'Tokens In: 50';
+      })).toBeTruthy();
+
+      expect(getByText((content, element) => {
+        return element?.textContent === 'Tokens Out: 100';
+      })).toBeTruthy();
+
+      expect(getByText((content, element) => {
+        return element?.textContent === 'Total: 150';
+      })).toBeTruthy();
     });
   });
 
