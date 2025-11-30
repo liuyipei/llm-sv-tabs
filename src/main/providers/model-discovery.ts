@@ -19,7 +19,8 @@ export class ModelDiscovery {
       return await provider.getAvailableModels();
     } catch (error) {
       console.error(`Failed to discover models for ${providerType}:`, error);
-      return [];
+      // Re-throw the error so it can be caught by IPC handler and shown to user
+      throw error;
     }
   }
 
