@@ -99,11 +99,16 @@
 
   // Search functionality - just toggle for keyboard shortcut
   function toggleSearch(): void {
+    console.log('[toggleSearch] Called');
     // Focus search input when Ctrl+F is pressed
     const searchInput = document.querySelector('.search-input') as HTMLInputElement;
+    console.log('[toggleSearch] Search input element:', searchInput);
     if (searchInput) {
+      console.log('[toggleSearch] Focusing search input');
       searchInput.focus();
       searchInput.select();
+    } else {
+      console.log('[toggleSearch] Search input not found!');
     }
   }
 
@@ -181,19 +186,34 @@
     // Listen for keyboard shortcut events from main process (triggered when web content has focus)
     if (window.electronAPI) {
       if (window.electronAPI.onFocusSearchInput) {
-        window.electronAPI.onFocusSearchInput(() => toggleSearch());
+        window.electronAPI.onFocusSearchInput(() => {
+          console.log('[Renderer] Received focus-search-input event');
+          toggleSearch();
+        });
       }
       if (window.electronAPI.onFocusUrlInput) {
-        window.electronAPI.onFocusUrlInput(() => focusUrlInput());
+        window.electronAPI.onFocusUrlInput(() => {
+          console.log('[Renderer] Received focus-url-input event');
+          focusUrlInput();
+        });
       }
       if (window.electronAPI.onFocusLLMInput) {
-        window.electronAPI.onFocusLLMInput(() => focusLLMInput());
+        window.electronAPI.onFocusLLMInput(() => {
+          console.log('[Renderer] Received focus-llm-input event');
+          focusLLMInput();
+        });
       }
       if (window.electronAPI.onCloseActiveTab) {
-        window.electronAPI.onCloseActiveTab(() => closeActiveTab());
+        window.electronAPI.onCloseActiveTab(() => {
+          console.log('[Renderer] Received close-active-tab event');
+          closeActiveTab();
+        });
       }
       if (window.electronAPI.onBookmarkActiveTab) {
-        window.electronAPI.onBookmarkActiveTab(() => bookmarkActiveTab());
+        window.electronAPI.onBookmarkActiveTab(() => {
+          console.log('[Renderer] Received bookmark-active-tab event');
+          bookmarkActiveTab();
+        });
       }
     }
 
