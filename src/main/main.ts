@@ -24,15 +24,25 @@ function createWindow(): void {
 
   // Set up Content Security Policy before creating window
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-    // Get the dev server URL from environment or construct production file URL
+    // Get the dev server URL from environment or construct production base URL
     const devServerUrl = process.env.VITE_DEV_SERVER_URL;
     // Use pathToFileURL to properly convert file path to URL (handles Windows backslashes)
-    const prodFileUrl = pathToFileURL(join(__dirname, '../../dist/index.html')).href;
+    // Check against the dist directory base, not just index.html
+    const prodBaseUrl = pathToFileURL(join(__dirname, '../../dist')).href;
 
     // Check if this is the main app window (not a browsing tab)
-    const isMainWindow = details.url === devServerUrl ||
-                         details.url === prodFileUrl ||
-                         (devServerUrl && details.url.startsWith(devServerUrl));
+    // For dev: match Vite dev server URLs (including all assets like JS, CSS, etc.)
+    // For prod: match any file loaded from the dist directory
+    const isMainWindow = (devServerUrl && details.url.startsWith(devServerUrl)) ||
+                         details.url.startsWith(prodBaseUrl);
+
+    // Debug logging (remove after confirming it works)
+    console.log('CSP check:', {
+      url: details.url,
+      devServerUrl,
+      prodBaseUrl,
+      isMainWindow
+    });
 
     if (isMainWindow) {
       // Build dynamic connect-src based on environment
