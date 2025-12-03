@@ -205,6 +205,7 @@
           class:editable={isLLMResponse}
           title={isLLMResponse ? `${tab.title} (double-click to edit)` : tab.title}
           ondblclick={handleTitleDoubleClick}
+          role={isLLMResponse ? 'button' : undefined}
         >
           {tab.title || 'Untitled'}
         </div>
