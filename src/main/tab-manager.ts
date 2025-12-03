@@ -901,7 +901,10 @@ class TabManager {
 
   private sendToRenderer(channel: string, data: any): void {
     if (this.mainWindow && this.mainWindow.webContents) {
+      console.log('[sendToRenderer] Sending message:', channel, 'data:', data);
       this.mainWindow.webContents.send(channel, data);
+    } else {
+      console.log('[sendToRenderer] ERROR: mainWindow or webContents not available!');
     }
   }
 

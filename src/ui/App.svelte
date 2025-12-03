@@ -184,12 +184,16 @@
     });
 
     // Listen for keyboard shortcut events from main process (triggered when web content has focus)
+    console.log('[onMount] Setting up IPC event listeners, electronAPI:', window.electronAPI);
     if (window.electronAPI) {
       if (window.electronAPI.onFocusSearchInput) {
+        console.log('[onMount] Registering onFocusSearchInput listener');
         window.electronAPI.onFocusSearchInput(() => {
           console.log('[Renderer] Received focus-search-input event');
           toggleSearch();
         });
+      } else {
+        console.log('[onMount] WARNING: electronAPI.onFocusSearchInput not available!');
       }
       if (window.electronAPI.onFocusUrlInput) {
         window.electronAPI.onFocusUrlInput(() => {
