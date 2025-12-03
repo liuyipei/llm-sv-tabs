@@ -35,16 +35,28 @@
   }
 
   function focusUrlInputElement(): void {
+    console.log('focusUrlInputElement called, element exists:', !!urlInputElement);
     if (urlInputElement) {
-      urlInputElement.focus();
-      urlInputElement.select();
+      // Defer to let webContents focus change settle first
+      setTimeout(() => {
+        console.log('Calling focus() and select() on URL input');
+        urlInputElement.focus();
+        urlInputElement.select();
+        console.log('focus() and select() completed');
+      }, 0);
+    } else {
+      console.warn('urlInputElement is not defined!');
     }
   }
 
   // Register focus callback on mount
   onMount(() => {
+    console.log('UrlBar onMount, registering focus callback');
     if (setFocusUrlInputCallback) {
       setFocusUrlInputCallback(focusUrlInputElement);
+      console.log('UrlBar focus callback registered');
+    } else {
+      console.warn('setFocusUrlInputCallback not available in context');
     }
   });
 </script>

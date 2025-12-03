@@ -43,12 +43,15 @@ For a deep dive into the architecture and design philosophy:
 - [Flexible Tab System](./design/03-flexible-tab-system.md) - How tabs handle URLs, files, text, and LLM responses
 - [Screenshot Capture](./design/05-screenshot-capture.md) - Native screenshot implementation with region selection
 - [Round-Trip Test Pattern](./design/06-round-trip-test-pattern.md) - Testing pattern for state persistence through navigation
+- [Store Synchronization Across Processes](./design/07-store-synchronization-across-processes.md) - IPC-based state management
+- [Keyboard Shortcuts](./design/08-keyboard-shortcuts.md) - Global shortcuts and focus management with WebContentsView
 
 ## Features
 
 - **Tab Management**: Create, switch, close tabs with WebContentsView for web content, notes, files, and LLM responses
 - **LLM Integration**: Query tabs with Fireworks AI, OpenRouter, Anthropic, OpenAI, and more
-- **Screenshot Capture**: Native region-based screenshots with drag-to-select overlay (Ctrl+Alt+S / Cmd+Alt+S)
+- **Keyboard Shortcuts**: Browser-style global shortcuts (Cmd+L to focus URL bar, Cmd+Alt+S for screenshots)
+- **Screenshot Capture**: Native region-based screenshots with drag-to-select overlay
 - **Content Extraction**: DOM serialization and webpage screenshots for vision models
 - **File Upload**: Support for images, PDFs, and text files as tab content
 - **Reactive UI**: Svelte 5 components with automatic updates

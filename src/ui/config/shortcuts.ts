@@ -53,24 +53,34 @@ export const shortcuts: ShortcutConfig[] = [
 
 /**
  * Check if a keyboard event matches a shortcut configuration
+ * On Mac, treats Cmd (meta) as equivalent to Ctrl for cross-platform shortcuts
  */
 export function matchesShortcut(event: KeyboardEvent, config: ShortcutConfig): boolean {
   const keyMatches = event.key.toLowerCase() === config.key.toLowerCase();
-  const ctrlMatches = config.ctrl ? event.ctrlKey : !event.ctrlKey;
+
+  // On Mac, treat Cmd (meta) as Ctrl for cross-platform shortcuts
+  const isMac = navigator.platform.toLowerCase().includes('mac');
+  const ctrlOrCmd = isMac ? event.metaKey : event.ctrlKey;
+
+  const ctrlMatches = config.ctrl ? ctrlOrCmd : !ctrlOrCmd;
   const altMatches = config.alt ? event.altKey : !event.altKey;
   const shiftMatches = config.shift ? event.shiftKey : !event.shiftKey;
-  const metaMatches = config.meta ? event.metaKey : !event.metaKey;
+
+  // Don't check metaKey if ctrl is being used as the modifier
+  // (since we're treating them as equivalent on Mac)
+  const metaMatches = config.meta ? event.metaKey : (config.ctrl && isMac ? true : !event.metaKey);
 
   return keyMatches && ctrlMatches && altMatches && shiftMatches && metaMatches;
 }
 
 /**
- * Format shortcut for display (e.g., "Ctrl+L")
+ * Format shortcut for display (e.g., "Ctrl+L" on Windows/Linux, "Cmd+L" on Mac)
  */
 export function formatShortcut(config: ShortcutConfig): string {
   const parts: string[] = [];
+  const isMac = navigator.platform.toLowerCase().includes('mac');
 
-  if (config.ctrl) parts.push('Ctrl');
+  if (config.ctrl) parts.push(isMac ? 'Cmd' : 'Ctrl');
   if (config.alt) parts.push('Alt');
   if (config.shift) parts.push('Shift');
   if (config.meta) parts.push('Meta');

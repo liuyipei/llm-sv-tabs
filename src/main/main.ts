@@ -570,6 +570,31 @@ ${dom.mainContent || content.content || ''}
 }
 
 function setupGlobalShortcuts(): void {
+  // Register Cmd+L / Ctrl+L for focusing URL bar (browser-style)
+  const focusUrlShortcut = process.platform === 'darwin' ? 'Command+L' : 'Ctrl+L';
+  const focusUrlRegistered = globalShortcut.register(focusUrlShortcut, () => {
+    console.log('Focus URL bar shortcut triggered:', focusUrlShortcut);
+    const windows = BrowserWindow.getAllWindows();
+    if (windows.length > 0) {
+      const mainWindow = windows[0];
+      // Focus at all three levels: OS window, UI webContents, then DOM element
+      mainWindow.show();
+      mainWindow.focus();                 // 1. Focus the OS window
+      mainWindow.webContents.focus();     // 2. Focus the UI webContents (not the WebContentsView!)
+
+      // Small defer so focus settles before trying to focus DOM element
+      setTimeout(() => {
+        mainWindow.webContents.send('focus-url-bar');
+      }, 10);
+    }
+  });
+
+  if (!focusUrlRegistered) {
+    console.error('Failed to register focus URL bar shortcut:', focusUrlShortcut);
+  } else {
+    console.log(`Focus URL bar shortcut registered: ${focusUrlShortcut}`);
+  }
+
   // Register platform-specific screenshot shortcut
   const shortcut = process.platform === 'darwin' ? 'CommandOrControl+Alt+S' : 'Ctrl+Alt+S';
 
