@@ -130,6 +130,17 @@ class TabManager {
    */
   private setupKeyboardInterceptor(view: WebContentsView): void {
     view.webContents.on('before-input-event', (event, input) => {
+      // Debug logging for all ctrl/cmd key combinations
+      if (input.type === 'keyDown' && (input.control || input.meta)) {
+        console.log('[Keyboard Interceptor] Event:', {
+          key: input.key,
+          ctrl: input.control,
+          meta: input.meta,
+          alt: input.alt,
+          shift: input.shift
+        });
+      }
+
       // Only intercept on keyDown to avoid duplicate events
       if (input.type !== 'keyDown') return;
 
@@ -159,8 +170,11 @@ class TabManager {
         }
 
         if (action) {
+          console.log('[Keyboard Interceptor] Matched shortcut:', key, '-> action:', action);
           event.preventDefault();
           this.sendToRenderer(action, {});
+        } else {
+          console.log('[Keyboard Interceptor] No action for key:', key);
         }
       }
     });
