@@ -12,6 +12,7 @@
   import ApiKeyInstructionsView from '$components/llm/ApiKeyInstructionsView.svelte';
   import { activeSidebarView, sidebarTabsHeightPercent } from '$stores/ui';
   import { activeTabId, activeTabs, sortedTabs } from '$stores/tabs';
+  import { searchStore } from '$stores/search';
   import { initKeyboardShortcuts } from '$utils/keyboard-shortcuts';
 
   // Import styles for markdown rendering
@@ -96,6 +97,16 @@
     }
   }
 
+  // Search functionality - just toggle for keyboard shortcut
+  function toggleSearch(): void {
+    // Focus search input when Ctrl+F is pressed
+    const searchInput = document.querySelector('.search-input') as HTMLInputElement;
+    if (searchInput) {
+      searchInput.focus();
+      searchInput.select();
+    }
+  }
+
   // Global drag and drop handler to open files in tabs
   function handleGlobalDragOver(event: DragEvent): void {
     event.preventDefault();
@@ -164,7 +175,15 @@
       focusLLMInput,
       closeActiveTab,
       bookmarkActiveTab,
+      toggleSearch,
     });
+
+    // Listen for focus-search-input event from main process (triggered by Ctrl+F in web content)
+    if (window.electronAPI?.onFocusSearchInput) {
+      window.electronAPI.onFocusSearchInput(() => {
+        toggleSearch();
+      });
+    }
 
     // Cleanup on unmount
     return cleanup;

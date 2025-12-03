@@ -516,6 +516,61 @@ ${dom.mainContent || content.content || ''}
       };
     }
   });
+
+  // Find in page (search)
+  ipcMain.handle('find-in-page', async (_event, tabId: string, text: string, options?: { forward?: boolean; findNext?: boolean }) => {
+    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
+    try {
+      const view = tabManager.getTabView(tabId);
+      if (!view) {
+        return { success: false, error: 'Tab not found or not a webpage tab' };
+      }
+
+      // Create a promise that resolves when we get the found-in-page event
+      const resultPromise = new Promise<{ requestId: number; activeMatchOrdinal: number; matches: number }>((resolve) => {
+        const listener = (_e: any, result: any) => {
+          view.webContents.removeListener('found-in-page', listener);
+          resolve({
+            requestId: result.requestId,
+            activeMatchOrdinal: result.activeMatchOrdinal,
+            matches: result.matches,
+          });
+        };
+        view.webContents.once('found-in-page', listener);
+      });
+
+      // Start the search (returns requestId)
+      view.webContents.findInPage(text, {
+        forward: options?.forward ?? true,
+        findNext: options?.findNext ?? false,
+      });
+
+      // Wait for the result
+      const result = await resultPromise;
+
+      return {
+        success: true,
+        data: result,
+      };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  ipcMain.handle('stop-find-in-page', async (_event, tabId: string, action?: 'clearSelection' | 'keepSelection' | 'activateSelection') => {
+    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
+    try {
+      const view = tabManager.getTabView(tabId);
+      if (!view) {
+        return { success: false, error: 'Tab not found or not a webpage tab' };
+      }
+
+      view.webContents.stopFindInPage(action || 'clearSelection');
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
 }
 
 function setupGlobalShortcuts(): void {

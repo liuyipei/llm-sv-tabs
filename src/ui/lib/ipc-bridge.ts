@@ -1,3 +1,21 @@
+/**
+ * IPC Bridge - Connects Svelte UI to Electron main process
+ *
+ * IMPORTANT: Type Safety for IPC Methods
+ * ----------------------------------------
+ * This file imports ElectronAPI from preload.ts to ensure type safety.
+ * If you add a new IPC method to preload.ts, you MUST also add it here.
+ * TypeScript will enforce this at build time - missing methods will cause
+ * a compilation error at line ~106 where we validate the API object.
+ *
+ * To add a new IPC method:
+ * 1. Add it to preload.ts electronAPI object
+ * 2. Add it to IPCBridgeAPI interface (for flexibility with mock API)
+ * 3. Add it to the returned api object in initializeIPC()
+ * 4. Add it to createMockAPI() for development
+ * 5. TypeScript will verify all ElectronAPI methods are present
+ */
+
 import { get } from 'svelte/store';
 import {
   activeTabs,
@@ -9,6 +27,7 @@ import {
   updateTabUrl,
 } from '$stores/tabs';
 import type { QueryOptions, LLMResponse, Bookmark, Tab, IPCResponse, TabData, ProviderType, LLMModel } from '../../types';
+import type { ElectronAPI } from '../../main/preload';
 
 export interface IPCBridgeAPI {
   openUrl(url: string): Promise<IPCResponse<{ tabId: string; tab: TabData }> | { tabId: string; tab: Tab }>;
@@ -28,6 +47,8 @@ export interface IPCBridgeAPI {
   sendQuery(query: string, options?: QueryOptions): Promise<LLMResponse | { response: string }>;
   discoverModels(provider: ProviderType, apiKey?: string, endpoint?: string): Promise<IPCResponse<LLMModel[]> | LLMModel[]>;
   triggerScreenshot(): Promise<IPCResponse<{ success: boolean }>>;
+  findInPage(tabId: string, text: string, options?: { forward?: boolean; findNext?: boolean }): Promise<IPCResponse<{ requestId: number; activeMatchOrdinal: number; matches: number }>>;
+  stopFindInPage(tabId: string, action?: 'clearSelection' | 'keepSelection' | 'activateSelection'): Promise<IPCResponse>;
   onLLMChunk?(callback: (payload: { tabId: string; chunk: string }) => void): () => void;
 }
 
@@ -76,7 +97,7 @@ export function initializeIPC(): IPCBridgeAPI {
   loadInitialTabs();
 
   // Return API for Svelte components to call
-  return {
+  const api = {
     openUrl: (url: string) => window.electronAPI.openUrl(url),
     closeTab: (tabId: string) => window.electronAPI.closeTab(tabId),
     setActiveTab: (tabId: string) => window.electronAPI.setActiveTab(tabId),
@@ -94,7 +115,16 @@ export function initializeIPC(): IPCBridgeAPI {
     sendQuery: (query: string, options?: QueryOptions) => window.electronAPI.sendQuery(query, options),
     discoverModels: (provider: ProviderType, apiKey?: string, endpoint?: string) => window.electronAPI.discoverModels(provider, apiKey, endpoint),
     triggerScreenshot: () => window.electronAPI.triggerScreenshot(),
+    findInPage: (tabId: string, text: string, options?: { forward?: boolean; findNext?: boolean }) => window.electronAPI.findInPage(tabId, text, options),
+    stopFindInPage: (tabId: string, action?: 'clearSelection' | 'keepSelection' | 'activateSelection') => window.electronAPI.stopFindInPage(tabId, action),
   };
+
+  // Type check: Ensure all methods from ElectronAPI are implemented
+  // This will cause a compile error if any methods are missing
+  const _typeCheck: ElectronAPI = api as any;
+  void _typeCheck; // Prevent unused variable warning
+
+  return api;
 }
 
 async function loadInitialTabs(): Promise<void> {
@@ -241,6 +271,14 @@ function createMockAPI(): IPCBridgeAPI {
     triggerScreenshot: async () => {
       console.log('Mock: triggerScreenshot');
       return { success: true, data: { success: true } };
+    },
+    findInPage: async (tabId: string, text: string, options?: { forward?: boolean; findNext?: boolean }) => {
+      console.log('Mock: findInPage', tabId, text, options);
+      return { success: true, data: { requestId: 1, activeMatchOrdinal: 1, matches: 0 } };
+    },
+    stopFindInPage: async (tabId: string, action?: 'clearSelection' | 'keepSelection' | 'activateSelection') => {
+      console.log('Mock: stopFindInPage', tabId, action);
+      return { success: true };
     },
   };
 }

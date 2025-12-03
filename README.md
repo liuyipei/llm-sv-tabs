@@ -116,6 +116,41 @@ See [TESTING.md](./TESTING.md) for details.
 - **Scoped component styles**
 - **Type safety** throughout
 
+## Known Rendering Constraints
+
+### WebContentsView Occlusion Issue
+
+The browser uses Electron's `WebContentsView` for rendering web content. This creates a fundamental rendering constraint:
+
+**The Problem:**
+- The `WebContentsView` is rendered by Electron's **main process**, not the Svelte renderer process
+- The main process rendering happens **above** all Svelte DOM elements in the same screen space
+- Any Svelte UI elements that occupy the same screen area as the `WebContentsView` will be **occluded (covered up)**
+
+**What This Means:**
+- ❌ **Cannot overlay UI on top of web content** using CSS (position: fixed, absolute, z-index, etc.)
+- ❌ **Cannot render Svelte components in the "browser-view" area** - they will be invisible
+- ✅ **CAN render UI in dedicated areas** allocated above/beside the WebContentsView (URL bar, sidebar, etc.)
+
+**Affected Areas:**
+- The URL bar area: ✅ **Visible** (allocated space above WebContentsView)
+- The sidebar: ✅ **Visible** (allocated space beside WebContentsView)
+- The browser-view area: ❌ **Occluded** (WebContentsView renders here)
+- Overlays/modals over browser-view: ❌ **Occluded** (cannot overlay on WebContentsView)
+
+**Design Implications:**
+- Search bars, toolbars, controls must be in the **URL bar area or sidebar**
+- They cannot float over or be positioned below the URL bar
+- Any new UI elements must be added to existing allocated spaces, not created as overlays
+
+**Historical Attempts:**
+Multiple attempts were made to create search overlays that would appear over web content:
+1. Fixed position overlay → occluded
+2. Conditional rendering below URL bar → occluded
+3. Integrated into URL bar container but as separate row → occluded
+
+The only solution is to make the URL bar component itself grow to accommodate additional UI, allocating that space before the WebContentsView area begins.
+
 ## License
 
 MIT

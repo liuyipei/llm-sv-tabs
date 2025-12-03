@@ -89,6 +89,13 @@ const electronAPI = {
   triggerScreenshot: (): Promise<IPCResponse<{ success: boolean }>> =>
     ipcRenderer.invoke('trigger-screenshot'),
 
+  // Find in page (search)
+  findInPage: (tabId: string, text: string, options?: { forward?: boolean; findNext?: boolean }): Promise<IPCResponse<{ requestId: number; activeMatchOrdinal: number; matches: number }>> =>
+    ipcRenderer.invoke('find-in-page', tabId, text, options),
+
+  stopFindInPage: (tabId: string, action?: 'clearSelection' | 'keepSelection' | 'activateSelection'): Promise<IPCResponse> =>
+    ipcRenderer.invoke('stop-find-in-page', tabId, action),
+
   // Event listeners (from main to renderer)
   onTabCreated: (callback: (data: TabCreatedEvent) => void): void => {
     ipcRenderer.on('tab-created', (_event, data) => callback(data));
@@ -122,6 +129,10 @@ const electronAPI = {
 
     // Return unsubscribe function
     return () => ipcRenderer.removeListener('llm-stream-chunk', handler);
+  },
+
+  onFocusSearchInput: (callback: () => void): void => {
+    ipcRenderer.on('focus-search-input', () => callback());
   },
 };
 

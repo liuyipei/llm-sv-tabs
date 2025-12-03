@@ -17,7 +17,7 @@ class TabManager {
   private tabCounter: number;
   private sessionManager: SessionManager;
   private readonly SIDEBAR_WIDTH = 350;
-  private readonly HEADER_HEIGHT = 53;
+  private readonly HEADER_HEIGHT = 90; // URL bar (42px) + Search bar (43px) + borders (1px) = 86px, rounded to 90px
   private lastMetadataUpdate: Map<string, number>; // Track last metadata update time per tab
   private readonly METADATA_UPDATE_THROTTLE_MS = 500; // Send metadata updates at most every 500ms
 
@@ -125,6 +125,20 @@ class TabManager {
     });
   }
 
+  /**
+   * Set up keyboard interceptor to capture Ctrl+F before web content processes it
+   */
+  private setupKeyboardInterceptor(view: WebContentsView): void {
+    view.webContents.on('before-input-event', (event, input) => {
+      // Intercept Ctrl+F or Cmd+F
+      if ((input.control || input.meta) && input.key.toLowerCase() === 'f' && input.type === 'keyDown') {
+        event.preventDefault();
+        // Send message to renderer to focus search input
+        this.sendToRenderer('focus-search-input', {});
+      }
+    });
+  }
+
   openUrl(url: string, autoSelect: boolean = true): { tabId: string; tab: TabData } {
     const tabId = this.createTabId();
 
@@ -155,6 +169,9 @@ class TabManager {
 
     // Set up handler for control-click/cmd-click to open links in new tabs
     this.setupWindowOpenHandler(view);
+
+    // Set up keyboard interceptor for Ctrl+F
+    this.setupKeyboardInterceptor(view);
 
     // Update title when page loads
     view.webContents.on('page-title-updated', (_event, title) => {
@@ -234,6 +251,9 @@ class TabManager {
 
     // Set up handler for control-click/cmd-click to open links in new tabs
     this.setupWindowOpenHandler(view);
+
+    // Set up keyboard interceptor for Ctrl+F
+    this.setupKeyboardInterceptor(view);
 
     // Set as active tab (if autoSelect is true)
     if (autoSelect) {
@@ -426,6 +446,9 @@ class TabManager {
 
     // Set up handler for control-click/cmd-click to open links in new tabs
     this.setupWindowOpenHandler(view);
+
+    // Set up keyboard interceptor for Ctrl+F
+    this.setupKeyboardInterceptor(view);
 
     // Set as active tab (if autoSelect is true)
     if (autoSelect) {
