@@ -126,15 +126,42 @@ class TabManager {
   }
 
   /**
-   * Set up keyboard interceptor to capture Ctrl+F before web content processes it
+   * Set up keyboard interceptor to capture browser shortcuts before web content processes them
    */
   private setupKeyboardInterceptor(view: WebContentsView): void {
     view.webContents.on('before-input-event', (event, input) => {
-      // Intercept Ctrl+F or Cmd+F
-      if ((input.control || input.meta) && input.key.toLowerCase() === 'f' && input.type === 'keyDown') {
-        event.preventDefault();
-        // Send message to renderer to focus search input
-        this.sendToRenderer('focus-search-input', {});
+      // Only intercept on keyDown to avoid duplicate events
+      if (input.type !== 'keyDown') return;
+
+      const ctrl = input.control || input.meta; // Cmd on Mac, Ctrl on Windows/Linux
+      const key = input.key.toLowerCase();
+
+      // Intercept browser keyboard shortcuts
+      if (ctrl && !input.alt && !input.shift) {
+        let action: string | null = null;
+
+        switch (key) {
+          case 'f': // Find in page
+            action = 'focus-search-input';
+            break;
+          case 'l': // Focus URL input
+            action = 'focus-url-input';
+            break;
+          case 'w': // Close active tab
+            action = 'close-active-tab';
+            break;
+          case 'd': // Bookmark current tab
+            action = 'bookmark-active-tab';
+            break;
+          case '.': // Focus LLM input
+            action = 'focus-llm-input';
+            break;
+        }
+
+        if (action) {
+          event.preventDefault();
+          this.sendToRenderer(action, {});
+        }
       }
     });
   }

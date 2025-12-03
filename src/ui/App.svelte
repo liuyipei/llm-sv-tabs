@@ -178,11 +178,23 @@
       toggleSearch,
     });
 
-    // Listen for focus-search-input event from main process (triggered by Ctrl+F in web content)
-    if (window.electronAPI?.onFocusSearchInput) {
-      window.electronAPI.onFocusSearchInput(() => {
-        toggleSearch();
-      });
+    // Listen for keyboard shortcut events from main process (triggered when web content has focus)
+    if (window.electronAPI) {
+      if (window.electronAPI.onFocusSearchInput) {
+        window.electronAPI.onFocusSearchInput(() => toggleSearch());
+      }
+      if (window.electronAPI.onFocusUrlInput) {
+        window.electronAPI.onFocusUrlInput(() => focusUrlInput());
+      }
+      if (window.electronAPI.onFocusLLMInput) {
+        window.electronAPI.onFocusLLMInput(() => focusLLMInput());
+      }
+      if (window.electronAPI.onCloseActiveTab) {
+        window.electronAPI.onCloseActiveTab(() => closeActiveTab());
+      }
+      if (window.electronAPI.onBookmarkActiveTab) {
+        window.electronAPI.onBookmarkActiveTab(() => bookmarkActiveTab());
+      }
     }
 
     // Cleanup on unmount

@@ -134,6 +134,22 @@ const electronAPI = {
   onFocusSearchInput: (callback: () => void): void => {
     ipcRenderer.on('focus-search-input', () => callback());
   },
+
+  onFocusUrlInput: (callback: () => void): void => {
+    ipcRenderer.on('focus-url-input', () => callback());
+  },
+
+  onFocusLLMInput: (callback: () => void): void => {
+    ipcRenderer.on('focus-llm-input', () => callback());
+  },
+
+  onCloseActiveTab: (callback: () => void): void => {
+    ipcRenderer.on('close-active-tab', () => callback());
+  },
+
+  onBookmarkActiveTab: (callback: () => void): void => {
+    ipcRenderer.on('bookmark-active-tab', () => callback());
+  },
 };
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);
