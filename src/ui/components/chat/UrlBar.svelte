@@ -36,8 +36,11 @@
 
   function focusUrlInputElement(): void {
     if (urlInputElement) {
-      urlInputElement.focus();
-      urlInputElement.select();
+      // Defer to let webContents focus change settle first
+      setTimeout(() => {
+        urlInputElement.focus();
+        urlInputElement.select();
+      }, 0);
     }
   }
 

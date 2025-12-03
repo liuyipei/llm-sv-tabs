@@ -166,6 +166,13 @@
       bookmarkActiveTab,
     });
 
+    // Set up IPC listener for focus-url-bar event (triggered by global shortcut)
+    if (typeof window !== 'undefined' && window.electronAPI) {
+      window.electronAPI.onFocusUrlBar(() => {
+        focusUrlInput();
+      });
+    }
+
     // Cleanup on unmount
     return cleanup;
   });

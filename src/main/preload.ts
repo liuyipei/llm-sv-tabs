@@ -114,6 +114,10 @@ const electronAPI = {
     ipcRenderer.on('active-tab-changed', (_event, data) => callback(data));
   },
 
+  onFocusUrlBar: (callback: () => void): void => {
+    ipcRenderer.on('focus-url-bar', () => callback());
+  },
+
   onLLMChunk: (callback: (payload: { tabId: string; chunk: string }) => void) => {
     const handler = (_event: unknown, payload: { tabId: string; chunk: string }) => {
       callback(payload);
