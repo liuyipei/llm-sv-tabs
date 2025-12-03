@@ -200,6 +200,7 @@
           onclick={(e) => e.stopPropagation()}
         />
       {:else}
+        <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
         <div
           class="tab-title"
           class:editable={isLLMResponse}
