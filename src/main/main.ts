@@ -1,5 +1,5 @@
 import { app, BrowserWindow, ipcMain, dialog, session, globalShortcut } from 'electron';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import { dirname, join } from 'path';
 import TabManager from './tab-manager.js';
 import { ProviderFactory } from './providers/provider-factory.js';
@@ -24,12 +24,30 @@ function createWindow(): void {
 
   // Set up Content Security Policy before creating window
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-    // Only apply CSP to the main window, not to WebContentsViews (tabs)
-    const isMainWindow = details.url.startsWith('file://') ||
-                         details.url.startsWith('http://localhost') ||
-                         details.url.startsWith('http://127.0.0.1');
+    // Get the dev server URL from environment or construct production file URL
+    const devServerUrl = process.env.VITE_DEV_SERVER_URL;
+    // Use pathToFileURL to properly convert file path to URL (handles Windows backslashes)
+    const prodFileUrl = pathToFileURL(join(__dirname, '../../dist/index.html')).href;
+
+    // Check if this is the main app window (not a browsing tab)
+    const isMainWindow = details.url === devServerUrl ||
+                         details.url === prodFileUrl ||
+                         (devServerUrl && details.url.startsWith(devServerUrl));
 
     if (isMainWindow) {
+      // Build dynamic connect-src based on environment
+      let connectSrc = "'self'";
+      if (devServerUrl) {
+        try {
+          const devUrl = new URL(devServerUrl);
+          // Allow both HTTP and WebSocket connections to the dev server
+          connectSrc = `'self' ${devServerUrl} ws://${devUrl.host}`;
+        } catch {
+          // If URL parsing fails, fall back to self only
+          connectSrc = "'self'";
+        }
+      }
+
       callback({
         responseHeaders: {
           ...details.responseHeaders,
@@ -40,7 +58,7 @@ function createWindow(): void {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob:",
               "font-src 'self' data:",
-              "connect-src 'self' ws://localhost:* ws://127.0.0.1:* http://localhost:* http://127.0.0.1:*",
+              `connect-src ${connectSrc}`,
               "media-src 'self' data: blob:",
               "object-src 'none'",
               "base-uri 'self'",
