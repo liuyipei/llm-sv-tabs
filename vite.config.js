@@ -7,7 +7,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 export default defineConfig({
-  plugins: [svelte()],
+  plugins: [svelte({
+    configFile: resolve(__dirname, 'svelte.config.js')
+  })],
   root: 'src/ui',
   build: {
     outDir: resolve(__dirname, 'dist'),
