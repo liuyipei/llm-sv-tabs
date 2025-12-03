@@ -22,6 +22,39 @@ function createWindow(): void {
   console.log('Main process __dirname:', __dirname);
   console.log('Preload path:', preloadPath);
 
+  // Set up Content Security Policy before creating window
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    // Only apply CSP to the main window, not to WebContentsViews (tabs)
+    const isMainWindow = details.url.startsWith('file://') ||
+                         details.url.startsWith('http://localhost') ||
+                         details.url.startsWith('http://127.0.0.1');
+
+    if (isMainWindow) {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [
+            [
+              "default-src 'self'",
+              "script-src 'self'",
+              "style-src 'self' 'unsafe-inline'",
+              "img-src 'self' data: blob:",
+              "font-src 'self' data:",
+              "connect-src 'self' ws://localhost:* ws://127.0.0.1:* http://localhost:* http://127.0.0.1:*",
+              "media-src 'self' data: blob:",
+              "object-src 'none'",
+              "base-uri 'self'",
+              "form-action 'self'",
+              "frame-ancestors 'none'",
+            ].join('; ')
+          ]
+        }
+      });
+    } else {
+      callback({ responseHeaders: details.responseHeaders });
+    }
+  });
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
