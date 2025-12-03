@@ -52,11 +52,8 @@
 
   // Keyboard shortcut actions
   function focusUrlInput(): void {
-    console.log('focusUrlInput called, callback exists:', !!focusUrlInputCallback);
     if (focusUrlInputCallback) {
       focusUrlInputCallback();
-    } else {
-      console.warn('focusUrlInputCallback is not set yet');
     }
   }
 
@@ -171,13 +168,9 @@
 
     // Set up IPC listener for focus-url-bar event (triggered by global shortcut)
     if (typeof window !== 'undefined' && window.electronAPI) {
-      console.log('Setting up onFocusUrlBar listener');
       window.electronAPI.onFocusUrlBar(() => {
-        console.log('onFocusUrlBar IPC event received');
         focusUrlInput();
       });
-    } else {
-      console.warn('electronAPI not available, onFocusUrlBar listener not set up');
     }
 
     // Cleanup on unmount
