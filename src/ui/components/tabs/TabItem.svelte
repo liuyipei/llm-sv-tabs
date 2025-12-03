@@ -200,14 +200,11 @@
           onclick={(e) => e.stopPropagation()}
         />
       {:else}
-        <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
         <div
           class="tab-title"
           class:editable={isLLMResponse}
           title={isLLMResponse ? `${tab.title} (double-click to edit)` : tab.title}
           ondblclick={handleTitleDoubleClick}
-          role={isLLMResponse ? 'button' : undefined}
-          tabindex={isLLMResponse ? 0 : undefined}
         >
           {tab.title || 'Untitled'}
         </div>
