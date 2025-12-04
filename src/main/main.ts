@@ -14,8 +14,13 @@ import type { QueryOptions, LLMResponse, Bookmark, ExtractedContent, ProviderTyp
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Chrome-like User-Agent to avoid "Electron" detection by sites like Google
-// This matches a recent stable Chrome release
+// Chrome-like User-Agent to present ourselves as a standard browser.
+//
+// This is a legitimate browser for real human users, not a bot or scraper.
+// Electron's default User-Agent includes "Electron" which causes sites like Google
+// to trigger CAPTCHA challenges, even for normal human browsing. Since we're using
+// the same Chromium rendering engine as Chrome, presenting as Chrome is accurate
+// and allows our users to browse without unnecessary friction.
 const CHROME_USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
 let mainWindow: BrowserWindow | null = null;
@@ -818,8 +823,8 @@ function setupGlobalShortcuts(): void {
   }
 }
 
-// Remove Electron from client hints to avoid bot detection
-// This prevents the Sec-CH-UA header from revealing "Electron"
+// Disable client hints that would reveal "Electron" in the Sec-CH-UA header.
+// See CHROME_USER_AGENT comment above for rationale - this is a real browser for humans.
 app.commandLine.appendSwitch('disable-features', 'UserAgentClientHint');
 
 app.whenReady().then(() => {
