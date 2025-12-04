@@ -13,6 +13,12 @@
     "preview": "vite preview",
     "electron:dev": "electron .",
     "start": "npm run build && electron .",
+    "package": "npm run build && electron-builder",
+    "package:mac": "npm run build && electron-builder --mac",
+    "package:win": "npm run build && electron-builder --win",
+    "package:linux": "npm run build && electron-builder --linux",
+    "patch-electron": "bash scripts/patch-electron-plist.sh",
+    "postinstall": "bash scripts/patch-electron-plist.sh",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
@@ -27,6 +33,43 @@
   ],
   "author": "",
   "license": "MIT",
+  "build": {
+    "appId": "com.llm-sv-tabs.app",
+    "productName": "LLM SV Tabs",
+    "files": [
+      "dist/**/*",
+      "dist-main/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "extendInfo": {
+        "NSCameraUseContinuityCameraDeviceType": true,
+        "NSCameraUsageDescription": "This app requires camera access for capturing screenshots and continuity camera features.",
+        "NSMicrophoneUsageDescription": "This app may require microphone access for certain features."
+      }
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Utility"
+    }
+  },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^6.2.1",
     "@testing-library/jest-dom": "^6.1.5",
@@ -38,6 +81,7 @@
     "@vitest/ui": "^4.0.8",
     "cpx": "^1.5.0",
     "electron": "^39.2.2",
+    "electron-builder": "^25.1.8",
     "happy-dom": "^12.10.3",
     "svelte": "^5.43.8",
     "svelte-check": "^4.1.1",
