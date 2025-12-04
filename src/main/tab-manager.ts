@@ -682,7 +682,7 @@ class TabManager {
     if (!tab) return { success: false, error: 'Tab not found' };
     if (!tab.view || !tab.view.webContents) return { success: false, error: 'Tab has no web contents' };
 
-    if (tab.view.webContents.canGoBack()) {
+    if (tab.view.webContents.navigationHistory.canGoBack()) {
       tab.view.webContents.goBack();
       return { success: true };
     }
@@ -698,7 +698,7 @@ class TabManager {
     if (!tab) return { success: false, error: 'Tab not found' };
     if (!tab.view || !tab.view.webContents) return { success: false, error: 'Tab has no web contents' };
 
-    if (tab.view.webContents.canGoForward()) {
+    if (tab.view.webContents.navigationHistory.canGoForward()) {
       tab.view.webContents.goForward();
       return { success: true };
     }
@@ -719,8 +719,8 @@ class TabManager {
 
     return {
       success: true,
-      canGoBack: tab.view.webContents.canGoBack(),
-      canGoForward: tab.view.webContents.canGoForward(),
+      canGoBack: tab.view.webContents.navigationHistory.canGoBack(),
+      canGoForward: tab.view.webContents.navigationHistory.canGoForward(),
     };
   }
 
