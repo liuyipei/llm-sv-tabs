@@ -683,7 +683,7 @@ class TabManager {
     if (!tab.view || !tab.view.webContents) return { success: false, error: 'Tab has no web contents' };
 
     if (tab.view.webContents.navigationHistory.canGoBack()) {
-      tab.view.webContents.goBack();
+      tab.view.webContents.navigationHistory.goBack();
       return { success: true };
     }
 
@@ -699,7 +699,7 @@ class TabManager {
     if (!tab.view || !tab.view.webContents) return { success: false, error: 'Tab has no web contents' };
 
     if (tab.view.webContents.navigationHistory.canGoForward()) {
-      tab.view.webContents.goForward();
+      tab.view.webContents.navigationHistory.goForward();
       return { success: true };
     }
 
