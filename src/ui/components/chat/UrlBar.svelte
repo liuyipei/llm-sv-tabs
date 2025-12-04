@@ -12,10 +12,21 @@
   async function handleUrlSubmit(): Promise<void> {
     if (!$urlInput.trim()) return;
 
-    const url = $urlInput.trim();
+    const input = $urlInput.trim();
 
-    // Add http:// if no protocol specified
-    const fullUrl = url.match(/^https?:\/\//) ? url : `https://${url}`;
+    // Check if this looks like a search query:
+    // - Contains spaces OR
+    // - Doesn't contain a dot (not a domain)
+    const isSearchQuery = input.includes(' ') || !input.includes('.');
+
+    let fullUrl: string;
+    if (isSearchQuery) {
+      // Convert to Google search
+      fullUrl = `https://www.google.com/search?q=${encodeURIComponent(input)}`;
+    } else {
+      // Treat as URL - add https:// if no protocol specified
+      fullUrl = input.match(/^https?:\/\//) ? input : `https://${input}`;
+    }
 
     if (ipc) {
       try {
