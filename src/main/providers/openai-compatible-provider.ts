@@ -200,6 +200,7 @@ export class OpenAICompatibleProvider extends BaseProvider {
           temperature,
           max_tokens: maxTokens,
           stream: true,
+          stream_options: { include_usage: true },
         }),
       });
 
@@ -213,6 +214,8 @@ export class OpenAICompatibleProvider extends BaseProvider {
       let fullText = '';
       let buffer = '';
       let returnedModel = model;
+      let tokensIn = 0;
+      let tokensOut = 0;
 
       while (true) {
         const { value, done } = await reader.read();
@@ -239,6 +242,11 @@ export class OpenAICompatibleProvider extends BaseProvider {
             if (parsed.model) {
               returnedModel = parsed.model;
             }
+            // Extract token usage from the final chunk (when stream_options.include_usage is true)
+            if (parsed.usage) {
+              tokensIn = parsed.usage.prompt_tokens || 0;
+              tokensOut = parsed.usage.completion_tokens || 0;
+            }
           } catch (e) {
             // Skip malformed JSON
           }
@@ -247,6 +255,8 @@ export class OpenAICompatibleProvider extends BaseProvider {
 
       return {
         response: fullText,
+        tokensIn,
+        tokensOut,
         responseTime: Date.now() - startTime,
         model: returnedModel,
       };
