@@ -18,8 +18,12 @@ class TabManager {
   private sessionManager: SessionManager;
   private readonly SIDEBAR_WIDTH = 350;
   private readonly HEADER_HEIGHT = 53;
+  private readonly SEARCH_BAR_HEIGHT = 45; // Height of the search bar when visible
   private lastMetadataUpdate: Map<string, number>; // Track last metadata update time per tab
   private readonly METADATA_UPDATE_THROTTLE_MS = 500; // Send metadata updates at most every 500ms
+  private currentFindRequestId: number = 0; // Track find-in-page request IDs
+  private isSearchBarVisible: boolean = false; // Track search bar visibility
+  private lastSearchText: Map<string, string> = new Map(); // Track last search text per tab
 
   constructor(mainWindow: BrowserWindow) {
     this.mainWindow = mainWindow;
@@ -49,12 +53,21 @@ class TabManager {
     if (!tab || !tab.view) return;
 
     const bounds = this.mainWindow.getContentBounds();
+    const headerHeight = this.HEADER_HEIGHT + (this.isSearchBarVisible ? this.SEARCH_BAR_HEIGHT : 0);
     tab.view.setBounds({
       x: this.SIDEBAR_WIDTH,
-      y: this.HEADER_HEIGHT,
+      y: headerHeight,
       width: Math.max(0, bounds.width - this.SIDEBAR_WIDTH),
-      height: Math.max(0, bounds.height - this.HEADER_HEIGHT),
+      height: Math.max(0, bounds.height - headerHeight),
     });
+  }
+
+  /**
+   * Set whether the search bar is visible (affects WebContentsView bounds)
+   */
+  setSearchBarVisible(visible: boolean): void {
+    this.isSearchBarVisible = visible;
+    this.updateWebContentsViewBounds();
   }
 
   private createTabId(): string {
@@ -807,13 +820,14 @@ class TabManager {
       this.mainWindow.contentView.addChildView(tab.view);
       this.activeWebContentsView = tab.view;
 
-      // Position the view to the right of the sidebar and below the header
+      // Position the view to the right of the sidebar and below the header (and search bar if visible)
       const bounds = this.mainWindow.getContentBounds();
+      const headerHeight = this.HEADER_HEIGHT + (this.isSearchBarVisible ? this.SEARCH_BAR_HEIGHT : 0);
       tab.view.setBounds({
         x: this.SIDEBAR_WIDTH,
-        y: this.HEADER_HEIGHT,
+        y: headerHeight,
         width: Math.max(0, bounds.width - this.SIDEBAR_WIDTH),
-        height: Math.max(0, bounds.height - this.HEADER_HEIGHT),
+        height: Math.max(0, bounds.height - headerHeight),
       });
     } else {
       // Svelte component tab (LLM responses)
@@ -1007,6 +1021,118 @@ class TabManager {
    */
   clearSession(): void {
     this.sessionManager.clearSession();
+  }
+
+  /**
+   * Find text in the active tab's page
+   */
+  findInPage(tabId: string, text: string): { success: boolean; requestId?: number; error?: string } {
+    const tab = this.tabs.get(tabId);
+    if (!tab) return { success: false, error: 'Tab not found' };
+    if (!tab.view || !tab.view.webContents) return { success: false, error: 'Tab has no web contents' };
+
+    if (!text.trim()) {
+      this.stopFindInPage(tabId);
+      return { success: true };
+    }
+
+    // Store the search text for findNext/findPrevious
+    this.lastSearchText.set(tabId, text);
+
+    // Increment request ID to track this search
+    this.currentFindRequestId++;
+    const requestId = this.currentFindRequestId;
+
+    // Set up the found-in-page listener
+    tab.view.webContents.once('found-in-page', (_event, result) => {
+      // Only send if this is still the current request
+      if (requestId === this.currentFindRequestId) {
+        this.sendToRenderer('found-in-page', {
+          activeMatchOrdinal: result.activeMatchOrdinal,
+          matches: result.matches,
+          requestId: requestId,
+        });
+      }
+    });
+
+    // Start the search
+    tab.view.webContents.findInPage(text, {
+      forward: true,
+      findNext: false,
+    });
+
+    return { success: true, requestId };
+  }
+
+  /**
+   * Find next occurrence in the page
+   */
+  findNext(tabId: string): { success: boolean; error?: string } {
+    const tab = this.tabs.get(tabId);
+    if (!tab) return { success: false, error: 'Tab not found' };
+    if (!tab.view || !tab.view.webContents) return { success: false, error: 'Tab has no web contents' };
+
+    const searchText = this.lastSearchText.get(tabId);
+    if (!searchText) return { success: false, error: 'No active search' };
+
+    // Set up the found-in-page listener
+    tab.view.webContents.once('found-in-page', (_event, result) => {
+      this.sendToRenderer('found-in-page', {
+        activeMatchOrdinal: result.activeMatchOrdinal,
+        matches: result.matches,
+      });
+    });
+
+    // Find next using the stored search text
+    tab.view.webContents.findInPage(searchText, {
+      forward: true,
+      findNext: true,
+    });
+
+    return { success: true };
+  }
+
+  /**
+   * Find previous occurrence in the page
+   */
+  findPrevious(tabId: string): { success: boolean; error?: string } {
+    const tab = this.tabs.get(tabId);
+    if (!tab) return { success: false, error: 'Tab not found' };
+    if (!tab.view || !tab.view.webContents) return { success: false, error: 'Tab has no web contents' };
+
+    const searchText = this.lastSearchText.get(tabId);
+    if (!searchText) return { success: false, error: 'No active search' };
+
+    // Set up the found-in-page listener
+    tab.view.webContents.once('found-in-page', (_event, result) => {
+      this.sendToRenderer('found-in-page', {
+        activeMatchOrdinal: result.activeMatchOrdinal,
+        matches: result.matches,
+      });
+    });
+
+    // Find previous using the stored search text
+    tab.view.webContents.findInPage(searchText, {
+      forward: false,
+      findNext: true,
+    });
+
+    return { success: true };
+  }
+
+  /**
+   * Stop finding and clear highlights
+   */
+  stopFindInPage(tabId: string): { success: boolean; error?: string } {
+    const tab = this.tabs.get(tabId);
+    if (!tab) return { success: false, error: 'Tab not found' };
+    if (!tab.view || !tab.view.webContents) return { success: true }; // Not an error, just nothing to do
+
+    tab.view.webContents.stopFindInPage('clearSelection');
+    this.lastSearchText.delete(tabId); // Clear stored search text
+    this.currentFindRequestId++; // Invalidate any pending requests
+
+    return { success: true };
   }
 }
 

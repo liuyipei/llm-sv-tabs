@@ -104,6 +104,22 @@ const electronAPI = {
   triggerScreenshot: (): Promise<IPCResponse<{ success: boolean }>> =>
     ipcRenderer.invoke('trigger-screenshot'),
 
+  // Find in page
+  findInPage: (tabId: string, text: string): Promise<IPCResponse<{ requestId?: number }>> =>
+    ipcRenderer.invoke('find-in-page', tabId, text),
+
+  findNext: (tabId: string): Promise<IPCResponse> =>
+    ipcRenderer.invoke('find-next', tabId),
+
+  findPrevious: (tabId: string): Promise<IPCResponse> =>
+    ipcRenderer.invoke('find-previous', tabId),
+
+  stopFindInPage: (tabId: string): Promise<IPCResponse> =>
+    ipcRenderer.invoke('stop-find-in-page', tabId),
+
+  setSearchBarVisible: (visible: boolean): Promise<IPCResponse> =>
+    ipcRenderer.invoke('set-search-bar-visible', visible),
+
   // Event listeners (from main to renderer)
   onTabCreated: (callback: (data: TabCreatedEvent) => void): void => {
     ipcRenderer.on('tab-created', (_event, data) => callback(data));
@@ -131,6 +147,14 @@ const electronAPI = {
 
   onFocusUrlBar: (callback: () => void): void => {
     ipcRenderer.on('focus-url-bar', () => callback());
+  },
+
+  onFocusSearchBar: (callback: () => void): void => {
+    ipcRenderer.on('focus-search-bar', () => callback());
+  },
+
+  onFoundInPage: (callback: (data: { activeMatchOrdinal: number; matches: number }) => void): void => {
+    ipcRenderer.on('found-in-page', (_event, data) => callback(data));
   },
 
   onLLMChunk: (callback: (payload: { tabId: string; chunk: string }) => void) => {
