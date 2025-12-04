@@ -7,7 +7,9 @@ import { ContentExtractor } from './services/content-extractor.js';
 import { ModelDiscovery } from './providers/model-discovery.js';
 import { BookmarkManager } from './services/bookmark-manager.js';
 import { ScreenshotService } from './services/screenshot-service.js';
-import type { QueryOptions, LLMResponse, Bookmark, ExtractedContent, ProviderType, ContentBlock, MessageContent } from '../types';
+import { normalizeWhitespace } from './utils/text-normalizer.js';
+import { formatSerializedDOM } from './utils/dom-formatter.js';
+import type { QueryOptions, LLMResponse, Bookmark, ExtractedContent, ProviderType, ContentBlock, MessageContent, SerializedDOM } from '../types';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -369,12 +371,24 @@ function setupIPCHandlers(): void {
         const textContents = extractedContents
           .filter(c => c.type !== 'image')
           .map((content) => {
-            const dom = content.content as any;
-            return `
-Tab: ${content.title}
-URL: ${content.url}
+            let formattedContent = '';
 
-${dom.mainContent || content.content || ''}
+            // Check if content is SerializedDOM (structured HTML data)
+            if (content.type === 'html' && typeof content.content === 'object' && 'mainContent' in content.content) {
+              formattedContent = formatSerializedDOM(content.content as SerializedDOM);
+            } else if (typeof content.content === 'string') {
+              // Plain text content
+              formattedContent = normalizeWhitespace(content.content);
+            } else {
+              // Fallback for other types
+              formattedContent = normalizeWhitespace(String(content.content));
+            }
+
+            return `
+# Tab: ${content.title}
+**URL**: ${content.url}
+
+${formattedContent}
             `.trim();
           })
           .filter(text => text.length > 0);
@@ -414,12 +428,24 @@ ${dom.mainContent || content.content || ''}
         // Text-only content
         const textContents = extractedContents
           .map((content) => {
-            const dom = content.content as any;
-            return `
-Tab: ${content.title}
-URL: ${content.url}
+            let formattedContent = '';
 
-${dom.mainContent || content.content || ''}
+            // Check if content is SerializedDOM (structured HTML data)
+            if (content.type === 'html' && typeof content.content === 'object' && 'mainContent' in content.content) {
+              formattedContent = formatSerializedDOM(content.content as SerializedDOM);
+            } else if (typeof content.content === 'string') {
+              // Plain text content
+              formattedContent = normalizeWhitespace(content.content);
+            } else {
+              // Fallback for other types
+              formattedContent = normalizeWhitespace(String(content.content));
+            }
+
+            return `
+# Tab: ${content.title}
+**URL**: ${content.url}
+
+${formattedContent}
             `.trim();
           })
           .filter(text => text.length > 0);
