@@ -270,6 +270,13 @@ export interface IPCBridge {
   setActiveTab(tabId: string): Promise<IPCResponse>;
   selectTabs(tabIds: string[]): Promise<IPCResponse>;
 
+  // Navigation
+  goBack(tabId: string): Promise<IPCResponse>;
+  goForward(tabId: string): Promise<IPCResponse>;
+  getNavigationState(tabId: string): Promise<IPCResponse<{ canGoBack: boolean; canGoForward: boolean }>>;
+  nextTab(): Promise<IPCResponse<{ tabId: string }>>;
+  previousTab(): Promise<IPCResponse<{ tabId: string }>>;
+
   // Content extraction
   extractContent(tabId: string): Promise<IPCResponse<ExtractedContent>>;
 

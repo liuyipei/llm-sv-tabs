@@ -40,6 +40,21 @@ const electronAPI = {
   reloadTab: (tabId: string): Promise<IPCResponse> =>
     ipcRenderer.invoke('reload-tab', tabId),
 
+  goBack: (tabId: string): Promise<IPCResponse> =>
+    ipcRenderer.invoke('go-back', tabId),
+
+  goForward: (tabId: string): Promise<IPCResponse> =>
+    ipcRenderer.invoke('go-forward', tabId),
+
+  getNavigationState: (tabId: string): Promise<IPCResponse<{ canGoBack: boolean; canGoForward: boolean }>> =>
+    ipcRenderer.invoke('get-navigation-state', tabId),
+
+  nextTab: (): Promise<IPCResponse<{ tabId: string }>> =>
+    ipcRenderer.invoke('next-tab'),
+
+  previousTab: (): Promise<IPCResponse<{ tabId: string }>> =>
+    ipcRenderer.invoke('previous-tab'),
+
   updateTabTitle: (tabId: string, title: string): Promise<IPCResponse> =>
     ipcRenderer.invoke('update-tab-title', tabId, title),
 

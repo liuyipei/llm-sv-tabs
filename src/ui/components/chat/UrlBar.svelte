@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getContext, onMount } from 'svelte';
   import { urlInput } from '$stores/ui';
+  import { activeTabId } from '$stores/tabs';
   import type { IPCBridgeAPI } from '$lib/ipc-bridge';
 
   const ipc = getContext<IPCBridgeAPI>('ipc');
@@ -8,6 +9,50 @@
 
   // Reference to the URL input element
   let urlInputElement: HTMLInputElement;
+
+  // Navigation state
+  let canGoBack = false;
+  let canGoForward = false;
+
+  // Update navigation state when active tab changes
+  $: if ($activeTabId && ipc) {
+    updateNavigationState($activeTabId);
+  }
+
+  async function updateNavigationState(tabId: string): Promise<void> {
+    if (!ipc) return;
+    try {
+      const result = await ipc.getNavigationState(tabId);
+      if (result.success) {
+        canGoBack = result.canGoBack || false;
+        canGoForward = result.canGoForward || false;
+      }
+    } catch (error) {
+      console.error('Failed to get navigation state:', error);
+    }
+  }
+
+  async function handleGoBack(): Promise<void> {
+    if (!ipc || !$activeTabId || !canGoBack) return;
+    try {
+      await ipc.goBack($activeTabId);
+      // Update navigation state after navigation
+      setTimeout(() => updateNavigationState($activeTabId), 100);
+    } catch (error) {
+      console.error('Failed to go back:', error);
+    }
+  }
+
+  async function handleGoForward(): Promise<void> {
+    if (!ipc || !$activeTabId || !canGoForward) return;
+    try {
+      await ipc.goForward($activeTabId);
+      // Update navigation state after navigation
+      setTimeout(() => updateNavigationState($activeTabId), 100);
+    } catch (error) {
+      console.error('Failed to go forward:', error);
+    }
+  }
 
   async function handleUrlSubmit(): Promise<void> {
     if (!$urlInput.trim()) return;
@@ -55,15 +100,53 @@
     }
   }
 
-  // Register focus callback on mount
+  // Register focus callback and navigation state listener on mount
   onMount(() => {
     if (setFocusUrlInputCallback) {
       setFocusUrlInputCallback(focusUrlInputElement);
     }
+
+    // Listen for URL changes to update navigation state
+    if (typeof window !== 'undefined' && window.electronAPI) {
+      window.electronAPI.onTabUrlUpdated(() => {
+        // When URL changes, update navigation state for the active tab
+        if ($activeTabId && ipc) {
+          updateNavigationState($activeTabId);
+        }
+      });
+    }
+
+    // Poll navigation state periodically to catch any missed updates
+    const intervalId = setInterval(() => {
+      if ($activeTabId && ipc) {
+        updateNavigationState($activeTabId);
+      }
+    }, 500);
+
+    // Cleanup interval on unmount
+    return () => {
+      clearInterval(intervalId);
+    };
   });
 </script>
 
 <div class="url-bar">
+  <button
+    onclick={handleGoBack}
+    class="nav-btn"
+    disabled={!canGoBack}
+    title="Go back (Alt+Left)"
+  >
+    ←
+  </button>
+  <button
+    onclick={handleGoForward}
+    class="nav-btn"
+    disabled={!canGoForward}
+    title="Go forward (Alt+Right)"
+  >
+    →
+  </button>
   <input
     type="text"
     bind:this={urlInputElement}
@@ -84,6 +167,35 @@
     padding: 8px 15px;
     background-color: #252526;
     border-bottom: 1px solid #3e3e42;
+  }
+
+  .nav-btn {
+    background-color: #3c3c3c;
+    color: #d4d4d4;
+    border: 1px solid #3e3e42;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+    height: 36px;
+    min-width: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .nav-btn:hover:not(:disabled) {
+    background-color: #4e4e52;
+    border-color: #007acc;
+  }
+
+  .nav-btn:disabled {
+    background-color: #2d2d30;
+    color: #606060;
+    cursor: not-allowed;
+    border-color: #3e3e42;
   }
 
   .url-input {
