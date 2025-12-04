@@ -1,22 +1,35 @@
 <script lang="ts">
-  import type { ChatMessage } from '../../../types';
+  import type { ChatMessage, MessageContent } from '../../../types';
   import { renderMarkdown, copyToClipboard } from '../../utils/markdown';
 
   let { message }: { message: ChatMessage } = $props();
 
+  // Helper to get text content from MessageContent
+  function getTextContent(content: MessageContent): string {
+    if (typeof content === 'string') {
+      return content;
+    }
+    // For ContentBlock[], extract text from text blocks
+    return content
+      .filter((block) => block.type === 'text')
+      .map((block) => (block as { type: 'text'; text: string }).text)
+      .join('\n');
+  }
+
+  const textContent = $derived(getTextContent(message.content));
   const isUser = $derived(message.role === 'user');
   const isAssistant = $derived(message.role === 'assistant');
-  const isError = $derived(message.content.startsWith('Error:'));
+  const isError = $derived(textContent.startsWith('Error:'));
 
   let showRaw = $state(false);
   let copyFeedback = $state(false);
 
   const renderedContent = $derived(
-    isAssistant && !showRaw ? renderMarkdown(message.content) : null
+    isAssistant && !showRaw ? renderMarkdown(textContent) : null
   );
 
   async function handleCopy() {
-    const success = await copyToClipboard(message.content);
+    const success = await copyToClipboard(textContent);
     if (success) {
       copyFeedback = true;
       setTimeout(() => {
@@ -56,7 +69,7 @@
     {#if renderedContent}
       {@html renderedContent}
     {:else}
-      {message.content}
+      {textContent}
     {/if}
   </div>
 </div>

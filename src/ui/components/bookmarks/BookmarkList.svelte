@@ -1,7 +1,6 @@
 <script lang="ts">
   import { getContext, onMount } from 'svelte';
   import { bookmarks, removeBookmark } from '$stores/bookmarks';
-  import type { Bookmark } from '../../../types';
   import type { IPCBridgeAPI } from '$lib/ipc-bridge';
 
   const ipc = getContext<IPCBridgeAPI>('ipc');

@@ -3,16 +3,7 @@
   import { marked } from 'marked';
   import DOMPurify from 'dompurify';
   import { activeTabs } from '$stores/tabs';
-
-  declare global {
-    interface Window {
-      electronAPI?: {
-        onLLMChunk: (
-          cb: (payload: { tabId: string; chunk: string }) => void
-        ) => () => void;
-      };
-    }
-  }
+  import type { Tab } from '../../../types';
 
   // Svelte 5 props
   let { tabId }: { tabId: string } = $props();
@@ -40,13 +31,13 @@
   const created = $derived(tab?.created);
 
   // Get context tabs used in the query
-  const contextTabs = $derived(() => {
+  const contextTabs = $derived.by((): Tab[] => {
     if (!metadata?.selectedTabIds || metadata.selectedTabIds.length === 0) {
       return [];
     }
     return metadata.selectedTabIds
       .map(id => $activeTabs.get(id))
-      .filter(t => t !== undefined);
+      .filter((t): t is Tab => t !== undefined);
   });
 
   // Effect to load existing data when metadata becomes available

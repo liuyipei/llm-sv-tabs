@@ -30,6 +30,7 @@ export interface IPCBridgeAPI {
   openDebugInfoWindow(tabId: string): Promise<IPCResponse | { success: boolean }>;
   getBookmarks(): Promise<IPCResponse<Bookmark[]> | Bookmark[]>;
   addBookmark(bookmark: Omit<Bookmark, 'id' | 'created'>): Promise<IPCResponse<Bookmark> | { success: boolean }>;
+  deleteBookmark(id: string): Promise<IPCResponse | { success: boolean }>;
   sendQuery(query: string, options?: QueryOptions): Promise<LLMResponse | { response: string }>;
   discoverModels(provider: ProviderType, apiKey?: string, endpoint?: string): Promise<IPCResponse<LLMModel[]> | LLMModel[]>;
   triggerScreenshot(): Promise<IPCResponse<{ success: boolean }>>;
@@ -106,6 +107,7 @@ export function initializeIPC(): IPCBridgeAPI {
     openDebugInfoWindow: (tabId: string) => window.electronAPI.openDebugInfoWindow(tabId),
     getBookmarks: () => window.electronAPI.getBookmarks(),
     addBookmark: (bookmark: Omit<Bookmark, 'id' | 'created'>) => window.electronAPI.addBookmark(bookmark),
+    deleteBookmark: (id: string) => window.electronAPI.deleteBookmark(id),
     sendQuery: (query: string, options?: QueryOptions) => window.electronAPI.sendQuery(query, options),
     discoverModels: (provider: ProviderType, apiKey?: string, endpoint?: string) => window.electronAPI.discoverModels(provider, apiKey, endpoint),
     triggerScreenshot: () => window.electronAPI.triggerScreenshot(),
@@ -280,6 +282,10 @@ function createMockAPI(): IPCBridgeAPI {
     },
     addBookmark: async (bookmark: Omit<Bookmark, 'id' | 'created'>) => {
       console.log('Mock: addBookmark', bookmark);
+      return { success: true };
+    },
+    deleteBookmark: async (id: string) => {
+      console.log('Mock: deleteBookmark', id);
       return { success: true };
     },
     sendQuery: async (query: string, options?: QueryOptions): Promise<LLMResponse> => {
