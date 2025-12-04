@@ -104,12 +104,6 @@ function createWindow(): void {
   // Initialize screenshot service
   screenshotService = new ScreenshotService(mainWindow);
 
-  // Set up IPC handlers
-  setupIPCHandlers();
-
-  // Set up download handler
-  setupDownloadHandler();
-
   // Restore session or open default homepage
   const sessionRestored = tabManager.restoreSession();
   if (!sessionRestored) {
@@ -791,6 +785,11 @@ function setupGlobalShortcuts(): void {
 
 app.whenReady().then(() => {
   createWindow();
+
+  // Set up IPC handlers once (not per-window, as ipcMain.handle registers globally)
+  setupIPCHandlers();
+  setupDownloadHandler();
+
   setupGlobalShortcuts();
 
   app.on('activate', () => {
