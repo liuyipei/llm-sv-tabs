@@ -100,11 +100,33 @@
     }
   }
 
-  // Register focus callback on mount
+  // Register focus callback and navigation state listener on mount
   onMount(() => {
     if (setFocusUrlInputCallback) {
       setFocusUrlInputCallback(focusUrlInputElement);
     }
+
+    // Listen for URL changes to update navigation state
+    if (typeof window !== 'undefined' && window.electronAPI) {
+      window.electronAPI.onTabUrlUpdated(() => {
+        // When URL changes, update navigation state for the active tab
+        if ($activeTabId && ipc) {
+          updateNavigationState($activeTabId);
+        }
+      });
+    }
+
+    // Poll navigation state periodically to catch any missed updates
+    const intervalId = setInterval(() => {
+      if ($activeTabId && ipc) {
+        updateNavigationState($activeTabId);
+      }
+    }, 500);
+
+    // Cleanup interval on unmount
+    return () => {
+      clearInterval(intervalId);
+    };
   });
 </script>
 
