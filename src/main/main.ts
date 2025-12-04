@@ -668,8 +668,11 @@ function setupGlobalShortcuts(): void {
   for (const backShortcut of backShortcuts) {
     const backRegistered = globalShortcut.register(backShortcut, () => {
       console.log('Back navigation shortcut triggered:', backShortcut);
-      if (tabManager && tabManager.getActiveTabs().activeTabId) {
-        tabManager.goBack(tabManager.getActiveTabs().activeTabId);
+      if (tabManager) {
+        const activeTabId = tabManager.getActiveTabs().activeTabId;
+        if (activeTabId) {
+          tabManager.goBack(activeTabId);
+        }
       }
     });
 
@@ -683,8 +686,11 @@ function setupGlobalShortcuts(): void {
   for (const forwardShortcut of forwardShortcuts) {
     const forwardRegistered = globalShortcut.register(forwardShortcut, () => {
       console.log('Forward navigation shortcut triggered:', forwardShortcut);
-      if (tabManager && tabManager.getActiveTabs().activeTabId) {
-        tabManager.goForward(tabManager.getActiveTabs().activeTabId);
+      if (tabManager) {
+        const activeTabId = tabManager.getActiveTabs().activeTabId;
+        if (activeTabId) {
+          tabManager.goForward(activeTabId);
+        }
       }
     });
 
