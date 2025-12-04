@@ -16,6 +16,11 @@ export interface IPCBridgeAPI {
   setActiveTab(tabId: string): Promise<IPCResponse | { success: boolean }>;
   selectTabs(tabIds: string[]): Promise<IPCResponse | { success: boolean }>;
   reloadTab(tabId: string): Promise<IPCResponse | { success: boolean }>;
+  goBack(tabId: string): Promise<IPCResponse | { success: boolean }>;
+  goForward(tabId: string): Promise<IPCResponse | { success: boolean }>;
+  getNavigationState(tabId: string): Promise<IPCResponse<{ canGoBack: boolean; canGoForward: boolean }> | { success: boolean; canGoBack: boolean; canGoForward: boolean }>;
+  nextTab(): Promise<IPCResponse<{ tabId: string }> | { success: boolean; tabId?: string }>;
+  previousTab(): Promise<IPCResponse<{ tabId: string }> | { success: boolean; tabId?: string }>;
   updateTabTitle(tabId: string, title: string): Promise<IPCResponse | { success: boolean }>;
   copyTabUrl(tabId: string): Promise<IPCResponse<{ url?: string }> | { success: boolean; url?: string }>;
   openNoteTab(noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image'): Promise<IPCResponse<{ tabId: string; tab: TabData }> | { tabId: string; tab: Tab }>;
@@ -82,6 +87,11 @@ export function initializeIPC(): IPCBridgeAPI {
     setActiveTab: (tabId: string) => window.electronAPI.setActiveTab(tabId),
     selectTabs: (tabIds: string[]) => window.electronAPI.selectTabs(tabIds),
     reloadTab: (tabId: string) => window.electronAPI.reloadTab(tabId),
+    goBack: (tabId: string) => window.electronAPI.goBack(tabId),
+    goForward: (tabId: string) => window.electronAPI.goForward(tabId),
+    getNavigationState: (tabId: string) => window.electronAPI.getNavigationState(tabId),
+    nextTab: () => window.electronAPI.nextTab(),
+    previousTab: () => window.electronAPI.previousTab(),
     updateTabTitle: (tabId: string, title: string) => window.electronAPI.updateTabTitle(tabId, title),
     copyTabUrl: (tabId: string) => window.electronAPI.copyTabUrl(tabId),
     openNoteTab: (noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image') => window.electronAPI.openNoteTab(noteId, title, content, fileType),
@@ -161,6 +171,46 @@ function createMockAPI(): IPCBridgeAPI {
     reloadTab: async (tabId: string) => {
       console.log('Mock: reloadTab', tabId);
       return { success: true };
+    },
+    goBack: async (tabId: string) => {
+      console.log('Mock: goBack', tabId);
+      return { success: true };
+    },
+    goForward: async (tabId: string) => {
+      console.log('Mock: goForward', tabId);
+      return { success: true };
+    },
+    getNavigationState: async (tabId: string) => {
+      console.log('Mock: getNavigationState', tabId);
+      return { success: true, canGoBack: false, canGoForward: false };
+    },
+    nextTab: async () => {
+      console.log('Mock: nextTab');
+      const tabs = get(activeTabs);
+      const tabIds = Array.from(tabs.keys());
+      const currentId = get(activeTabId);
+      if (tabIds.length > 0 && currentId) {
+        const currentIndex = tabIds.indexOf(currentId);
+        const nextIndex = (currentIndex + 1) % tabIds.length;
+        const nextTabId = tabIds[nextIndex];
+        activeTabId.set(nextTabId);
+        return { success: true, tabId: nextTabId };
+      }
+      return { success: false };
+    },
+    previousTab: async () => {
+      console.log('Mock: previousTab');
+      const tabs = get(activeTabs);
+      const tabIds = Array.from(tabs.keys());
+      const currentId = get(activeTabId);
+      if (tabIds.length > 0 && currentId) {
+        const currentIndex = tabIds.indexOf(currentId);
+        const previousIndex = (currentIndex - 1 + tabIds.length) % tabIds.length;
+        const previousTabId = tabIds[previousIndex];
+        activeTabId.set(previousTabId);
+        return { success: true, tabId: previousTabId };
+      }
+      return { success: false };
     },
     updateTabTitle: async (tabId: string, title: string) => {
       console.log('Mock: updateTabTitle', tabId, title);

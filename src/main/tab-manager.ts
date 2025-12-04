@@ -674,6 +674,88 @@ class TabManager {
     return text.replace(/[&<>"']/g, (m) => map[m]);
   }
 
+  /**
+   * Navigate back in the tab's history
+   */
+  goBack(tabId: string): { success: boolean; error?: string } {
+    const tab = this.tabs.get(tabId);
+    if (!tab) return { success: false, error: 'Tab not found' };
+    if (!tab.view || !tab.view.webContents) return { success: false, error: 'Tab has no web contents' };
+
+    if (tab.view.webContents.canGoBack()) {
+      tab.view.webContents.goBack();
+      return { success: true };
+    }
+
+    return { success: false, error: 'Cannot go back' };
+  }
+
+  /**
+   * Navigate forward in the tab's history
+   */
+  goForward(tabId: string): { success: boolean; error?: string } {
+    const tab = this.tabs.get(tabId);
+    if (!tab) return { success: false, error: 'Tab not found' };
+    if (!tab.view || !tab.view.webContents) return { success: false, error: 'Tab has no web contents' };
+
+    if (tab.view.webContents.canGoForward()) {
+      tab.view.webContents.goForward();
+      return { success: true };
+    }
+
+    return { success: false, error: 'Cannot go forward' };
+  }
+
+  /**
+   * Get navigation state for a tab (whether it can go back/forward)
+   */
+  getNavigationState(tabId: string): { success: boolean; canGoBack?: boolean; canGoForward?: boolean; error?: string } {
+    const tab = this.tabs.get(tabId);
+    if (!tab) return { success: false, error: 'Tab not found' };
+    if (!tab.view || !tab.view.webContents) {
+      // For Svelte component tabs, navigation is not supported
+      return { success: true, canGoBack: false, canGoForward: false };
+    }
+
+    return {
+      success: true,
+      canGoBack: tab.view.webContents.canGoBack(),
+      canGoForward: tab.view.webContents.canGoForward(),
+    };
+  }
+
+  /**
+   * Switch to the next tab
+   */
+  nextTab(): { success: boolean; tabId?: string; error?: string } {
+    const tabIds = Array.from(this.tabs.keys());
+    if (tabIds.length === 0) return { success: false, error: 'No tabs available' };
+    if (!this.activeTabId) return { success: false, error: 'No active tab' };
+
+    const currentIndex = tabIds.indexOf(this.activeTabId);
+    const nextIndex = (currentIndex + 1) % tabIds.length;
+    const nextTabId = tabIds[nextIndex];
+
+    this.setActiveTab(nextTabId);
+    return { success: true, tabId: nextTabId };
+  }
+
+  /**
+   * Switch to the previous tab
+   */
+  previousTab(): { success: boolean; tabId?: string; error?: string } {
+    const tabIds = Array.from(this.tabs.keys());
+    if (tabIds.length === 0) return { success: false, error: 'No tabs available' };
+    if (!this.activeTabId) return { success: false, error: 'No active tab' };
+
+    const currentIndex = tabIds.indexOf(this.activeTabId);
+    const previousIndex = (currentIndex - 1 + tabIds.length) % tabIds.length;
+    const previousTabId = tabIds[previousIndex];
+
+    this.setActiveTab(previousTabId);
+    return { success: true, tabId: previousTabId };
+  }
+
   closeTab(tabId: string): { success: boolean; error?: string } {
     const tab = this.tabs.get(tabId);
     if (!tab) return { success: false, error: 'Tab not found' };

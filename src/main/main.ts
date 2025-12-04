@@ -195,6 +195,31 @@ function setupIPCHandlers(): void {
     return tabManager.reloadTab(tabId);
   });
 
+  ipcMain.handle('go-back', async (_event, tabId: string) => {
+    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
+    return tabManager.goBack(tabId);
+  });
+
+  ipcMain.handle('go-forward', async (_event, tabId: string) => {
+    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
+    return tabManager.goForward(tabId);
+  });
+
+  ipcMain.handle('get-navigation-state', async (_event, tabId: string) => {
+    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
+    return tabManager.getNavigationState(tabId);
+  });
+
+  ipcMain.handle('next-tab', async () => {
+    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
+    return tabManager.nextTab();
+  });
+
+  ipcMain.handle('previous-tab', async () => {
+    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
+    return tabManager.previousTab();
+  });
+
   ipcMain.handle('update-tab-title', async (_event, tabId: string, title: string) => {
     if (!tabManager) return { success: false, error: 'TabManager not initialized' };
     return tabManager.updateTabTitle(tabId, title);
@@ -628,6 +653,107 @@ function setupGlobalShortcuts(): void {
     console.error('Failed to register screenshot shortcut:', shortcut);
   } else {
     console.log(`Screenshot shortcut registered: ${shortcut}`);
+  }
+
+  // Register navigation shortcuts (back/forward)
+  // Mac: Cmd+[, Cmd+], Alt+Left, Alt+Right
+  // Windows/Linux: Alt+Left, Alt+Right
+  const backShortcuts = process.platform === 'darwin'
+    ? ['Command+[', 'Alt+Left']
+    : ['Alt+Left'];
+  const forwardShortcuts = process.platform === 'darwin'
+    ? ['Command+]', 'Alt+Right']
+    : ['Alt+Right'];
+
+  for (const backShortcut of backShortcuts) {
+    const backRegistered = globalShortcut.register(backShortcut, () => {
+      console.log('Back navigation shortcut triggered:', backShortcut);
+      if (tabManager && tabManager.getActiveTabs().activeTabId) {
+        tabManager.goBack(tabManager.getActiveTabs().activeTabId);
+      }
+    });
+
+    if (!backRegistered) {
+      console.error('Failed to register back shortcut:', backShortcut);
+    } else {
+      console.log(`Back navigation shortcut registered: ${backShortcut}`);
+    }
+  }
+
+  for (const forwardShortcut of forwardShortcuts) {
+    const forwardRegistered = globalShortcut.register(forwardShortcut, () => {
+      console.log('Forward navigation shortcut triggered:', forwardShortcut);
+      if (tabManager && tabManager.getActiveTabs().activeTabId) {
+        tabManager.goForward(tabManager.getActiveTabs().activeTabId);
+      }
+    });
+
+    if (!forwardRegistered) {
+      console.error('Failed to register forward shortcut:', forwardShortcut);
+    } else {
+      console.log(`Forward navigation shortcut registered: ${forwardShortcut}`);
+    }
+  }
+
+  // Register tab switching shortcuts
+  // Windows/Linux: Ctrl+Tab, Ctrl+Shift+Tab
+  // Mac: Also supports Ctrl+Tab, Ctrl+Shift+Tab (in addition to Cmd+Option+Right/Left)
+  const nextTabShortcut = 'Ctrl+Tab';
+  const previousTabShortcut = 'Ctrl+Shift+Tab';
+
+  const nextTabRegistered = globalShortcut.register(nextTabShortcut, () => {
+    console.log('Next tab shortcut triggered:', nextTabShortcut);
+    if (tabManager) {
+      tabManager.nextTab();
+    }
+  });
+
+  if (!nextTabRegistered) {
+    console.error('Failed to register next tab shortcut:', nextTabShortcut);
+  } else {
+    console.log(`Next tab shortcut registered: ${nextTabShortcut}`);
+  }
+
+  const previousTabRegistered = globalShortcut.register(previousTabShortcut, () => {
+    console.log('Previous tab shortcut triggered:', previousTabShortcut);
+    if (tabManager) {
+      tabManager.previousTab();
+    }
+  });
+
+  if (!previousTabRegistered) {
+    console.error('Failed to register previous tab shortcut:', previousTabShortcut);
+  } else {
+    console.log(`Previous tab shortcut registered: ${previousTabShortcut}`);
+  }
+
+  // On Mac, also register Cmd+Option+Left/Right for tab switching
+  if (process.platform === 'darwin') {
+    const macNextTab = globalShortcut.register('Command+Alt+Right', () => {
+      console.log('Next tab shortcut triggered: Command+Alt+Right');
+      if (tabManager) {
+        tabManager.nextTab();
+      }
+    });
+
+    const macPreviousTab = globalShortcut.register('Command+Alt+Left', () => {
+      console.log('Previous tab shortcut triggered: Command+Alt+Left');
+      if (tabManager) {
+        tabManager.previousTab();
+      }
+    });
+
+    if (!macNextTab) {
+      console.error('Failed to register Command+Alt+Right');
+    } else {
+      console.log('Tab switching shortcut registered: Command+Alt+Right');
+    }
+
+    if (!macPreviousTab) {
+      console.error('Failed to register Command+Alt+Left');
+    } else {
+      console.log('Tab switching shortcut registered: Command+Alt+Left');
+    }
   }
 }
 
