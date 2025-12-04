@@ -18,6 +18,7 @@ export interface ShortcutAction {
   focusLLMInput: () => void;
   closeActiveTab: () => void;
   bookmarkActiveTab: () => void;
+  toggleSearchBar: () => void;
 }
 
 /**
@@ -48,6 +49,12 @@ export const shortcuts: ShortcutConfig[] = [
     ctrl: true,
     description: 'Bookmark current tab',
     action: 'bookmarkActiveTab',
+  },
+  {
+    key: 'f',
+    ctrl: true,
+    description: 'Find in page',
+    action: 'toggleSearchBar',
   },
 ];
 

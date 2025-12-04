@@ -5,6 +5,7 @@
   import BookmarksSection from '$components/bookmarks/BookmarksSection.svelte';
   import ChatView from '$components/chat/ChatView.svelte';
   import UrlBar from '$components/chat/UrlBar.svelte';
+  import SearchBar from '$components/chat/SearchBar.svelte';
   import LLMControls from '$components/llm/LLMControls.svelte';
   import NotesSection from '$components/notes/NotesSection.svelte';
   import ResizableDivider from '$components/ResizableDivider.svelte';
@@ -30,6 +31,10 @@
   // Input focus callbacks (will be set by child components)
   let focusUrlInputCallback: (() => void) | null = null;
   let focusLLMInputCallback: (() => void) | null = null;
+
+  // Search bar state
+  let searchBarVisible = false;
+  let searchBarComponent: SearchBar;
 
   function setFocusUrlInputCallback(callback: () => void): void {
     focusUrlInputCallback = callback;
@@ -93,6 +98,36 @@
       console.log('Bookmark added:', activeTab.title);
     } catch (error) {
       console.error('Failed to bookmark tab:', error);
+    }
+  }
+
+  function toggleSearchBar(): void {
+    searchBarVisible = !searchBarVisible;
+    // Notify main process about search bar visibility to adjust WebContentsView bounds
+    if (ipc) {
+      ipc.setSearchBarVisible(searchBarVisible);
+    }
+    if (searchBarVisible && searchBarComponent) {
+      searchBarComponent.focus();
+    }
+  }
+
+  function showSearchBar(): void {
+    if (!searchBarVisible) {
+      searchBarVisible = true;
+      if (ipc) {
+        ipc.setSearchBarVisible(true);
+      }
+    }
+    if (searchBarComponent) {
+      searchBarComponent.focus();
+    }
+  }
+
+  function hideSearchBar(): void {
+    searchBarVisible = false;
+    if (ipc) {
+      ipc.setSearchBarVisible(false);
     }
   }
 
@@ -164,12 +199,18 @@
       focusLLMInput,
       closeActiveTab,
       bookmarkActiveTab,
+      toggleSearchBar,
     });
 
     // Set up IPC listener for focus-url-bar event (triggered by global shortcut)
     if (typeof window !== 'undefined' && window.electronAPI) {
       window.electronAPI.onFocusUrlBar(() => {
         focusUrlInput();
+      });
+
+      // Set up IPC listener for focus-search-bar event (triggered by Ctrl+F global shortcut)
+      window.electronAPI.onFocusSearchBar(() => {
+        showSearchBar();
       });
     }
 
@@ -237,6 +278,11 @@
 
     <section class="main-content">
       <UrlBar />
+      <SearchBar
+        bind:this={searchBarComponent}
+        visible={searchBarVisible}
+        onClose={hideSearchBar}
+      />
       <div class="browser-view">
         {#if showApiKeyInstructions && activeTab}
           <ApiKeyInstructionsView />

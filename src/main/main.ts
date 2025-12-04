@@ -574,6 +574,33 @@ ${formattedContent}
     }
   });
 
+  // Find in page
+  ipcMain.handle('find-in-page', async (_event, tabId: string, text: string) => {
+    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
+    return tabManager.findInPage(tabId, text);
+  });
+
+  ipcMain.handle('find-next', async (_event, tabId: string) => {
+    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
+    return tabManager.findNext(tabId);
+  });
+
+  ipcMain.handle('find-previous', async (_event, tabId: string) => {
+    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
+    return tabManager.findPrevious(tabId);
+  });
+
+  ipcMain.handle('stop-find-in-page', async (_event, tabId: string) => {
+    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
+    return tabManager.stopFindInPage(tabId);
+  });
+
+  ipcMain.handle('set-search-bar-visible', async (_event, visible: boolean) => {
+    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
+    tabManager.setSearchBarVisible(visible);
+    return { success: true };
+  });
+
   // Screenshot capture
   ipcMain.handle('trigger-screenshot', async () => {
     if (!screenshotService || !tabManager) {
@@ -621,6 +648,31 @@ ${formattedContent}
 }
 
 function setupGlobalShortcuts(): void {
+  // Register Cmd+F / Ctrl+F for opening search bar (browser-style find)
+  const findShortcut = process.platform === 'darwin' ? 'Command+F' : 'Ctrl+F';
+  const findRegistered = globalShortcut.register(findShortcut, () => {
+    console.log('Find shortcut triggered:', findShortcut);
+    const windows = BrowserWindow.getAllWindows();
+    if (windows.length > 0) {
+      const mainWindow = windows[0];
+      // Focus at all three levels: OS window, UI webContents, then send event
+      mainWindow.show();
+      mainWindow.focus();
+      mainWindow.webContents.focus();
+
+      // Send event to renderer to show/focus search bar
+      setTimeout(() => {
+        mainWindow.webContents.send('focus-search-bar');
+      }, 10);
+    }
+  });
+
+  if (!findRegistered) {
+    console.error('Failed to register find shortcut:', findShortcut);
+  } else {
+    console.log(`Find shortcut registered: ${findShortcut}`);
+  }
+
   // Register Cmd+L / Ctrl+L for focusing URL bar (browser-style)
   const focusUrlShortcut = process.platform === 'darwin' ? 'Command+L' : 'Ctrl+L';
   const focusUrlRegistered = globalShortcut.register(focusUrlShortcut, () => {

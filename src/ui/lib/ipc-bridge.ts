@@ -33,6 +33,11 @@ export interface IPCBridgeAPI {
   sendQuery(query: string, options?: QueryOptions): Promise<LLMResponse | { response: string }>;
   discoverModels(provider: ProviderType, apiKey?: string, endpoint?: string): Promise<IPCResponse<LLMModel[]> | LLMModel[]>;
   triggerScreenshot(): Promise<IPCResponse<{ success: boolean }>>;
+  findInPage(tabId: string, text: string): Promise<IPCResponse<{ requestId?: number }> | { success: boolean }>;
+  findNext(tabId: string): Promise<IPCResponse | { success: boolean }>;
+  findPrevious(tabId: string): Promise<IPCResponse | { success: boolean }>;
+  stopFindInPage(tabId: string): Promise<IPCResponse | { success: boolean }>;
+  setSearchBarVisible(visible: boolean): Promise<IPCResponse | { success: boolean }>;
   onLLMChunk?(callback: (payload: { tabId: string; chunk: string }) => void): () => void;
 }
 
@@ -104,6 +109,11 @@ export function initializeIPC(): IPCBridgeAPI {
     sendQuery: (query: string, options?: QueryOptions) => window.electronAPI.sendQuery(query, options),
     discoverModels: (provider: ProviderType, apiKey?: string, endpoint?: string) => window.electronAPI.discoverModels(provider, apiKey, endpoint),
     triggerScreenshot: () => window.electronAPI.triggerScreenshot(),
+    findInPage: (tabId: string, text: string) => window.electronAPI.findInPage(tabId, text),
+    findNext: (tabId: string) => window.electronAPI.findNext(tabId),
+    findPrevious: (tabId: string) => window.electronAPI.findPrevious(tabId),
+    stopFindInPage: (tabId: string) => window.electronAPI.stopFindInPage(tabId),
+    setSearchBarVisible: (visible: boolean) => window.electronAPI.setSearchBarVisible(visible),
   };
 }
 
@@ -291,6 +301,26 @@ function createMockAPI(): IPCBridgeAPI {
     triggerScreenshot: async () => {
       console.log('Mock: triggerScreenshot');
       return { success: true, data: { success: true } };
+    },
+    findInPage: async (tabId: string, text: string) => {
+      console.log('Mock: findInPage', tabId, text);
+      return { success: true };
+    },
+    findNext: async (tabId: string) => {
+      console.log('Mock: findNext', tabId);
+      return { success: true };
+    },
+    findPrevious: async (tabId: string) => {
+      console.log('Mock: findPrevious', tabId);
+      return { success: true };
+    },
+    stopFindInPage: async (tabId: string) => {
+      console.log('Mock: stopFindInPage', tabId);
+      return { success: true };
+    },
+    setSearchBarVisible: async (visible: boolean) => {
+      console.log('Mock: setSearchBarVisible', visible);
+      return { success: true };
     },
   };
 }
