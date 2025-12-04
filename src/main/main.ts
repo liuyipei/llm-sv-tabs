@@ -14,6 +14,10 @@ import type { QueryOptions, LLMResponse, Bookmark, ExtractedContent, ProviderTyp
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Chrome-like User-Agent to avoid "Electron" detection by sites like Google
+// This matches a recent stable Chrome release
+const CHROME_USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+
 let mainWindow: BrowserWindow | null = null;
 let tabManager: TabManager | null = null;
 let bookmarkManager: BookmarkManager | null = null;
@@ -73,6 +77,31 @@ function createWindow(): void {
     } else {
       callback({ responseHeaders: details.responseHeaders });
     }
+  });
+
+  // Set Chrome-like User-Agent on the default session
+  // This affects all WebContentsViews that use the default session
+  session.defaultSession.setUserAgent(CHROME_USER_AGENT);
+
+  // Sanitize outgoing request headers to remove any Electron identifiers
+  // This is a fallback in case any headers still contain "Electron"
+  session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
+    const headers = { ...details.requestHeaders };
+
+    // Ensure User-Agent doesn't contain Electron (belt and suspenders)
+    if (headers['User-Agent']?.includes('Electron')) {
+      headers['User-Agent'] = CHROME_USER_AGENT;
+    }
+
+    // Remove or sanitize any Sec-CH-UA headers that might contain Electron
+    // (though disabling UserAgentClientHint should prevent these)
+    for (const key of Object.keys(headers)) {
+      if (key.toLowerCase().startsWith('sec-ch-ua') && headers[key]?.includes('Electron')) {
+        delete headers[key];
+      }
+    }
+
+    callback({ requestHeaders: headers });
   });
 
   mainWindow = new BrowserWindow({
@@ -788,6 +817,10 @@ function setupGlobalShortcuts(): void {
     }
   }
 }
+
+// Remove Electron from client hints to avoid bot detection
+// This prevents the Sec-CH-UA header from revealing "Electron"
+app.commandLine.appendSwitch('disable-features', 'UserAgentClientHint');
 
 app.whenReady().then(() => {
   createWindow();
