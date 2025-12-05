@@ -223,12 +223,12 @@
         🐛
       </button>
     {:else}
-      <button class="refresh-btn" onclick={handleRefreshClick} title="Reload tab">
+      <button class="refresh-btn" onclick={handleRefreshClick} title="Reload tab (Ctrl+R)">
         ↻
       </button>
     {/if}
 
-    <button class="close-btn" onclick={handleClose} title="Close tab">
+    <button class="close-btn" onclick={handleClose} title="Close tab (Ctrl+W)">
       ×
     </button>
   </div>

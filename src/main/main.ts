@@ -701,6 +701,66 @@ function setupGlobalShortcuts(): void {
     console.log(`Find shortcut registered: ${findShortcut}`);
   }
 
+  // Register Ctrl+W / Cmd+W for closing the active tab (not the window)
+  const closeTabShortcut = process.platform === 'darwin' ? 'Command+W' : 'Ctrl+W';
+  const closeTabRegistered = globalShortcut.register(closeTabShortcut, () => {
+    console.log('Close tab shortcut triggered:', closeTabShortcut);
+    if (tabManager) {
+      const activeTabId = tabManager.getActiveTabs().activeTabId;
+      if (activeTabId) {
+        tabManager.closeTab(activeTabId);
+      }
+    }
+  });
+
+  if (!closeTabRegistered) {
+    console.error('Failed to register close tab shortcut:', closeTabShortcut);
+  } else {
+    console.log(`Close tab shortcut registered: ${closeTabShortcut}`);
+  }
+
+  // Register Ctrl+T / Cmd+T for opening a new tab (focus URL bar)
+  const newTabShortcut = process.platform === 'darwin' ? 'Command+T' : 'Ctrl+T';
+  const newTabRegistered = globalShortcut.register(newTabShortcut, () => {
+    console.log('New tab shortcut triggered:', newTabShortcut);
+    const windows = BrowserWindow.getAllWindows();
+    if (windows.length > 0) {
+      const mainWindow = windows[0];
+      mainWindow.show();
+      mainWindow.focus();
+      mainWindow.webContents.focus();
+
+      // Focus URL bar for new tab input
+      setTimeout(() => {
+        mainWindow.webContents.send('focus-url-bar');
+      }, 10);
+    }
+  });
+
+  if (!newTabRegistered) {
+    console.error('Failed to register new tab shortcut:', newTabShortcut);
+  } else {
+    console.log(`New tab shortcut registered: ${newTabShortcut}`);
+  }
+
+  // Register Ctrl+R / Cmd+R for reloading the current tab
+  const reloadShortcut = process.platform === 'darwin' ? 'Command+R' : 'Ctrl+R';
+  const reloadRegistered = globalShortcut.register(reloadShortcut, () => {
+    console.log('Reload shortcut triggered:', reloadShortcut);
+    if (tabManager) {
+      const activeTabId = tabManager.getActiveTabs().activeTabId;
+      if (activeTabId) {
+        tabManager.reloadTab(activeTabId);
+      }
+    }
+  });
+
+  if (!reloadRegistered) {
+    console.error('Failed to register reload shortcut:', reloadShortcut);
+  } else {
+    console.log(`Reload shortcut registered: ${reloadShortcut}`);
+  }
+
   // Register Cmd+L / Ctrl+L for focusing URL bar (browser-style)
   const focusUrlShortcut = process.platform === 'darwin' ? 'Command+L' : 'Ctrl+L';
   const focusUrlRegistered = globalShortcut.register(focusUrlShortcut, () => {

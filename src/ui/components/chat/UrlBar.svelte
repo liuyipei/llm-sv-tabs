@@ -158,8 +158,9 @@
     onkeydown={handleUrlKeydown}
     placeholder="Enter URL to open a new tab..."
     class="url-input"
+    title="Address bar (Ctrl+L to focus, Ctrl+T for new tab)"
   />
-  <button onclick={handleUrlSubmit} class="url-submit-btn" disabled={!$urlInput.trim()}>
+  <button onclick={handleUrlSubmit} class="url-submit-btn" disabled={!$urlInput.trim()} title="Open URL (Enter)">
     Open
   </button>
 </div>
