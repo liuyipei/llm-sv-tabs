@@ -26,6 +26,7 @@ class MockWebContentsView {
       inspectElement: vi.fn(),
       isDevToolsOpened: vi.fn().mockReturnValue(false),
       openDevTools: vi.fn(),
+      isDestroyed: vi.fn().mockReturnValue(false), // Add isDestroyed check
     };
     this.setBounds = vi.fn();
     this.setAutoResize = vi.fn();

@@ -52,14 +52,29 @@ class TabManager {
     const tab = this.tabs.get(this.activeTabId);
     if (!tab || !tab.view) return;
 
-    const bounds = this.mainWindow.getContentBounds();
-    const headerHeight = this.HEADER_HEIGHT + (this.isSearchBarVisible ? this.SEARCH_BAR_HEIGHT : 0);
-    tab.view.setBounds({
-      x: this.SIDEBAR_WIDTH,
-      y: headerHeight,
-      width: Math.max(0, bounds.width - this.SIDEBAR_WIDTH),
-      height: Math.max(0, bounds.height - headerHeight),
-    });
+    // Check if the view's webContents has been destroyed
+    if (tab.view.webContents.isDestroyed()) {
+      console.warn(`Tab ${this.activeTabId} has a destroyed webContents, skipping bounds update`);
+      return;
+    }
+
+    try {
+      const bounds = this.mainWindow.getContentBounds();
+      const headerHeight = this.HEADER_HEIGHT + (this.isSearchBarVisible ? this.SEARCH_BAR_HEIGHT : 0);
+      tab.view.setBounds({
+        x: this.SIDEBAR_WIDTH,
+        y: headerHeight,
+        width: Math.max(0, bounds.width - this.SIDEBAR_WIDTH),
+        height: Math.max(0, bounds.height - headerHeight),
+      });
+    } catch (error) {
+      // Handle race condition where view is destroyed between check and usage
+      if (error instanceof Error && error.message.includes('destroyed')) {
+        console.warn(`Tab ${this.activeTabId} was destroyed during bounds update`);
+      } else {
+        throw error; // Re-throw if it's not a destroyed object error
+      }
+    }
   }
 
   /**
@@ -694,13 +709,20 @@ class TabManager {
     const tab = this.tabs.get(tabId);
     if (!tab) return { success: false, error: 'Tab not found' };
     if (!tab.view || !tab.view.webContents) return { success: false, error: 'Tab has no web contents' };
+    if (tab.view.webContents.isDestroyed()) return { success: false, error: 'Tab webContents has been destroyed' };
 
-    if (tab.view.webContents.navigationHistory.canGoBack()) {
-      tab.view.webContents.navigationHistory.goBack();
-      return { success: true };
+    try {
+      if (tab.view.webContents.navigationHistory.canGoBack()) {
+        tab.view.webContents.navigationHistory.goBack();
+        return { success: true };
+      }
+      return { success: false, error: 'Cannot go back' };
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('destroyed')) {
+        return { success: false, error: 'Tab webContents was destroyed' };
+      }
+      throw error;
     }
-
-    return { success: false, error: 'Cannot go back' };
   }
 
   /**
@@ -710,13 +732,20 @@ class TabManager {
     const tab = this.tabs.get(tabId);
     if (!tab) return { success: false, error: 'Tab not found' };
     if (!tab.view || !tab.view.webContents) return { success: false, error: 'Tab has no web contents' };
+    if (tab.view.webContents.isDestroyed()) return { success: false, error: 'Tab webContents has been destroyed' };
 
-    if (tab.view.webContents.navigationHistory.canGoForward()) {
-      tab.view.webContents.navigationHistory.goForward();
-      return { success: true };
+    try {
+      if (tab.view.webContents.navigationHistory.canGoForward()) {
+        tab.view.webContents.navigationHistory.goForward();
+        return { success: true };
+      }
+      return { success: false, error: 'Cannot go forward' };
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('destroyed')) {
+        return { success: false, error: 'Tab webContents was destroyed' };
+      }
+      throw error;
     }
-
-    return { success: false, error: 'Cannot go forward' };
   }
 
   /**
@@ -729,12 +758,22 @@ class TabManager {
       // For Svelte component tabs, navigation is not supported
       return { success: true, canGoBack: false, canGoForward: false };
     }
+    if (tab.view.webContents.isDestroyed()) {
+      return { success: true, canGoBack: false, canGoForward: false };
+    }
 
-    return {
-      success: true,
-      canGoBack: tab.view.webContents.navigationHistory.canGoBack(),
-      canGoForward: tab.view.webContents.navigationHistory.canGoForward(),
-    };
+    try {
+      return {
+        success: true,
+        canGoBack: tab.view.webContents.navigationHistory.canGoBack(),
+        canGoForward: tab.view.webContents.navigationHistory.canGoForward(),
+      };
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('destroyed')) {
+        return { success: true, canGoBack: false, canGoForward: false };
+      }
+      throw error;
+    }
   }
 
   /**
@@ -816,19 +855,48 @@ class TabManager {
     tab.lastViewed = Date.now();
 
     if (tab.view) {
-      // Traditional WebContentsView tab (webpage, notes, uploads)
-      this.mainWindow.contentView.addChildView(tab.view);
-      this.activeWebContentsView = tab.view;
+      // Check if the view's webContents has been destroyed
+      if (tab.view.webContents.isDestroyed()) {
+        console.warn(`Tab ${tabId} has a destroyed webContents, skipping activation`);
+        // Remove the destroyed tab
+        this.tabs.delete(tabId);
+        // Try to activate another tab
+        const remainingTabs = Array.from(this.tabs.keys());
+        if (remainingTabs.length > 0) {
+          return this.setActiveTab(remainingTabs[0]);
+        }
+        return { success: false, error: 'Tab webContents has been destroyed' };
+      }
 
-      // Position the view to the right of the sidebar and below the header (and search bar if visible)
-      const bounds = this.mainWindow.getContentBounds();
-      const headerHeight = this.HEADER_HEIGHT + (this.isSearchBarVisible ? this.SEARCH_BAR_HEIGHT : 0);
-      tab.view.setBounds({
-        x: this.SIDEBAR_WIDTH,
-        y: headerHeight,
-        width: Math.max(0, bounds.width - this.SIDEBAR_WIDTH),
-        height: Math.max(0, bounds.height - headerHeight),
-      });
+      try {
+        // Traditional WebContentsView tab (webpage, notes, uploads)
+        this.mainWindow.contentView.addChildView(tab.view);
+        this.activeWebContentsView = tab.view;
+
+        // Position the view to the right of the sidebar and below the header (and search bar if visible)
+        const bounds = this.mainWindow.getContentBounds();
+        const headerHeight = this.HEADER_HEIGHT + (this.isSearchBarVisible ? this.SEARCH_BAR_HEIGHT : 0);
+        tab.view.setBounds({
+          x: this.SIDEBAR_WIDTH,
+          y: headerHeight,
+          width: Math.max(0, bounds.width - this.SIDEBAR_WIDTH),
+          height: Math.max(0, bounds.height - headerHeight),
+        });
+      } catch (error) {
+        // Handle race condition where view is destroyed between check and usage
+        if (error instanceof Error && error.message.includes('destroyed')) {
+          console.warn(`Tab ${tabId} was destroyed during activation`);
+          // Remove the destroyed tab
+          this.tabs.delete(tabId);
+          // Try to activate another tab
+          const remainingTabs = Array.from(this.tabs.keys());
+          if (remainingTabs.length > 0) {
+            return this.setActiveTab(remainingTabs[0]);
+          }
+          return { success: false, error: 'Tab webContents was destroyed during activation' };
+        }
+        throw error; // Re-throw if it's not a destroyed object error
+      }
     } else {
       // Svelte component tab (LLM responses)
       // Renderer will show Svelte component in the content area
@@ -869,6 +937,7 @@ class TabManager {
   private async extractFavicon(tabId: string): Promise<string | null> {
     const tab = this.tabs.get(tabId);
     if (!tab || !tab.view || !tab.view.webContents) return null;
+    if (tab.view.webContents.isDestroyed()) return null;
 
     try {
       const result = await tab.view.webContents.executeJavaScript(`
@@ -912,8 +981,19 @@ class TabManager {
     if (!tab) return { success: false, error: 'Tab not found' };
 
     if (tab.view && tab.view.webContents) {
-      tab.view.webContents.reload();
-      return { success: true };
+      if (tab.view.webContents.isDestroyed()) {
+        return { success: false, error: 'Tab webContents has been destroyed' };
+      }
+
+      try {
+        tab.view.webContents.reload();
+        return { success: true };
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('destroyed')) {
+          return { success: false, error: 'Tab webContents was destroyed' };
+        }
+        throw error;
+      }
     }
 
     return { success: false, error: 'Tab view not available' };
@@ -1030,6 +1110,7 @@ class TabManager {
     const tab = this.tabs.get(tabId);
     if (!tab) return { success: false, error: 'Tab not found' };
     if (!tab.view || !tab.view.webContents) return { success: false, error: 'Tab has no web contents' };
+    if (tab.view.webContents.isDestroyed()) return { success: false, error: 'Tab webContents has been destroyed' };
 
     if (!text.trim()) {
       this.stopFindInPage(tabId);
@@ -1043,25 +1124,32 @@ class TabManager {
     this.currentFindRequestId++;
     const requestId = this.currentFindRequestId;
 
-    // Set up the found-in-page listener
-    tab.view.webContents.once('found-in-page', (_event, result) => {
-      // Only send if this is still the current request
-      if (requestId === this.currentFindRequestId) {
-        this.sendToRenderer('found-in-page', {
-          activeMatchOrdinal: result.activeMatchOrdinal,
-          matches: result.matches,
-          requestId: requestId,
-        });
+    try {
+      // Set up the found-in-page listener
+      tab.view.webContents.once('found-in-page', (_event, result) => {
+        // Only send if this is still the current request
+        if (requestId === this.currentFindRequestId) {
+          this.sendToRenderer('found-in-page', {
+            activeMatchOrdinal: result.activeMatchOrdinal,
+            matches: result.matches,
+            requestId: requestId,
+          });
+        }
+      });
+
+      // Start the search
+      tab.view.webContents.findInPage(text, {
+        forward: true,
+        findNext: false,
+      });
+
+      return { success: true, requestId };
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('destroyed')) {
+        return { success: false, error: 'Tab webContents was destroyed' };
       }
-    });
-
-    // Start the search
-    tab.view.webContents.findInPage(text, {
-      forward: true,
-      findNext: false,
-    });
-
-    return { success: true, requestId };
+      throw error;
+    }
   }
 
   /**
@@ -1071,25 +1159,33 @@ class TabManager {
     const tab = this.tabs.get(tabId);
     if (!tab) return { success: false, error: 'Tab not found' };
     if (!tab.view || !tab.view.webContents) return { success: false, error: 'Tab has no web contents' };
+    if (tab.view.webContents.isDestroyed()) return { success: false, error: 'Tab webContents has been destroyed' };
 
     const searchText = this.lastSearchText.get(tabId);
     if (!searchText) return { success: false, error: 'No active search' };
 
-    // Set up the found-in-page listener
-    tab.view.webContents.once('found-in-page', (_event, result) => {
-      this.sendToRenderer('found-in-page', {
-        activeMatchOrdinal: result.activeMatchOrdinal,
-        matches: result.matches,
+    try {
+      // Set up the found-in-page listener
+      tab.view.webContents.once('found-in-page', (_event, result) => {
+        this.sendToRenderer('found-in-page', {
+          activeMatchOrdinal: result.activeMatchOrdinal,
+          matches: result.matches,
+        });
       });
-    });
 
-    // Find next using the stored search text
-    tab.view.webContents.findInPage(searchText, {
-      forward: true,
-      findNext: true,
-    });
+      // Find next using the stored search text
+      tab.view.webContents.findInPage(searchText, {
+        forward: true,
+        findNext: true,
+      });
 
-    return { success: true };
+      return { success: true };
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('destroyed')) {
+        return { success: false, error: 'Tab webContents was destroyed' };
+      }
+      throw error;
+    }
   }
 
   /**
@@ -1099,25 +1195,33 @@ class TabManager {
     const tab = this.tabs.get(tabId);
     if (!tab) return { success: false, error: 'Tab not found' };
     if (!tab.view || !tab.view.webContents) return { success: false, error: 'Tab has no web contents' };
+    if (tab.view.webContents.isDestroyed()) return { success: false, error: 'Tab webContents has been destroyed' };
 
     const searchText = this.lastSearchText.get(tabId);
     if (!searchText) return { success: false, error: 'No active search' };
 
-    // Set up the found-in-page listener
-    tab.view.webContents.once('found-in-page', (_event, result) => {
-      this.sendToRenderer('found-in-page', {
-        activeMatchOrdinal: result.activeMatchOrdinal,
-        matches: result.matches,
+    try {
+      // Set up the found-in-page listener
+      tab.view.webContents.once('found-in-page', (_event, result) => {
+        this.sendToRenderer('found-in-page', {
+          activeMatchOrdinal: result.activeMatchOrdinal,
+          matches: result.matches,
+        });
       });
-    });
 
-    // Find previous using the stored search text
-    tab.view.webContents.findInPage(searchText, {
-      forward: false,
-      findNext: true,
-    });
+      // Find previous using the stored search text
+      tab.view.webContents.findInPage(searchText, {
+        forward: false,
+        findNext: true,
+      });
 
-    return { success: true };
+      return { success: true };
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('destroyed')) {
+        return { success: false, error: 'Tab webContents was destroyed' };
+      }
+      throw error;
+    }
   }
 
   /**
@@ -1127,12 +1231,22 @@ class TabManager {
     const tab = this.tabs.get(tabId);
     if (!tab) return { success: false, error: 'Tab not found' };
     if (!tab.view || !tab.view.webContents) return { success: true }; // Not an error, just nothing to do
+    if (tab.view.webContents.isDestroyed()) return { success: true }; // Not an error, just nothing to do
 
-    tab.view.webContents.stopFindInPage('clearSelection');
-    this.lastSearchText.delete(tabId); // Clear stored search text
-    this.currentFindRequestId++; // Invalidate any pending requests
-
-    return { success: true };
+    try {
+      tab.view.webContents.stopFindInPage('clearSelection');
+      this.lastSearchText.delete(tabId); // Clear stored search text
+      this.currentFindRequestId++; // Invalidate any pending requests
+      return { success: true };
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('destroyed')) {
+        // Clear stored search text even if webContents is destroyed
+        this.lastSearchText.delete(tabId);
+        this.currentFindRequestId++;
+        return { success: true }; // Not an error, just nothing to do
+      }
+      throw error;
+    }
   }
 }
 
