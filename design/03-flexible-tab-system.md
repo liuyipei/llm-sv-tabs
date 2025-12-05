@@ -502,6 +502,90 @@ async closeTab(tabId: string): Promise<void> {
 }
 ```
 
+### Race Conditions in Tab Destruction
+
+**Current State (Band-Aid Approach)**
+
+The current implementation uses try-catch blocks to prevent crashes when operations race with tab destruction:
+
+```typescript
+setActiveTab(tabId: string): { success: boolean; error?: string } {
+  // Check if destroyed
+  if (tab.view.webContents.isDestroyed()) {
+    return { success: false, error: 'Tab webContents has been destroyed' };
+  }
+
+  try {
+    // Race window: object could be destroyed here
+    tab.view.setBounds(...);
+  } catch (error) {
+    // Catch and suppress
+    if (error.message.includes('destroyed')) {
+      return { success: false, error: 'Tab webContents was destroyed' };
+    }
+    throw error;
+  }
+}
+```
+
+**Problem**: This prevents crashes but doesn't address the root cause. Operations can still execute on resources being destroyed, leading to silent failures.
+
+**Future Improvement: Inverse Order Pattern**
+
+Industry standard for graceful shutdown follows the "inverse order" rule:
+
+1. **Mark as closing** - Set `state: 'closing'` to prevent new operations
+2. **Stop accepting work** - Reject operations on closing tabs early
+3. **Wait for pending operations** - Let in-flight async work complete
+4. **Destroy resources** - Remove view, close webContents
+5. **Remove from Map** - Clean up reference
+
+```typescript
+// Proposed implementation
+interface TabWithView extends Tab {
+  view?: WebContentsView;
+  state: 'active' | 'closing' | 'destroyed';  // Add lifecycle state
+}
+
+async closeTab(tabId: string): Promise<void> {
+  const tab = this.tabs.get(tabId);
+
+  // Step 1: Mark as closing (prevents new operations)
+  tab.state = 'closing';
+
+  // Step 2: Wait for pending operations (if tracking)
+  await this.waitForPendingOperations(tabId);
+
+  // Step 3: Destroy resources
+  if (tab.view) {
+    this.mainWindow.contentView.removeChildView(tab.view);
+  }
+
+  // Step 4: Mark as destroyed
+  tab.state = 'destroyed';
+
+  // Step 5: Remove from Map
+  this.tabs.delete(tabId);
+}
+
+// Early rejection of operations on closing tabs
+setActiveTab(tabId: string): { success: boolean; error?: string } {
+  const tab = this.tabs.get(tabId);
+  if (tab.state !== 'active') {
+    return { success: false, error: 'Tab is closing or destroyed' };
+  }
+  // ... rest of operation
+}
+```
+
+**Benefits**:
+- Prevents operations on resources being destroyed
+- No silent failures or data loss
+- Proper ordering eliminates race conditions
+- try-catch becomes last resort, not primary defense
+
+**Reference**: Similar to Node.js graceful shutdown pattern (close server → wait for requests → close DB → exit).
+
 ### Switch Tab
 
 ```typescript
