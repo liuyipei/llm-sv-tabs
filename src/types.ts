@@ -17,6 +17,7 @@ export interface Tab {
   lastViewed?: number;
   created?: number;
   metadata?: TabMetadata;
+  component?: 'llm-response' | 'note' | 'api-key-instructions';
 }
 
 export interface TabMetadata {

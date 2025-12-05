@@ -1,18 +1,20 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, type Snippet } from 'svelte';
 
   type Props = {
     onclose?: () => void;
     closeOnOverlayClick?: boolean;
     closeOnEscape?: boolean;
     ariaLabel?: string;
+    children?: Snippet;
   };
 
   let {
     onclose,
     closeOnOverlayClick = true,
     closeOnEscape = true,
-    ariaLabel = 'Dialog'
+    ariaLabel = 'Dialog',
+    children
   }: Props = $props();
 
   function handleOverlayClick(): void {
@@ -34,6 +36,7 @@
         window.removeEventListener('keydown', handleKeydown);
       };
     }
+    return undefined;
   });
 </script>
 

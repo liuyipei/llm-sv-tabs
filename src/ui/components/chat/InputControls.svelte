@@ -4,7 +4,7 @@
   import { provider, model, apiKeys, endpoint, temperature, maxTokens, systemPrompt, recordModelUsage } from '$stores/config';
   import { selectedTabs } from '$stores/tabs';
   import type { IPCBridgeAPI } from '$lib/ipc-bridge';
-  import type { QueryOptions } from '$types';
+  import type { QueryOptions, LLMResponse } from '../../../types';
 
   const ipc = getContext<IPCBridgeAPI>('ipc');
   const setFocusLLMInputCallback = getContext<(callback: () => void) => void>('setFocusLLMInputCallback');
@@ -23,7 +23,7 @@
 
       // Create tab immediately with query only (streaming-ready design)
       const tabResult = await ipc.openLLMResponseTab(query);
-      const tabId = tabResult.data?.tabId;
+      const tabId = 'data' in tabResult && tabResult.data ? tabResult.data.tabId : ('tabId' in tabResult ? tabResult.tabId : undefined);
 
       try {
         // Build query options from config stores
@@ -39,7 +39,7 @@
           tabId: tabId, // Pass the tab ID to avoid duplicate creation
         };
 
-        const response = await ipc.sendQuery(query, options);
+        const response = await ipc.sendQuery(query, options) as LLMResponse;
 
         // Record model usage if we got a valid response
         if (response.model && !response.error) {

@@ -23,7 +23,11 @@
     if (!ipc) return;
     try {
       const result = await ipc.getNavigationState(tabId);
-      if (result.success) {
+      // Handle both IPCResponse<{ canGoBack, canGoForward }> and { success, canGoBack, canGoForward }
+      if ('data' in result && result.data) {
+        canGoBack = result.data.canGoBack || false;
+        canGoForward = result.data.canGoForward || false;
+      } else if ('canGoBack' in result) {
         canGoBack = result.canGoBack || false;
         canGoForward = result.canGoForward || false;
       }
