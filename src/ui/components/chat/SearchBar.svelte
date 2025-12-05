@@ -201,6 +201,7 @@
         placeholder={hasWebContents || isSvelteComponentTab ? "Find in page..." : "Search not available for this tab"}
         class="search-input"
         disabled={!hasWebContents && !isSvelteComponentTab}
+        title="Find in page (Ctrl+F)"
       />
 
       {#if searchInput && (hasWebContents || isSvelteComponentTab)}

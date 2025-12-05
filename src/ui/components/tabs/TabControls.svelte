@@ -15,7 +15,7 @@
 
 <div class="tab-controls">
   <div class="header-row">
-    <div class="tabs-label">
+    <div class="tabs-label" title="Ctrl+Tab: Next tab, Ctrl+Shift+Tab: Previous tab">
       <h2>Tabs</h2>
       <span class="tab-count">{tabCount}</span>
     </div>

@@ -227,7 +227,7 @@
           class="nav-btn"
           class:active={$activeSidebarView === 'chat'}
           onclick={() => setView('chat')}
-          title="LLM Conversation"
+          title="LLM Conversation (Ctrl+. to focus input)"
         >
           💬
         </button>
@@ -243,7 +243,7 @@
           class="nav-btn"
           class:active={$activeSidebarView === 'bookmarks'}
           onclick={() => setView('bookmarks')}
-          title="Bookmarks"
+          title="Bookmarks (Ctrl+D to bookmark current tab)"
         >
           ⭐
         </button>
@@ -251,7 +251,7 @@
           class="nav-btn"
           class:active={$activeSidebarView === 'notes'}
           onclick={() => setView('notes')}
-          title="Notes & Files"
+          title="Notes & Files (Ctrl+Alt+S for screenshot)"
         >
           📝
         </button>

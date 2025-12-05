@@ -24,6 +24,12 @@ export interface ShortcutAction {
 /**
  * Keyboard shortcuts configuration
  * Following Chrome/browser conventions with LLM-specific additions
+ *
+ * Note: Some shortcuts (Ctrl+W, Ctrl+T, Ctrl+R, Ctrl+F, Ctrl+L) are handled as
+ * global shortcuts in the main process to intercept them before Electron's
+ * default behavior (e.g., Ctrl+W closing the window).
+ *
+ * These are kept here for reference and for the renderer-side fallback.
  */
 export const shortcuts: ShortcutConfig[] = [
   {
@@ -57,6 +63,50 @@ export const shortcuts: ShortcutConfig[] = [
     action: 'toggleSearchBar',
   },
 ];
+
+/**
+ * All keyboard shortcuts for documentation and tooltips
+ * Includes shortcuts handled by both renderer and main process
+ */
+export const allShortcuts = {
+  // Tab management
+  closeTab: { key: 'W', modifiers: ['Ctrl'], description: 'Close active tab' },
+  newTab: { key: 'T', modifiers: ['Ctrl'], description: 'New tab (focus URL bar)' },
+  nextTab: { key: 'Tab', modifiers: ['Ctrl'], description: 'Next tab' },
+  previousTab: { key: 'Tab', modifiers: ['Ctrl', 'Shift'], description: 'Previous tab' },
+
+  // Navigation
+  goBack: { key: 'Left', modifiers: ['Alt'], description: 'Go back' },
+  goForward: { key: 'Right', modifiers: ['Alt'], description: 'Go forward' },
+  reload: { key: 'R', modifiers: ['Ctrl'], description: 'Reload page' },
+
+  // Focus
+  focusUrlBar: { key: 'L', modifiers: ['Ctrl'], description: 'Focus URL bar' },
+  focusLLMInput: { key: '.', modifiers: ['Ctrl'], description: 'Focus LLM input' },
+
+  // Actions
+  bookmark: { key: 'D', modifiers: ['Ctrl'], description: 'Bookmark current tab' },
+  findInPage: { key: 'F', modifiers: ['Ctrl'], description: 'Find in page' },
+  screenshot: { key: 'S', modifiers: ['Ctrl', 'Alt'], description: 'Capture screenshot' },
+};
+
+/**
+ * Format a shortcut for tooltip display
+ * Returns platform-appropriate string (e.g., "Ctrl+W" on Windows/Linux, "Cmd+W" on Mac)
+ */
+export function formatShortcutForTooltip(shortcut: { key: string; modifiers: string[] }): string {
+  const isMac = typeof navigator !== 'undefined' && navigator.platform.toLowerCase().includes('mac');
+
+  const modifierMap: Record<string, string> = {
+    'Ctrl': isMac ? 'Cmd' : 'Ctrl',
+    'Alt': isMac ? 'Option' : 'Alt',
+    'Shift': 'Shift',
+    'Meta': isMac ? 'Cmd' : 'Win',
+  };
+
+  const formattedModifiers = shortcut.modifiers.map(m => modifierMap[m] || m);
+  return [...formattedModifiers, shortcut.key].join('+');
+}
 
 /**
  * Check if a keyboard event matches a shortcut configuration

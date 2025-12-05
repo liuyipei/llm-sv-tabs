@@ -114,6 +114,7 @@
       placeholder="Ask a question about your tabs... (Enter to send, Shift+Enter for new line)"
       class="query-input"
       rows="8"
+      title="LLM Query (Ctrl+. to focus)"
     ></textarea>
     <button
       onclick={handleQuerySubmit}

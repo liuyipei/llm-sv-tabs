@@ -6,12 +6,39 @@ This document describes the keyboard shortcuts available in the LLM Browser appl
 
 The following keyboard shortcuts are available, combining Chrome conventions with LLM-specific features:
 
+### Tab Management
 | Shortcut | Action | Description |
 |----------|--------|-------------|
-| `Ctrl+L` | Focus URL Input | Focuses and selects the URL input field (address bar equivalent) |
+| `Ctrl+W` | Close Active Tab | Closes the currently active tab (not the window) |
+| `Ctrl+T` | New Tab | Opens a new tab by focusing the URL bar |
+| `Ctrl+Tab` | Next Tab | Switches to the next tab |
+| `Ctrl+Shift+Tab` | Previous Tab | Switches to the previous tab |
+
+### Navigation
+| Shortcut | Action | Description |
+|----------|--------|-------------|
+| `Alt+Left` | Go Back | Navigate back in history |
+| `Alt+Right` | Go Forward | Navigate forward in history |
+| `Ctrl+R` | Reload | Reload the current tab |
+| `Ctrl+L` | Focus URL Input | Focuses and selects the URL input field (address bar) |
+
+### Search
+| Shortcut | Action | Description |
+|----------|--------|-------------|
+| `Ctrl+F` | Find in Page | Opens the find-in-page search bar |
+
+### LLM Features
+| Shortcut | Action | Description |
+|----------|--------|-------------|
 | `Ctrl+.` | **Focus LLM Input** | Focuses the LLM query input (primary AI feature) |
-| `Ctrl+W` | Close Active Tab | Closes the currently active tab |
+| `Ctrl+Alt+S` | Screenshot | Capture a screen region for LLM analysis |
+
+### Other Actions
+| Shortcut | Action | Description |
+|----------|--------|-------------|
 | `Ctrl+D` | Bookmark Tab | Bookmarks the currently active tab |
+
+> **Note**: On macOS, use `Cmd` instead of `Ctrl` for all shortcuts.
 
 > **Note**: `Ctrl+.` follows the modern standard for AI sidebars, similar to Microsoft Edge Copilot. It's easy to hit with one hand but hard to trigger accidentally.
 
