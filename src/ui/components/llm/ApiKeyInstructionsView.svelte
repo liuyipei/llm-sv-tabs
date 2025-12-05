@@ -1,8 +1,60 @@
 <script lang="ts">
-  import { getContext } from 'svelte';
+  import { getContext, onDestroy } from 'svelte';
   import type { IPCBridgeAPI } from '$lib/ipc-bridge';
+  import { searchState, updateSearchResults } from '$stores/search';
+  import { createDOMSearch, type DOMSearchInstance } from '$lib/dom-search';
 
   const ipc = getContext<IPCBridgeAPI>('ipc');
+
+  // DOM search
+  let container: HTMLDivElement | null = null;
+  let domSearch: DOMSearchInstance | null = null;
+  let lastCommandSeq = 0;
+
+  // Effect to handle search commands
+  $effect(() => {
+    const state = $searchState;
+
+    // Only process if there's a new command
+    if (state.commandSeq === lastCommandSeq || !state.command) {
+      return;
+    }
+    lastCommandSeq = state.commandSeq;
+
+    // Initialize DOM search if needed
+    if (!domSearch && container) {
+      domSearch = createDOMSearch(container);
+    }
+
+    if (!domSearch) return;
+
+    let result;
+    switch (state.command) {
+      case 'search':
+        result = domSearch.search(state.searchText);
+        updateSearchResults(result.activeMatchIndex, result.totalMatches);
+        break;
+      case 'next':
+        result = domSearch.findNext();
+        updateSearchResults(result.activeMatchIndex, result.totalMatches);
+        break;
+      case 'previous':
+        result = domSearch.findPrevious();
+        updateSearchResults(result.activeMatchIndex, result.totalMatches);
+        break;
+      case 'clear':
+        domSearch.clear();
+        updateSearchResults(0, 0);
+        break;
+    }
+  });
+
+  onDestroy(() => {
+    if (domSearch) {
+      domSearch.destroy();
+      domSearch = null;
+    }
+  });
 
   interface ApiKeyInstruction {
     provider: string;
@@ -62,7 +114,7 @@
   ];
 </script>
 
-<div class="api-key-instructions-page">
+<div class="api-key-instructions-page" bind:this={container}>
   <div class="content">
     <h1>Where to get API Keys</h1>
     <p class="description">
@@ -231,5 +283,20 @@
     font-size: 0.8rem;
     color: #999999;
     font-style: italic;
+  }
+
+  /* Search highlight styles */
+  :global(.api-key-instructions-page .dom-search-highlight) {
+    background-color: #5a4d00;
+    color: #fff;
+    border-radius: 2px;
+    padding: 0 1px;
+  }
+
+  :global(.api-key-instructions-page .dom-search-highlight-active) {
+    background-color: #ff9632;
+    color: #000;
+    outline: 2px solid #ff9632;
+    outline-offset: 1px;
   }
 </style>

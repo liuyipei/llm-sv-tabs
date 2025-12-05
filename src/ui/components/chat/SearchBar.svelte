@@ -1,6 +1,13 @@
 <script lang="ts">
   import { getContext, onMount } from 'svelte';
   import { activeTabId, activeTabs } from '$stores/tabs';
+  import {
+    searchState,
+    performDOMSearch,
+    findNextDOM,
+    findPreviousDOM,
+    clearDOMSearch,
+  } from '$stores/search';
   import type { IPCBridgeAPI } from '$lib/ipc-bridge';
 
   const ipc = getContext<IPCBridgeAPI>('ipc');
@@ -16,10 +23,31 @@
   let totalMatches = 0;
   let isSearching = false;
 
-  // Reactive: Get current tab info to check if it has a WebContentsView
-  // TODO: Add DOM-based search for LLM response tabs (Svelte components without WebContentsView)
+  // Reactive: Get current tab info to determine search mode
   $: currentTab = $activeTabId ? $activeTabs.get($activeTabId) : null;
-  $: hasWebContents = currentTab && !currentTab.component;
+  $: hasWebContents = Boolean(currentTab && !currentTab.component);
+  $: isSvelteComponentTab = Boolean(currentTab && currentTab.component);
+
+  // Subscribe to DOM search results for Svelte component tabs
+  // Use a separate reactive block that only reads the store when needed
+  $: svelteSearchResults = isSvelteComponentTab ? $searchState : null;
+  $: if (svelteSearchResults) {
+    activeMatchIndex = svelteSearchResults.activeMatchIndex;
+    totalMatches = svelteSearchResults.totalMatches;
+  }
+
+  // Reset search state when active tab changes
+  let previousTabId: string | null = null;
+  $: if ($activeTabId !== previousTabId) {
+    previousTabId = $activeTabId;
+    // Reset local search state when switching tabs
+    if (searchInput) {
+      totalMatches = 0;
+      activeMatchIndex = 0;
+      // Clear DOM search for previous Svelte component tab
+      clearDOMSearch();
+    }
+  }
 
   // Focus the input when the bar becomes visible
   $: if (visible && searchInputElement) {
@@ -35,17 +63,26 @@
   }
 
   async function performSearch(): Promise<void> {
-    if (!searchInput.trim() || !$activeTabId || !ipc || !hasWebContents) {
+    if (!searchInput.trim() || !$activeTabId) {
       totalMatches = 0;
       activeMatchIndex = 0;
+      if (isSvelteComponentTab) {
+        clearDOMSearch();
+      }
       return;
     }
 
     isSearching = true;
     try {
-      const result = await ipc.findInPage($activeTabId, searchInput);
-      if (result.success) {
-        // Result will be updated via the found-in-page event
+      if (hasWebContents && ipc) {
+        // Use Electron's findInPage for WebContentsView tabs
+        const result = await ipc.findInPage($activeTabId, searchInput);
+        if (result.success) {
+          // Result will be updated via the found-in-page event
+        }
+      } else if (isSvelteComponentTab) {
+        // Use DOM-based search for Svelte component tabs
+        performDOMSearch(searchInput);
       }
     } catch (error) {
       console.error('Search failed:', error);
@@ -54,30 +91,43 @@
   }
 
   async function findNext(): Promise<void> {
-    if (!searchInput.trim() || !$activeTabId || !ipc || !hasWebContents) return;
+    if (!searchInput.trim() || !$activeTabId) return;
 
     try {
-      await ipc.findNext($activeTabId);
+      if (hasWebContents && ipc) {
+        await ipc.findNext($activeTabId);
+      } else if (isSvelteComponentTab) {
+        findNextDOM();
+      }
     } catch (error) {
       console.error('Find next failed:', error);
     }
   }
 
   async function findPrevious(): Promise<void> {
-    if (!searchInput.trim() || !$activeTabId || !ipc || !hasWebContents) return;
+    if (!searchInput.trim() || !$activeTabId) return;
 
     try {
-      await ipc.findPrevious($activeTabId);
+      if (hasWebContents && ipc) {
+        await ipc.findPrevious($activeTabId);
+      } else if (isSvelteComponentTab) {
+        findPreviousDOM();
+      }
     } catch (error) {
       console.error('Find previous failed:', error);
     }
   }
 
   async function stopFind(): Promise<void> {
-    if (!$activeTabId || !ipc) return;
+    if (!$activeTabId) return;
 
     try {
-      await ipc.stopFindInPage($activeTabId);
+      if (hasWebContents && ipc) {
+        await ipc.stopFindInPage($activeTabId);
+      }
+      if (isSvelteComponentTab) {
+        clearDOMSearch();
+      }
       totalMatches = 0;
       activeMatchIndex = 0;
     } catch (error) {
@@ -140,7 +190,7 @@
 </script>
 
 {#if visible}
-  <div class="search-bar" class:disabled={!hasWebContents}>
+  <div class="search-bar" class:disabled={!hasWebContents && !isSvelteComponentTab}>
     <div class="search-container">
       <input
         type="text"
@@ -148,12 +198,12 @@
         bind:value={searchInput}
         oninput={handleInput}
         onkeydown={handleKeydown}
-        placeholder={hasWebContents ? "Find in page..." : "Search not available for this tab"}
+        placeholder={hasWebContents || isSvelteComponentTab ? "Find in page..." : "Search not available for this tab"}
         class="search-input"
-        disabled={!hasWebContents}
+        disabled={!hasWebContents && !isSvelteComponentTab}
       />
 
-      {#if searchInput && hasWebContents}
+      {#if searchInput && (hasWebContents || isSvelteComponentTab)}
         <span class="match-count">
           {#if totalMatches > 0}
             {activeMatchIndex} of {totalMatches}
@@ -170,7 +220,7 @@
       <button
         onclick={findPrevious}
         class="nav-btn"
-        disabled={!hasWebContents || totalMatches === 0}
+        disabled={(!hasWebContents && !isSvelteComponentTab) || totalMatches === 0}
         title="Previous match (Shift+Enter)"
       >
         ▲
@@ -178,7 +228,7 @@
       <button
         onclick={findNext}
         class="nav-btn"
-        disabled={!hasWebContents || totalMatches === 0}
+        disabled={(!hasWebContents && !isSvelteComponentTab) || totalMatches === 0}
         title="Next match (Enter)"
       >
         ▼

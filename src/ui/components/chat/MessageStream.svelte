@@ -4,6 +4,18 @@
   import DOMPurify from 'dompurify';
   import { activeTabs } from '$stores/tabs';
   import type { Tab } from '../../../types';
+  import { searchState, updateSearchResults } from '$stores/search';
+  import { createDOMSearch, type DOMSearchInstance } from '$lib/dom-search';
+
+  declare global {
+    interface Window {
+      electronAPI?: {
+        onLLMChunk: (
+          cb: (payload: { tabId: string; chunk: string }) => void
+        ) => () => void;
+      };
+    }
+  }
 
   // Svelte 5 props
   let { tabId }: { tabId: string } = $props();
@@ -18,6 +30,10 @@
   let unsubscribe: (() => void) | null = null;
   let renderScheduled = false;
   let hasLoadedInitialData = $state(false);
+
+  // DOM search instance
+  let domSearch: DOMSearchInstance | null = null;
+  let lastCommandSeq = 0;
 
   // Get tab metadata
   const tab = $derived($activeTabs.get(tabId));
@@ -46,6 +62,44 @@
       fullText = metadata.response;
       updateBuffers();
       hasLoadedInitialData = true;
+    }
+  });
+
+  // Effect to handle search commands
+  $effect(() => {
+    const state = $searchState;
+
+    // Only process if there's a new command
+    if (state.commandSeq === lastCommandSeq || !state.command) {
+      return;
+    }
+    lastCommandSeq = state.commandSeq;
+
+    // Initialize DOM search if needed
+    if (!domSearch && container) {
+      domSearch = createDOMSearch(container);
+    }
+
+    if (!domSearch) return;
+
+    let result;
+    switch (state.command) {
+      case 'search':
+        result = domSearch.search(state.searchText);
+        updateSearchResults(result.activeMatchIndex, result.totalMatches);
+        break;
+      case 'next':
+        result = domSearch.findNext();
+        updateSearchResults(result.activeMatchIndex, result.totalMatches);
+        break;
+      case 'previous':
+        result = domSearch.findPrevious();
+        updateSearchResults(result.activeMatchIndex, result.totalMatches);
+        break;
+      case 'clear':
+        domSearch.clear();
+        updateSearchResults(0, 0);
+        break;
     }
   });
 
@@ -112,6 +166,10 @@
 
   onDestroy(() => {
     if (unsubscribe) unsubscribe();
+    if (domSearch) {
+      domSearch.destroy();
+      domSearch = null;
+    }
   });
 </script>
 
@@ -477,5 +535,20 @@
   :global(.llm-message-stream img) {
     max-width: 100%;
     height: auto;
+  }
+
+  /* Search highlight styles */
+  :global(.llm-message-stream .dom-search-highlight) {
+    background-color: #5a4d00;
+    color: #fff;
+    border-radius: 2px;
+    padding: 0 1px;
+  }
+
+  :global(.llm-message-stream .dom-search-highlight-active) {
+    background-color: #ff9632;
+    color: #000;
+    outline: 2px solid #ff9632;
+    outline-offset: 1px;
   }
 </style>
