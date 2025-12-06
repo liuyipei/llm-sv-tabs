@@ -142,7 +142,11 @@ class TabManager {
   /**
    * Set up keyboard shortcut forwarding from WebContentsView to main window
    * This ensures shortcuts like Ctrl+L, Ctrl+F work even when WebContentsView has focus
-   * (Chromium's built-in shortcuts would otherwise intercept these)
+   * by preventing Chromium's built-in handling (which would intercept them)
+   *
+   * Note: We only call preventDefault() here. The actual action is handled by
+   * the Menu accelerators in main.ts, which fire at the application level
+   * before this event is even dispatched.
    */
   private setupKeyboardShortcutForwarding(view: WebContentsView): void {
     const isMac = process.platform === 'darwin';
@@ -153,65 +157,42 @@ class TabManager {
       const ctrlOrCmd = isMac ? input.meta : input.control;
       const key = input.key.toLowerCase();
 
-      // Ctrl/Cmd+L - Focus URL bar
+      // Prevent Chromium from handling these shortcuts
+      // The Menu accelerators will handle the actual actions
+
+      // Ctrl/Cmd+L - Focus URL bar (Chromium would try to focus address bar)
       if (ctrlOrCmd && key === 'l' && !input.alt && !input.shift) {
         event.preventDefault();
-        this.mainWindow.focus();
-        this.mainWindow.webContents.focus();
-        setTimeout(() => {
-          this.mainWindow.webContents.send('focus-url-bar');
-        }, 10);
         return;
       }
 
-      // Ctrl/Cmd+F - Focus search bar
+      // Ctrl/Cmd+F - Find (Chromium would open its own find bar)
       if (ctrlOrCmd && key === 'f' && !input.alt && !input.shift) {
         event.preventDefault();
-        this.mainWindow.focus();
-        this.mainWindow.webContents.focus();
-        setTimeout(() => {
-          this.mainWindow.webContents.send('focus-search-bar');
-        }, 10);
         return;
       }
 
-      // Ctrl/Cmd+T - New tab (focus URL bar)
+      // Ctrl/Cmd+T - New tab
       if (ctrlOrCmd && key === 't' && !input.alt && !input.shift) {
         event.preventDefault();
-        this.mainWindow.focus();
-        this.mainWindow.webContents.focus();
-        setTimeout(() => {
-          this.mainWindow.webContents.send('focus-url-bar');
-        }, 10);
         return;
       }
 
-      // Ctrl/Cmd+W - Close active tab
+      // Ctrl/Cmd+W - Close tab
       if (ctrlOrCmd && key === 'w' && !input.alt && !input.shift) {
         event.preventDefault();
-        const activeTabId = this.activeTabId;
-        if (activeTabId) {
-          this.closeTab(activeTabId);
-        }
         return;
       }
 
       // Ctrl/Cmd+R - Reload
       if (ctrlOrCmd && key === 'r' && !input.alt && !input.shift) {
         event.preventDefault();
-        const activeTabId = this.activeTabId;
-        if (activeTabId) {
-          this.reloadTab(activeTabId);
-        }
         return;
       }
 
-      // Ctrl+. - Focus LLM input (renderer-side shortcut, forward to main window)
+      // Ctrl+. - Focus LLM input
       if (input.control && key === '.' && !input.alt && !input.shift) {
         event.preventDefault();
-        this.mainWindow.focus();
-        this.mainWindow.webContents.focus();
-        // Let the renderer-side keyboard handler pick this up
         return;
       }
     });
@@ -1212,6 +1193,10 @@ class TabManager {
     const requestId = this.currentFindRequestId;
 
     try {
+      // Remove any existing found-in-page listeners to prevent memory leak
+      // (happens when user types faster than search results arrive)
+      tab.view.webContents.removeAllListeners('found-in-page');
+
       // Set up the found-in-page listener
       tab.view.webContents.once('found-in-page', (_event, result) => {
         // Only send if this is still the current request
@@ -1252,6 +1237,9 @@ class TabManager {
     if (!searchText) return { success: false, error: 'No active search' };
 
     try {
+      // Remove any existing found-in-page listeners to prevent memory leak
+      tab.view.webContents.removeAllListeners('found-in-page');
+
       // Set up the found-in-page listener
       tab.view.webContents.once('found-in-page', (_event, result) => {
         this.sendToRenderer('found-in-page', {
@@ -1288,6 +1276,9 @@ class TabManager {
     if (!searchText) return { success: false, error: 'No active search' };
 
     try {
+      // Remove any existing found-in-page listeners to prevent memory leak
+      tab.view.webContents.removeAllListeners('found-in-page');
+
       // Set up the found-in-page listener
       tab.view.webContents.once('found-in-page', (_event, result) => {
         this.sendToRenderer('found-in-page', {
