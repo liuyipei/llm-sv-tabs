@@ -24,6 +24,9 @@ class TabManager {
   private currentFindRequestId: number = 0; // Track find-in-page request IDs
   private isSearchBarVisible: boolean = false; // Track search bar visibility
   private lastSearchText: Map<string, string> = new Map(); // Track last search text per tab
+  private saveSessionInterval?: NodeJS.Timeout;
+  private readonly handleResize: () => void;
+  private readonly handleClose: () => void;
 
   constructor(mainWindow: BrowserWindow) {
     this.mainWindow = mainWindow;
@@ -34,16 +37,19 @@ class TabManager {
     this.sessionManager = new SessionManager();
     this.lastMetadataUpdate = new Map();
 
+    this.handleResize = () => this.updateWebContentsViewBounds();
+    this.handleClose = () => {
+      this.saveSession();
+    };
+
     // Handle window resize to update WebContentsView bounds
-    this.mainWindow.on('resize', () => this.updateWebContentsViewBounds());
+    this.mainWindow.on('resize', this.handleResize);
 
     // Save session periodically (every 30 seconds)
-    setInterval(() => this.saveSession(), 30000);
+    this.saveSessionInterval = setInterval(() => this.saveSession(), 30000);
 
     // Save session before app quits
-    this.mainWindow.on('close', () => {
-      this.saveSession();
-    });
+    this.mainWindow.on('close', this.handleClose);
   }
 
   private updateWebContentsViewBounds(): void {
@@ -1247,6 +1253,41 @@ class TabManager {
       }
       throw error;
     }
+  }
+
+  dispose(): void {
+    if (this.saveSessionInterval) {
+      clearInterval(this.saveSessionInterval);
+      this.saveSessionInterval = undefined;
+    }
+
+    if (!this.mainWindow.isDestroyed()) {
+      if (this.activeWebContentsView) {
+        this.mainWindow.contentView.removeChildView(this.activeWebContentsView);
+      }
+
+      this.mainWindow.off('resize', this.handleResize);
+      this.mainWindow.off('close', this.handleClose);
+    }
+
+    for (const tab of this.tabs.values()) {
+      const view = tab.view;
+      if (view && !view.webContents.isDestroyed()) {
+        try {
+          view.webContents.removeAllListeners();
+          view.webContents.destroy();
+        } catch (error) {
+          if (!(error instanceof Error) || !error.message.includes('destroyed')) {
+            throw error;
+          }
+        }
+      }
+    }
+
+    this.tabs.clear();
+    this.activeTabId = null;
+    this.activeWebContentsView = null;
+    this.lastSearchText.clear();
   }
 }
 

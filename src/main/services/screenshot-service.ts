@@ -1,4 +1,5 @@
 import { BrowserWindow, desktopCapturer, screen, ipcMain, NativeImage } from 'electron';
+import type { IpcMainEvent } from 'electron';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import type { Rectangle } from '../../types';
@@ -24,8 +25,17 @@ export class ScreenshotService {
   private capturedScreenImage: NativeImage | null = null;
   private displayBounds: Rectangle | null = null;
   private resolveCapture: ((dataUrl: string | null) => void) | null = null;
+  private readonly onRegionSelected: (_event: IpcMainEvent, bounds: Rectangle) => void;
+  private readonly onCancelled: () => void;
 
   constructor(_mainWindow: BrowserWindow) {
+    this.onRegionSelected = (_event, bounds) => {
+      this.handleRegionSelected(bounds);
+    };
+    this.onCancelled = () => {
+      this.cancel();
+    };
+
     this.setupIpcHandlers();
   }
 
@@ -33,13 +43,9 @@ export class ScreenshotService {
    * Set up IPC handlers for overlay communication
    */
   private setupIpcHandlers(): void {
-    ipcMain.on('screenshot-region-selected', (_event, bounds: Rectangle) => {
-      this.handleRegionSelected(bounds);
-    });
+    ipcMain.on('screenshot-region-selected', this.onRegionSelected);
 
-    ipcMain.on('screenshot-cancelled', () => {
-      this.cancel();
-    });
+    ipcMain.on('screenshot-cancelled', this.onCancelled);
   }
 
   /**
@@ -280,5 +286,12 @@ export class ScreenshotService {
     this.overlayWindow = null;
     this.capturedScreenImage = null;
     this.displayBounds = null;
+  }
+
+  dispose(): void {
+    ipcMain.removeListener('screenshot-region-selected', this.onRegionSelected);
+    ipcMain.removeListener('screenshot-cancelled', this.onCancelled);
+
+    this.cleanup();
   }
 }
