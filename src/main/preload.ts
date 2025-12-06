@@ -165,6 +165,24 @@ const electronAPI = {
     return () => ipcRenderer.removeListener('focus-search-bar', handler);
   },
 
+  onFocusLLMInput: (callback: () => void): (() => void) => {
+    const handler = () => {
+      console.log('Preload: focus-llm-input event received');
+      callback();
+    };
+    ipcRenderer.on('focus-llm-input', handler);
+    return () => ipcRenderer.removeListener('focus-llm-input', handler);
+  },
+
+  onBookmarkTab: (callback: () => void): (() => void) => {
+    const handler = () => {
+      console.log('Preload: bookmark-tab event received');
+      callback();
+    };
+    ipcRenderer.on('bookmark-tab', handler);
+    return () => ipcRenderer.removeListener('bookmark-tab', handler);
+  },
+
   onFoundInPage: (callback: (data: { activeMatchOrdinal: number; matches: number }) => void): void => {
     ipcRenderer.on('found-in-page', (_event, data) => callback(data));
   },

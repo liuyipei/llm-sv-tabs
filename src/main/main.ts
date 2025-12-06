@@ -675,31 +675,182 @@ ${formattedContent}
   });
 }
 
-function setupApplicationMenu(): void {
-  // Helper to focus main window's webContents and send IPC event
-  // Must focus at multiple levels: BrowserWindow → webContents → DOM element
-  const focusAndSend = (channel: string): void => {
-    console.log(`Main: focusAndSend called with channel: ${channel}`);
-    const windows = BrowserWindow.getAllWindows();
-    if (windows.length > 0) {
-      const win = windows[0];
-      // Focus the BrowserWindow first (important when WebContentsView has focus)
-      win.focus();
-      // Then focus the main window's webContents (not the WebContentsView)
-      win.webContents.focus();
-      // Finally send IPC to focus the DOM element
-      setTimeout(() => {
-        console.log(`Main: Sending IPC '${channel}' to renderer`);
-        win.webContents.send(channel);
-      }, 10);
-    }
-  };
+/**
+ * Set up keyboard shortcuts using before-input-event on mainWindow.webContents
+ * This is called after mainWindow is created to ensure webContents is available.
+ *
+ * We use before-input-event instead of Menu accelerators because:
+ * - Menu accelerators have a bug on Windows where they fire without modifier keys
+ * - before-input-event gives us full control over when shortcuts fire
+ * - We can properly check modifier keys before triggering actions
+ */
+function setupKeyboardShortcuts(): void {
+  if (!mainWindow) return;
 
   const isMac = process.platform === 'darwin';
 
-  // Build menu template with keyboard shortcuts as accelerators
-  // Menu accelerators only fire when the app window is focused (unlike globalShortcut)
-  // and work regardless of whether focus is on mainWindow UI or WebContentsView
+  // Helper to send IPC to renderer
+  const sendToRenderer = (channel: string): void => {
+    if (mainWindow) {
+      mainWindow.webContents.send(channel);
+    }
+  };
+
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown') return;
+
+    const ctrlOrCmd = isMac ? input.meta : input.control;
+    const key = input.key.toLowerCase();
+
+    // Only process if a modifier key is pressed (Ctrl/Cmd or Alt)
+    if (!ctrlOrCmd && !input.alt) return;
+
+    // Ctrl/Cmd + T - New Tab (focus URL bar)
+    if (ctrlOrCmd && key === 't' && !input.alt && !input.shift) {
+      event.preventDefault();
+      console.log('Shortcut: Ctrl+T (New Tab)');
+      sendToRenderer('focus-url-bar');
+      return;
+    }
+
+    // Ctrl/Cmd + W - Close Tab
+    if (ctrlOrCmd && key === 'w' && !input.alt && !input.shift) {
+      event.preventDefault();
+      console.log('Shortcut: Ctrl+W (Close Tab)');
+      if (tabManager) {
+        const activeTabId = tabManager.getActiveTabs().activeTabId;
+        if (activeTabId) {
+          tabManager.closeTab(activeTabId);
+        }
+      }
+      return;
+    }
+
+    // Ctrl/Cmd + L - Focus URL Bar
+    if (ctrlOrCmd && key === 'l' && !input.alt && !input.shift) {
+      event.preventDefault();
+      console.log('Shortcut: Ctrl+L (Focus URL Bar)');
+      sendToRenderer('focus-url-bar');
+      return;
+    }
+
+    // Ctrl/Cmd + F - Find in Page
+    if (ctrlOrCmd && key === 'f' && !input.alt && !input.shift) {
+      event.preventDefault();
+      console.log('Shortcut: Ctrl+F (Find)');
+      sendToRenderer('focus-search-bar');
+      return;
+    }
+
+    // Ctrl/Cmd + R - Reload
+    if (ctrlOrCmd && key === 'r' && !input.alt && !input.shift) {
+      event.preventDefault();
+      console.log('Shortcut: Ctrl+R (Reload)');
+      if (tabManager) {
+        const activeTabId = tabManager.getActiveTabs().activeTabId;
+        if (activeTabId) {
+          tabManager.reloadTab(activeTabId);
+        }
+      }
+      return;
+    }
+
+    // Ctrl/Cmd + . - Focus LLM Input
+    if (ctrlOrCmd && key === '.' && !input.alt && !input.shift) {
+      event.preventDefault();
+      console.log('Shortcut: Ctrl+. (Focus LLM Input)');
+      sendToRenderer('focus-llm-input');
+      return;
+    }
+
+    // Ctrl/Cmd + D - Bookmark
+    if (ctrlOrCmd && key === 'd' && !input.alt && !input.shift) {
+      event.preventDefault();
+      console.log('Shortcut: Ctrl+D (Bookmark)');
+      sendToRenderer('bookmark-tab');
+      return;
+    }
+
+    // Ctrl/Cmd + Alt + S - Screenshot
+    if (ctrlOrCmd && input.alt && key === 's' && !input.shift) {
+      event.preventDefault();
+      console.log('Shortcut: Ctrl+Alt+S (Screenshot)');
+      if (screenshotService && tabManager) {
+        screenshotService.startCapture().then((dataUrl) => {
+          if (dataUrl) {
+            const timestamp = new Date().toLocaleString('en-US', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+              hour12: false,
+            }).replace(/\//g, '-').replace(',', '');
+            const title = `Screenshot ${timestamp}`;
+            const noteId = Date.now();
+            tabManager!.openNoteTab(noteId, title, dataUrl, 'image', true);
+          }
+        }).catch(console.error);
+      }
+      return;
+    }
+
+    // Alt + Left - Go Back (Windows/Linux)
+    if (!isMac && input.alt && key === 'arrowleft' && !ctrlOrCmd && !input.shift) {
+      event.preventDefault();
+      console.log('Shortcut: Alt+Left (Back)');
+      if (tabManager) {
+        const activeTabId = tabManager.getActiveTabs().activeTabId;
+        if (activeTabId) {
+          tabManager.goBack(activeTabId);
+        }
+      }
+      return;
+    }
+
+    // Alt + Right - Go Forward (Windows/Linux)
+    if (!isMac && input.alt && key === 'arrowright' && !ctrlOrCmd && !input.shift) {
+      event.preventDefault();
+      console.log('Shortcut: Alt+Right (Forward)');
+      if (tabManager) {
+        const activeTabId = tabManager.getActiveTabs().activeTabId;
+        if (activeTabId) {
+          tabManager.goForward(activeTabId);
+        }
+      }
+      return;
+    }
+
+    // Ctrl + Tab - Next Tab
+    if (input.control && key === 'tab' && !input.alt && !input.shift) {
+      event.preventDefault();
+      console.log('Shortcut: Ctrl+Tab (Next Tab)');
+      if (tabManager) {
+        tabManager.nextTab();
+      }
+      return;
+    }
+
+    // Ctrl + Shift + Tab - Previous Tab
+    if (input.control && key === 'tab' && !input.alt && input.shift) {
+      event.preventDefault();
+      console.log('Shortcut: Ctrl+Shift+Tab (Previous Tab)');
+      if (tabManager) {
+        tabManager.previousTab();
+      }
+      return;
+    }
+  });
+
+  console.log('Keyboard shortcuts initialized via before-input-event');
+}
+
+function setupApplicationMenu(): void {
+  const isMac = process.platform === 'darwin';
+
+  // Build menu template - accelerators shown for reference only (registerAccelerator: false)
+  // Actual shortcuts are handled by before-input-event in setupKeyboardShortcuts()
   const template: Electron.MenuItemConstructorOptions[] = [
     // App menu (macOS only)
     ...(isMac ? [{
@@ -724,21 +875,19 @@ function setupApplicationMenu(): void {
         {
           label: 'New Tab',
           accelerator: 'CmdOrControl+T',
+          registerAccelerator: false, // Handled by before-input-event
           click: (): void => {
-            console.log('New tab shortcut triggered');
-            focusAndSend('focus-url-bar');
+            if (mainWindow) mainWindow.webContents.send('focus-url-bar');
           },
         },
         {
           label: 'Close Tab',
           accelerator: 'CmdOrControl+W',
+          registerAccelerator: false,
           click: (): void => {
-            console.log('Close tab shortcut triggered');
             if (tabManager) {
               const activeTabId = tabManager.getActiveTabs().activeTabId;
-              if (activeTabId) {
-                tabManager.closeTab(activeTabId);
-              }
+              if (activeTabId) tabManager.closeTab(activeTabId);
             }
           },
         },
@@ -746,29 +895,9 @@ function setupApplicationMenu(): void {
         {
           label: 'Take Screenshot',
           accelerator: 'CmdOrControl+Alt+S',
+          registerAccelerator: false,
           click: (): void => {
-            console.log('Screenshot shortcut triggered');
-            if (screenshotService) {
-              screenshotService.startCapture().then((dataUrl) => {
-                if (dataUrl && tabManager) {
-                  const timestamp = new Date().toLocaleString('en-US', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    hour12: false,
-                  }).replace(/\//g, '-').replace(',', '');
-
-                  const title = `Screenshot ${timestamp}`;
-                  const noteId = Date.now();
-                  tabManager.openNoteTab(noteId, title, dataUrl, 'image', true);
-                }
-              }).catch((error) => {
-                console.error('Screenshot shortcut error:', error);
-              });
-            }
+            // Handled by before-input-event
           },
         },
         { type: 'separator' },
@@ -776,7 +905,7 @@ function setupApplicationMenu(): void {
       ],
     },
 
-    // Edit menu - Standard edit operations (needed for copy/paste to work)
+    // Edit menu - Standard edit operations (keep default accelerators for copy/paste)
     {
       label: 'Edit',
       submenu: [
@@ -799,28 +928,26 @@ function setupApplicationMenu(): void {
         {
           label: 'Find',
           accelerator: 'CmdOrControl+F',
+          registerAccelerator: false,
           click: (): void => {
-            console.log('Find shortcut triggered');
-            focusAndSend('focus-search-bar');
+            if (mainWindow) mainWindow.webContents.send('focus-search-bar');
           },
         },
       ],
     },
 
-    // View menu - Navigation and display
+    // View menu
     {
       label: 'View',
       submenu: [
         {
           label: 'Reload',
           accelerator: 'CmdOrControl+R',
+          registerAccelerator: false,
           click: (): void => {
-            console.log('Reload shortcut triggered');
             if (tabManager) {
               const activeTabId = tabManager.getActiveTabs().activeTabId;
-              if (activeTabId) {
-                tabManager.reloadTab(activeTabId);
-              }
+              if (activeTabId) tabManager.reloadTab(activeTabId);
             }
           },
         },
@@ -828,9 +955,9 @@ function setupApplicationMenu(): void {
         {
           label: 'Focus URL Bar',
           accelerator: 'CmdOrControl+L',
+          registerAccelerator: false,
           click: (): void => {
-            console.log('Focus URL bar shortcut triggered');
-            focusAndSend('focus-url-bar');
+            if (mainWindow) mainWindow.webContents.send('focus-url-bar');
           },
         },
         { type: 'separator' },
@@ -844,117 +971,55 @@ function setupApplicationMenu(): void {
       ],
     },
 
-    // Navigation menu - Back/Forward
+    // Navigation menu
     {
       label: 'Navigation',
       submenu: [
         {
           label: 'Back',
           accelerator: isMac ? 'Cmd+[' : 'Alt+Left',
+          registerAccelerator: false,
           click: (): void => {
-            console.log('Back navigation shortcut triggered');
             if (tabManager) {
               const activeTabId = tabManager.getActiveTabs().activeTabId;
-              if (activeTabId) {
-                tabManager.goBack(activeTabId);
-              }
+              if (activeTabId) tabManager.goBack(activeTabId);
             }
           },
         },
         {
           label: 'Forward',
           accelerator: isMac ? 'Cmd+]' : 'Alt+Right',
+          registerAccelerator: false,
           click: (): void => {
-            console.log('Forward navigation shortcut triggered');
             if (tabManager) {
               const activeTabId = tabManager.getActiveTabs().activeTabId;
-              if (activeTabId) {
-                tabManager.goForward(activeTabId);
-              }
+              if (activeTabId) tabManager.goForward(activeTabId);
             }
           },
         },
-        // Additional navigation shortcuts for Alt+Arrow on Mac
-        ...(isMac ? [
-          { type: 'separator' as const },
-          {
-            label: 'Back (Alt)',
-            accelerator: 'Alt+Left',
-            visible: false, // Hidden but accelerator still works
-            click: (): void => {
-              if (tabManager) {
-                const activeTabId = tabManager.getActiveTabs().activeTabId;
-                if (activeTabId) {
-                  tabManager.goBack(activeTabId);
-                }
-              }
-            },
-          },
-          {
-            label: 'Forward (Alt)',
-            accelerator: 'Alt+Right',
-            visible: false,
-            click: (): void => {
-              if (tabManager) {
-                const activeTabId = tabManager.getActiveTabs().activeTabId;
-                if (activeTabId) {
-                  tabManager.goForward(activeTabId);
-                }
-              }
-            },
-          },
-        ] : []),
       ],
     },
 
-    // Tab menu - Tab switching
+    // Tab menu
     {
       label: 'Tab',
       submenu: [
         {
           label: 'Next Tab',
           accelerator: 'Ctrl+Tab',
+          registerAccelerator: false,
           click: (): void => {
-            console.log('Next tab shortcut triggered');
-            if (tabManager) {
-              tabManager.nextTab();
-            }
+            if (tabManager) tabManager.nextTab();
           },
         },
         {
           label: 'Previous Tab',
           accelerator: 'Ctrl+Shift+Tab',
+          registerAccelerator: false,
           click: (): void => {
-            console.log('Previous tab shortcut triggered');
-            if (tabManager) {
-              tabManager.previousTab();
-            }
+            if (tabManager) tabManager.previousTab();
           },
         },
-        // Mac-specific tab shortcuts
-        ...(isMac ? [
-          { type: 'separator' as const },
-          {
-            label: 'Next Tab (Cmd+Option)',
-            accelerator: 'Cmd+Alt+Right',
-            visible: false,
-            click: (): void => {
-              if (tabManager) {
-                tabManager.nextTab();
-              }
-            },
-          },
-          {
-            label: 'Previous Tab (Cmd+Option)',
-            accelerator: 'Cmd+Alt+Left',
-            visible: false,
-            click: (): void => {
-              if (tabManager) {
-                tabManager.previousTab();
-              }
-            },
-          },
-        ] : []),
       ],
     },
 
@@ -976,7 +1041,7 @@ function setupApplicationMenu(): void {
 
   const menu = Menu.buildFromTemplate(template);
   Menu.setApplicationMenu(menu);
-  console.log('Application menu with keyboard shortcuts initialized');
+  console.log('Application menu initialized (shortcuts handled by before-input-event)');
 }
 
 // Disable client hints that would reveal "Electron" in the Sec-CH-UA header.
@@ -990,9 +1055,10 @@ app.whenReady().then(() => {
   setupIPCHandlers();
   setupDownloadHandler();
 
-  // Set up application menu with keyboard shortcuts
-  // Menu accelerators work at the window level (not system-wide like globalShortcut)
-  // and trigger regardless of whether focus is on mainWindow UI or WebContentsView
+  // Set up keyboard shortcuts via before-input-event (more reliable than Menu accelerators)
+  setupKeyboardShortcuts();
+
+  // Set up application menu (accelerators shown for reference but not registered)
   setupApplicationMenu();
 
   app.on('activate', () => {
