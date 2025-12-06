@@ -529,6 +529,7 @@ ${formattedContent}
         tab.metadata.tokensOut = response.tokensOut;
         tab.metadata.model = response.model;
         tab.metadata.fullQuery = typeof fullQuery === 'string' && fullQuery !== query ? fullQuery : undefined;
+        tab.metadata.selectedTabIds = options.selectedTabIds;
 
         // Update title
         const modelName = response.model || '';
@@ -546,6 +547,7 @@ ${formattedContent}
           tokensOut: response.tokensOut,
           model: response.model,
           error: response.error,
+          selectedTabIds: options.selectedTabIds,
         });
       }
 
