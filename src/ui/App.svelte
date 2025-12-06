@@ -145,11 +145,21 @@
     }
   }
 
-  function focusWebContentsView(): void {
+  async function focusWebContentsView(): Promise<void> {
     if (!ipc) return;
-    ipc.focusActiveWebContents().catch((error) => {
+
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+
+    try {
+      const result = await ipc.focusActiveWebContents();
+      if ((result as { success?: boolean })?.success === false) {
+        console.warn('WebContentsView focus request was not successful:', result);
+      }
+    } catch (error) {
       console.error('Failed to focus active WebContentsView:', error);
-    });
+    }
   }
 
   function isControlPanelElement(target: EventTarget | null): target is HTMLElement {

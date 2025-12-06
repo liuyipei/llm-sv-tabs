@@ -135,14 +135,19 @@
     }
   }
 
-  function handleClose(): void {
+  async function handleClose(): Promise<void> {
     stopFind();
     searchInput = '';
     onClose();
     if (ipc) {
-      ipc.focusActiveWebContents().catch((error) => {
+      try {
+        const result = await ipc.focusActiveWebContents();
+        if ((result as { success?: boolean })?.success === false) {
+          console.warn('Active tab focus was not restored after closing search bar:', result);
+        }
+      } catch (error) {
         console.error('Failed to focus active tab after closing search bar:', error);
-      });
+      }
     }
   }
 
