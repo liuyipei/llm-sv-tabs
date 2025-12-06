@@ -25,11 +25,9 @@ export interface ShortcutAction {
  * Keyboard shortcuts configuration
  * Following Chrome/browser conventions with LLM-specific additions
  *
- * Note: Some shortcuts (Ctrl+W, Ctrl+T, Ctrl+R, Ctrl+F, Ctrl+L) are handled as
- * global shortcuts in the main process to intercept them before Electron's
- * default behavior (e.g., Ctrl+W closing the window).
- *
- * These are kept here for reference and for the renderer-side fallback.
+ * Note: The main process application menu handles these accelerators so they
+ * work even when a WebContentsView has focus. This configuration is retained
+ * for documentation/tooltips.
  */
 export const shortcuts: ShortcutConfig[] = [
   {

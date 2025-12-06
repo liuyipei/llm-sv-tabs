@@ -43,15 +43,19 @@ setTimeout(() => {
 
 ## Implementation: Global Shortcuts
 
-### Architecture Choice: `globalShortcut` vs `before-input-event`
+### Architecture Choice: App Menu Accelerators vs `before-input-event`
 
-For browser-style shortcuts (Cmd+L, Ctrl+W), use Electron's `globalShortcut` API:
+For browser-style shortcuts (Cmd+L, Ctrl+W), prefer Electron's **Menu accelerators** defined in the main process:
 
-**Advantages:**
-- Captures shortcuts at OS level before any window receives them
-- Single registration point - no per-tab setup needed
-- Works regardless of which webContents currently has focus
-- Matches standard browser behavior
+**Advantages (Menu Accelerators):**
+- Keystrokes are only captured when the app window is active (no background interception in Chrome, etc.)
+- Still bypasses the WebContentsView focus issue—accelerators fire at the application window level
+- Single registration point (Menu template) with automatic cleanup when the menu is replaced
+- Works consistently on macOS and Windows without per-view listeners
+
+**Why not `globalShortcut` here?**
+- `globalShortcut` captures at the OS level even when the app is unfocused, stealing shortcuts from other apps
+- It also requires manual unregistering to avoid leaks
 
 **Alternative (`before-input-event`):**
 - Would require registering handler on every WebContentsView
@@ -63,31 +67,26 @@ For browser-style shortcuts (Cmd+L, Ctrl+W), use Electron's `globalShortcut` API
 **File:** `src/main/main.ts`
 
 ```typescript
-function setupGlobalShortcuts(): void {
-  // Register Cmd+L / Ctrl+L for focusing URL bar
-  const focusUrlShortcut = process.platform === 'darwin' ? 'Command+L' : 'Ctrl+L';
+function createApplicationMenu(): void {
+  const template = [
+    {
+      label: 'View',
+      submenu: [
+        // Works even when a WebContentsView is focused
+        { label: 'Focus Address Bar', accelerator: focusUrlShortcut, click: focusUrlBar },
+        { label: 'Find in Page', accelerator: findShortcut, click: focusSearchBar },
+        { label: 'Screenshot', accelerator: screenshotShortcut, click: captureScreenshot },
+      ],
+    },
+    // ...navigation + file menus
+  ];
 
-  globalShortcut.register(focusUrlShortcut, () => {
-    const mainWindow = BrowserWindow.getAllWindows()[0];
-    if (!mainWindow) return;
-
-    // Complete focus chain: OS → UI webContents → DOM element
-    mainWindow.show();                   // Ensure window is visible
-    mainWindow.focus();                  // 1. Focus OS window
-    mainWindow.webContents.focus();      // 2. Focus UI webContents (KEY!)
-
-    // Small defer to let focus changes settle
-    setTimeout(() => {
-      mainWindow.webContents.send('focus-url-bar');
-    }, 10);
-  });
-
-  // Cleanup on app quit
-  app.on('will-quit', () => {
-    globalShortcut.unregisterAll();
-  });
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 ```
+
+All focus-related accelerators (`Cmd/Ctrl+L`, `Cmd/Ctrl+F`, `Cmd/Ctrl+.`) call the same `focusMainUI()` helper before emitting
+their IPC events, so they behave consistently whether the UI webContents or a `WebContentsView` owns focus.
 
 ### Renderer Process Handler
 
@@ -133,10 +132,10 @@ contextBridge.exposeInMainWorld('electronAPI', electronAPI);
 
 ### Mac: Cmd vs Ctrl
 
-Electron's `globalShortcut` uses `Command+L` on macOS and `Ctrl+L` on Windows/Linux:
+Use Electron's `CommandOrControl` accelerator token so macOS receives `Cmd` while Windows/Linux receive `Ctrl` without having to branch manually:
 
 ```typescript
-const shortcut = process.platform === 'darwin' ? 'Command+L' : 'Ctrl+L';
+const shortcut = 'CommandOrControl+L';
 ```
 
 For window-level shortcuts (if used), handle platform differences in the matcher:
@@ -145,6 +144,10 @@ For window-level shortcuts (if used), handle platform differences in the matcher
 const isMac = navigator.platform.toLowerCase().includes('mac');
 const ctrlOrCmd = isMac ? event.metaKey : event.ctrlKey;
 ```
+
+### Avoiding Listener Leaks
+
+Register menu accelerators and session-level listeners once during `app.whenReady()` (or guard with a boolean) so they don't accumulate when re-creating the main window on macOS.
 
 ---
 
@@ -184,12 +187,15 @@ If you see all logs but the element doesn't focus, the issue is likely missing `
 
 | Shortcut | Action | Implementation |
 |----------|--------|----------------|
-| Cmd/Ctrl+L | Focus URL bar | globalShortcut → IPC → focus element |
-| Cmd/Ctrl+Alt+S | Screenshot | globalShortcut → direct action |
-| Cmd/Ctrl+W | Close tab | Window-level listener (when UI has focus) |
-| Cmd/Ctrl+D | Bookmark tab | Window-level listener (when UI has focus) |
+| Cmd/Ctrl+L | Focus URL bar | Menu accelerator → IPC → focus element |
+| Cmd/Ctrl+F | Focus search bar | Menu accelerator → IPC → focus element |
+| Cmd/Ctrl+. | Focus LLM input | Menu accelerator → IPC → focus element |
+| Cmd/Ctrl+Alt+S | Screenshot | Menu accelerator → screenshot service |
+| Cmd/Ctrl+W | Close tab | Menu accelerator → TabManager |
+| Cmd/Ctrl+T | New tab (focus address) | Menu accelerator → IPC |
+| Cmd/Ctrl+D | Bookmark tab | Menu accelerator → IPC → bookmark sync |
 
-**Note**: Cmd+W and Cmd+D work when the UI has focus, but not when browsing web content. To make them work globally, move them to `globalShortcut` registration following the same pattern as Cmd+L.
+**Note**: Accelerators fire at the application window level, so they work inside `WebContentsView` without stealing shortcuts when the window is unfocused. Use `globalShortcut` only for truly background behaviors.
 
 ---
 
@@ -205,10 +211,10 @@ If you see all logs but the element doesn't focus, the issue is likely missing `
    - Element simply doesn't receive focus
    - Always ensure parent webContents has focus first
 
-3. **`globalShortcut` is the right tool for browser-style shortcuts**
-   - OS-level capture
-   - Single registration point
-   - Consistent with Electron best practices
+3. **Menu accelerators are preferred for browser-style shortcuts**
+   - Avoid background capture while still bypassing WebContentsView focus
+   - Single registration point via the menu template
+   - Consistent with Electron best practices for app-scoped commands
 
 4. **Timing matters**
    - Focus operations are asynchronous
@@ -219,7 +225,7 @@ If you see all logs but the element doesn't focus, the issue is likely missing `
 
 ## Related Files
 
-- `src/main/main.ts` - Global shortcut registration
+- `src/main/main.ts` - Application menu accelerators and IPC bridge
 - `src/main/preload.ts` - IPC bridge
 - `src/ui/config/shortcuts.ts` - Window-level shortcut configuration
 - `src/ui/utils/keyboard-shortcuts.ts` - Window-level shortcut handler
@@ -230,7 +236,7 @@ If you see all logs but the element doesn't focus, the issue is likely missing `
 
 ## References
 
-- [Electron globalShortcut API](https://www.electronjs.org/docs/latest/api/global-shortcut)
+- [Electron Menu API](https://www.electronjs.org/docs/latest/api/menu)
 - [Electron WebContentsView](https://www.electronjs.org/docs/latest/api/web-contents-view)
 - [BrowserWindow.focus()](https://www.electronjs.org/docs/latest/api/browser-window#winfocus)
 - [WebContents.focus()](https://www.electronjs.org/docs/latest/api/web-contents#contentsfocus)
