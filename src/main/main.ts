@@ -7,6 +7,7 @@ import { ContentExtractor } from './services/content-extractor.js';
 import { ModelDiscovery } from './providers/model-discovery.js';
 import { BookmarkManager } from './services/bookmark-manager.js';
 import { ScreenshotService } from './services/screenshot-service.js';
+import { shutdownManager } from './services/shutdown-manager.js';
 import { normalizeWhitespace } from './utils/text-normalizer.js';
 import { formatSerializedDOM } from './utils/dom-formatter.js';
 import type { QueryOptions, LLMResponse, Bookmark, ExtractedContent, ProviderType, ContentBlock, MessageContent, SerializedDOM, ContextTabInfo } from '../types';
@@ -144,6 +145,13 @@ function createWindow(): void {
     // No saved session, open default homepage
     tabManager.openUrl('https://www.google.com');
   }
+
+  // Handle window close - cleanup refs
+  mainWindow.on('closed', () => {
+    tabManager = null;
+    mainWindow = null;
+    screenshotService = null;
+  });
 }
 
 function setupDownloadHandler(): void {
@@ -952,6 +960,9 @@ function setupGlobalShortcuts(): void {
 app.commandLine.appendSwitch('disable-features', 'UserAgentClientHint');
 
 app.whenReady().then(() => {
+  // Setup shutdown handlers first to catch early termination
+  shutdownManager.setup();
+
   createWindow();
 
   // Set up IPC handlers once (not per-window, as ipcMain.handle registers globally)
@@ -967,13 +978,7 @@ app.whenReady().then(() => {
   });
 });
 
+// Unregister global shortcuts on quit (ShutdownManager handles the rest)
 app.on('will-quit', () => {
-  // Unregister all global shortcuts
   globalShortcut.unregisterAll();
-});
-
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
 });
