@@ -44,25 +44,70 @@ The following keyboard shortcuts are available, combining Chrome conventions wit
 
 ## Implementation
 
-All keyboard shortcuts are routed through the **main process application menu**, which fires even when a `WebContentsView` holds
-focus. The renderer listens for the resulting IPC events and performs UI-specific work (focusing inputs, updating bookmark UI,
-etc.).
+The keyboard shortcuts system is structured into separate files for better organization:
 
-- **Main process menu (`src/main/main.ts`)**: Defines accelerators (Cmd/Ctrl+W, T, R, F, L, `Cmd/Ctrl+.`, `Cmd/Ctrl+D`,
-  `Cmd/Ctrl+Alt+S`) and performs browser actions or emits IPC focus/bookmark events.
-- **Preload bridge (`src/main/preload.ts`)**: Exposes renderer listeners such as `onFocusUrlBar`, `onFocusLLMInput`,
-  `onFocusSearchBar`, and `onBookmarkAdded`.
-- **Renderer (`src/ui/App.svelte`)**: Subscribes to those IPC events, focuses the relevant inputs, and keeps the bookmark store
-  in sync.
+### Configuration File
+- **Location**: `src/ui/config/shortcuts.ts`
+- **Purpose**: Contains the keyboard shortcut definitions
+- **Features**:
+  - Declarative shortcut configuration
+  - Shortcut matching logic
+  - Display formatting utilities
+
+### Handler Utility
+- **Location**: `src/ui/utils/keyboard-shortcuts.ts`
+- **Purpose**: Manages keyboard event listeners and action dispatch
+- **Features**:
+  - Event listener initialization
+  - Action routing
+  - Cleanup function for unmounting
+
+### Integration
+- **App.svelte**: Initializes keyboard shortcuts on mount and defines action handlers
+- **InputControls.svelte**: Exposes URL input and LLM query input focus functionality
 
 ## Adding New Shortcuts
 
 To add a new keyboard shortcut:
 
-1. **Add a menu accelerator** in `createApplicationMenu()` (main process) with the appropriate click handler.
-2. **Expose any new IPC events** in `preload.ts` if the renderer needs to react (e.g., focusing a new element).
-3. **Handle the IPC event** in `App.svelte` (or the relevant component) to update UI state.
-4. **Document the shortcut** here and in `design/08-keyboard-shortcuts.md`.
+1. **Add the shortcut configuration** in `src/ui/config/shortcuts.ts`:
+   ```typescript
+   {
+     key: 'n',
+     ctrl: true,
+     description: 'Open new tab',
+     action: 'openNewTab',
+   }
+   ```
+
+2. **Update the ShortcutAction interface**:
+   ```typescript
+   export interface ShortcutAction {
+     focusUrlInput: () => void;
+     focusLLMInput: () => void;
+     closeActiveTab: () => void;
+     bookmarkActiveTab: () => void;
+     openNewTab: () => void; // Add new action
+   }
+   ```
+
+3. **Implement the action handler** in `src/ui/App.svelte`:
+   ```typescript
+   async function openNewTab(): Promise<void> {
+     // Implementation here
+   }
+   ```
+
+4. **Add to the initKeyboardShortcuts call**:
+   ```typescript
+   initKeyboardShortcuts({
+     focusUrlInput,
+     focusLLMInput,
+     closeActiveTab,
+     bookmarkActiveTab,
+     openNewTab, // Add new action
+   });
+   ```
 
 ## Architecture Benefits
 
