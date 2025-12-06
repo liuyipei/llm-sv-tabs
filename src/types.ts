@@ -20,6 +20,18 @@ export interface Tab {
   component?: 'llm-response' | 'note' | 'api-key-instructions';
 }
 
+// Info about a context tab used in an LLM query (persisted for reference)
+export interface ContextTabInfo {
+  id: string; // Ephemeral session tab ID
+  title: string;
+  url: string;
+  type: TabType;
+  // For LLM response tabs, include their persistent identifiers
+  persistentId?: string;
+  shortId?: string;
+  slug?: string;
+}
+
 export interface TabMetadata {
   // For LLM response tabs
   isLLMResponse?: boolean;
@@ -32,6 +44,14 @@ export interface TabMetadata {
   selectedTabIds?: string[];
   isStreaming?: boolean;
   error?: string;
+
+  // Persistent identifiers for LLM tabs (survive restarts, more meaningful than tab-N)
+  persistentId?: string; // UUID v4 - globally unique
+  shortId?: string; // 8-char hash - derived from query+timestamp
+  slug?: string; // Human-readable slug from query
+
+  // Rich context tab info (stored at query time for persistence)
+  contextTabs?: ContextTabInfo[];
 
   // For file/image tabs
   fileType?: 'text' | 'pdf' | 'image';

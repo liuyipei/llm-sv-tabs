@@ -13,8 +13,7 @@
   import ApiKeyInstructionsView from '$components/llm/ApiKeyInstructionsView.svelte';
   import { activeSidebarView, sidebarTabsHeightPercent } from '$stores/ui';
   import { activeTabId, activeTabs, sortedTabs } from '$stores/tabs';
-  import { bookmarks } from '$stores/bookmarks';
-  import type { Bookmark } from '../types';
+  import { initKeyboardShortcuts } from '$utils/keyboard-shortcuts';
 
   // Import styles for markdown rendering
   import '~/highlight.js/styles/github-dark.css';
@@ -56,13 +55,6 @@
     sidebarTabsHeightPercent.set(percentage);
   }
 
-  function addBookmarkToStore(bookmark: Bookmark): void {
-    bookmarks.update((items) => {
-      if (items.some((item) => item.id === bookmark.id)) return items;
-      return [...items, bookmark];
-    });
-  }
-
   // Keyboard shortcut actions
   function focusUrlInput(): void {
     if (focusUrlInputCallback) {
@@ -99,17 +91,11 @@
     if (!activeTab) return;
 
     try {
-      const result = await ipc.addBookmark({
+      await ipc.addBookmark({
         title: activeTab.title,
         url: activeTab.url,
       });
-
-      const createdBookmark = Array.isArray(result)
-        ? null
-        : ((result as any)?.data as Bookmark | undefined);
-      if (createdBookmark) {
-        addBookmarkToStore(createdBookmark);
-      }
+      console.log('Bookmark added:', activeTab.title);
     } catch (error) {
       console.error('Failed to bookmark tab:', error);
     }
@@ -206,25 +192,30 @@
     return 'text';
   }
 
-  // Initialize IPC-driven keyboard shortcuts on mount
+  // Initialize keyboard shortcuts on mount
   onMount(() => {
+    const cleanup = initKeyboardShortcuts({
+      focusUrlInput,
+      focusLLMInput,
+      closeActiveTab,
+      bookmarkActiveTab,
+      toggleSearchBar,
+    });
+
+    // Set up IPC listener for focus-url-bar event (triggered by global shortcut)
     if (typeof window !== 'undefined' && window.electronAPI) {
       window.electronAPI.onFocusUrlBar(() => {
         focusUrlInput();
       });
 
+      // Set up IPC listener for focus-search-bar event (triggered by Ctrl+F global shortcut)
       window.electronAPI.onFocusSearchBar(() => {
         showSearchBar();
       });
-
-      window.electronAPI.onFocusLLMInput(() => {
-        focusLLMInput();
-      });
-
-      window.electronAPI.onBookmarkAdded((bookmark) => {
-        addBookmarkToStore(bookmark);
-      });
     }
+
+    // Cleanup on unmount
+    return cleanup;
   });
 </script>
 
