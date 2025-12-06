@@ -144,6 +144,17 @@ function createWindow(): void {
     // No saved session, open default homepage
     tabManager.openUrl('https://www.google.com');
   }
+
+  // Register global shortcuts only when window is focused
+  // This prevents shortcuts from capturing input in other applications
+  mainWindow.on('focus', () => {
+    setupGlobalShortcuts();
+  });
+
+  mainWindow.on('blur', () => {
+    // Unregister all global shortcuts when window loses focus
+    globalShortcut.unregisterAll();
+  });
 }
 
 function setupDownloadHandler(): void {
@@ -676,6 +687,9 @@ ${formattedContent}
 }
 
 function setupGlobalShortcuts(): void {
+  // Unregister any existing shortcuts first (handles re-registration on window focus)
+  globalShortcut.unregisterAll();
+
   // Register Cmd+F / Ctrl+F for opening search bar (browser-style find)
   const findShortcut = process.platform === 'darwin' ? 'Command+F' : 'Ctrl+F';
   const findRegistered = globalShortcut.register(findShortcut, () => {
@@ -940,7 +954,8 @@ app.whenReady().then(() => {
   setupIPCHandlers();
   setupDownloadHandler();
 
-  setupGlobalShortcuts();
+  // Note: Global shortcuts are now registered/unregistered in window focus/blur handlers
+  // in createWindow() to prevent capturing input when the app is not focused
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
