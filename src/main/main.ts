@@ -1,4 +1,5 @@
-import { app, BrowserWindow, ipcMain, dialog, session, Menu, MenuItem } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, session, Menu } from 'electron';
+import type { MenuItemConstructorOptions } from 'electron';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { dirname, join } from 'path';
 import TabManager from './tab-manager.js';
@@ -824,7 +825,7 @@ function createApplicationMenu(): void {
     }
   };
 
-  const navigationItems = [
+  const navigationItems: MenuItemConstructorOptions[] = [
     ...navigationShortcuts.back.map((accelerator) => ({ label: `Back (${accelerator})`, accelerator, click: goBack })),
     ...navigationShortcuts.forward.map((accelerator) => ({ label: `Forward (${accelerator})`, accelerator, click: goForward })),
     { type: 'separator' as const },
@@ -832,13 +833,13 @@ function createApplicationMenu(): void {
     ...navigationShortcuts.previousTab.map((accelerator) => ({ label: `Previous Tab (${accelerator})`, accelerator, click: previousTab })),
   ];
 
-  const template = [
+  const template: MenuItemConstructorOptions[] = [
     ...(process.platform === 'darwin' ? [{ role: 'appMenu' as const }] : []),
     {
       label: 'File',
       submenu: [
-        new MenuItem({ label: 'New Tab', accelerator: newTabShortcut, click: openNewTab }),
-        new MenuItem({ label: 'Close Tab', accelerator: closeTabShortcut, click: closeActiveTab }),
+        { label: 'New Tab', accelerator: newTabShortcut, click: openNewTab },
+        { label: 'Close Tab', accelerator: closeTabShortcut, click: closeActiveTab },
       ],
     },
     {
@@ -856,10 +857,10 @@ function createApplicationMenu(): void {
     {
       label: 'View',
       submenu: [
-        new MenuItem({ label: 'Reload Tab', accelerator: reloadShortcut, click: reloadActiveTab }),
-        new MenuItem({ label: 'Focus Address Bar', accelerator: focusUrlShortcut, click: focusUrlBar }),
-        new MenuItem({ label: 'Find in Page', accelerator: findShortcut, click: focusSearchBar }),
-        new MenuItem({ label: 'Screenshot', accelerator: screenshotShortcut, click: captureScreenshot }),
+        { label: 'Reload Tab', accelerator: reloadShortcut, click: reloadActiveTab },
+        { label: 'Focus Address Bar', accelerator: focusUrlShortcut, click: focusUrlBar },
+        { label: 'Find in Page', accelerator: findShortcut, click: focusSearchBar },
+        { label: 'Screenshot', accelerator: screenshotShortcut, click: captureScreenshot },
       ],
     },
     {

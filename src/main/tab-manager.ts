@@ -1275,7 +1275,10 @@ class TabManager {
       if (view && !view.webContents.isDestroyed()) {
         try {
           view.webContents.removeAllListeners();
-          view.webContents.destroy();
+          const destroy = (view.webContents as unknown as { destroy?: () => void }).destroy;
+          if (typeof destroy === 'function') {
+            destroy.call(view.webContents);
+          }
         } catch (error) {
           if (!(error instanceof Error) || !error.message.includes('destroyed')) {
             throw error;
