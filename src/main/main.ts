@@ -246,6 +246,11 @@ function setupIPCHandlers(): void {
     return tabManager.setActiveTab(tabId);
   });
 
+  ipcMain.handle('focus-active-web-contents', async () => {
+    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
+    return tabManager.focusActiveWebContents();
+  });
+
   ipcMain.handle('select-tabs', async (_event, tabIds: string[]) => {
     if (!tabManager) return { success: false, error: 'TabManager not initialized' };
     try {

@@ -145,6 +145,33 @@
     }
   }
 
+  function focusWebContentsView(): void {
+    if (!ipc) return;
+    ipc.focusActiveWebContents().catch((error) => {
+      console.error('Failed to focus active WebContentsView:', error);
+    });
+  }
+
+  function isControlPanelElement(target: EventTarget | null): target is HTMLElement {
+    return (
+      target instanceof HTMLElement &&
+      Boolean(
+        target.closest('.url-bar') ||
+          target.closest('.search-bar') ||
+          target.closest('.sidebar') ||
+          target.closest('.tabs-section')
+      )
+    );
+  }
+
+  function handleGlobalKeydown(event: KeyboardEvent): void {
+    if (event.key !== 'Escape') return;
+    if (isControlPanelElement(event.target)) {
+      event.preventDefault();
+      focusWebContentsView();
+    }
+  }
+
   // Global drag and drop handler to open files in tabs
   function handleGlobalDragOver(event: DragEvent): void {
     event.preventDefault();
@@ -227,6 +254,8 @@
     }
   });
 </script>
+
+<svelte:window on:keydown={handleGlobalKeydown} />
 
 <main class="app-container" ondragover={handleGlobalDragOver} ondrop={handleGlobalDrop}>
   <div class="app-content">

@@ -139,6 +139,11 @@
     stopFind();
     searchInput = '';
     onClose();
+    if (ipc) {
+      ipc.focusActiveWebContents().catch((error) => {
+        console.error('Failed to focus active tab after closing search bar:', error);
+      });
+    }
   }
 
   function handleKeydown(event: KeyboardEvent): void {
