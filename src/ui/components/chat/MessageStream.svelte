@@ -3,7 +3,7 @@
   import { marked } from 'marked';
   import DOMPurify from 'dompurify';
   import { activeTabs } from '$stores/tabs';
-  import type { Tab } from '../../../types';
+  import type { ContextTabInfo, Tab } from '../../../types';
   import { searchState, updateSearchResults } from '$stores/search';
   import { createDOMSearch, type DOMSearchInstance } from '$lib/dom-search';
 
@@ -47,14 +47,36 @@
   const created = $derived(tab?.created);
 
   // Get context tabs used in the query
-  const contextTabs = $derived.by((): Tab[] => {
+  const slug = $derived(metadata?.slug);
+  const shortId = $derived(metadata?.shortId);
+  const persistentId = $derived(metadata?.persistentId);
+  const showIdentifiers = $derived(Boolean(slug || shortId || persistentId));
+
+  const contextTabs = $derived.by((): Array<ContextTabInfo & { favicon?: string }> => {
+    if (metadata?.contextTabs && metadata.contextTabs.length > 0) {
+      return metadata.contextTabs;
+    }
+
     if (!metadata?.selectedTabIds || metadata.selectedTabIds.length === 0) {
       return [];
     }
+
     return metadata.selectedTabIds
       .map(id => $activeTabs.get(id))
-      .filter((t): t is Tab => t !== undefined);
+      .filter((t): t is Tab => t !== undefined)
+      .map(tab => ({
+        id: tab.id,
+        title: tab.title,
+        url: tab.url,
+        type: tab.type,
+        favicon: tab.favicon,
+        slug: tab.metadata?.slug,
+        shortId: tab.metadata?.shortId,
+        persistentId: tab.metadata?.persistentId
+      }));
   });
+
+  const showFullQuery = $derived(Boolean(metadata?.fullQuery && metadata.fullQuery !== metadata.query));
 
   // Effect to load existing data when metadata becomes available
   $effect(() => {
@@ -186,6 +208,23 @@
     </div>
   {/if}
 
+  {#if showIdentifiers}
+    <div class="identifiers-section">
+      <div class="identifiers-label">Tab Identifiers</div>
+      <div class="identifiers-list">
+        {#if slug}
+          <div class="identifier-row"><span class="identifier-label">Slug:</span> <span class="identifier-value">{slug}</span></div>
+        {/if}
+        {#if shortId}
+          <div class="identifier-row"><span class="identifier-label">Short ID:</span> <span class="identifier-value">{shortId}</span></div>
+        {/if}
+        {#if persistentId}
+          <div class="identifier-row"><span class="identifier-label">UUID:</span> <span class="identifier-value">{persistentId}</span></div>
+        {/if}
+      </div>
+    </div>
+  {/if}
+
   {#if contextTabs.length > 0}
     <div class="context-section">
       <div class="context-label">Context ({contextTabs.length} tab{contextTabs.length === 1 ? '' : 's'})</div>
@@ -204,9 +243,26 @@
             {#if contextTab.url && contextTab.url !== 'about:blank'}
               <div class="context-tab-url">{contextTab.url}</div>
             {/if}
+            {#if contextTab.slug || contextTab.shortId}
+              <div class="context-tab-ids">
+                {#if contextTab.slug}
+                  <span class="context-id">slug: {contextTab.slug}</span>
+                {/if}
+                {#if contextTab.shortId}
+                  <span class="context-id">id: {contextTab.shortId}</span>
+                {/if}
+              </div>
+            {/if}
           </div>
         {/each}
       </div>
+    </div>
+  {/if}
+
+  {#if showFullQuery}
+    <div class="fullquery-section">
+      <div class="fullquery-label">Full Query (with context)</div>
+      <div class="fullquery-content">{metadata?.fullQuery}</div>
     </div>
   {/if}
 
@@ -370,6 +426,17 @@
     font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   }
 
+  .context-tab-ids {
+    margin-top: 0.25rem;
+    font-size: 0.7rem;
+    color: #4ec9b0;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  }
+
+  .context-id {
+    margin-right: 1rem;
+  }
+
   .response-header {
     margin-bottom: 1rem;
     padding: 0.75rem;
@@ -431,6 +498,69 @@
 
   .unstable {
     opacity: 0.96;
+  }
+
+  .identifiers-section {
+    margin-bottom: 1.5rem;
+    padding: 0.75rem;
+    background-color: #1e1e1e;
+    border-left: 3px solid #569cd6;
+    border-radius: 4px;
+  }
+
+  .identifiers-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #569cd6;
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.5px;
+  }
+
+  .identifiers-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .identifier-row {
+    display: flex;
+    gap: 0.35rem;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 0.85rem;
+  }
+
+  .identifier-label {
+    color: #9cdcfe;
+    min-width: 70px;
+  }
+
+  .identifier-value {
+    color: #dcdcaa;
+  }
+
+  .fullquery-section {
+    margin-bottom: 1.5rem;
+    padding: 0.75rem;
+    background-color: #1e1e1e;
+    border-left: 3px solid #4ec9b0;
+    border-radius: 4px;
+  }
+
+  .fullquery-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #4ec9b0;
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.5px;
+  }
+
+  .fullquery-content {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-size: 0.9rem;
+    line-height: 1.5;
   }
 
   /* Inherit markdown styles from existing theme */

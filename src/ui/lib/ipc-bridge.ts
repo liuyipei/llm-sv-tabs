@@ -26,6 +26,7 @@ export interface IPCBridgeAPI {
   openNoteTab(noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image'): Promise<IPCResponse<{ tabId: string; tab: TabData }> | { tabId: string; tab: Tab }>;
   openLLMResponseTab(query: string, response?: string, error?: string): Promise<IPCResponse<{ tabId: string; tab: TabData }> | { tabId: string; tab: Tab }>;
   updateLLMResponseTab(tabId: string, response: string, metadata?: any): Promise<IPCResponse | { success: boolean }>;
+  updateLLMMetadata(tabId: string, metadata: any): Promise<IPCResponse | { success: boolean }>;
   openRawMessageViewer(tabId: string): Promise<IPCResponse | { success: boolean }>;
   openDebugInfoWindow(tabId: string): Promise<IPCResponse | { success: boolean }>;
   getBookmarks(): Promise<IPCResponse<Bookmark[]> | Bookmark[]>;
@@ -103,6 +104,7 @@ export function initializeIPC(): IPCBridgeAPI {
     openNoteTab: (noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image') => window.electronAPI.openNoteTab(noteId, title, content, fileType),
     openLLMResponseTab: (query: string, response?: string, error?: string) => window.electronAPI.openLLMResponseTab(query, response, error),
     updateLLMResponseTab: (tabId: string, response: string, metadata?: any) => window.electronAPI.updateLLMResponseTab(tabId, response, metadata),
+    updateLLMMetadata: (tabId: string, metadata: any) => window.electronAPI.updateLLMMetadata(tabId, metadata),
     openRawMessageViewer: (tabId: string) => window.electronAPI.openRawMessageViewer(tabId),
     openDebugInfoWindow: (tabId: string) => window.electronAPI.openDebugInfoWindow(tabId),
     getBookmarks: () => window.electronAPI.getBookmarks(),
@@ -266,6 +268,10 @@ function createMockAPI(): IPCBridgeAPI {
     },
     updateLLMResponseTab: async (tabId: string, response: string, metadata?: any) => {
       console.log('Mock: updateLLMResponseTab', tabId, response, metadata);
+      return { success: true };
+    },
+    updateLLMMetadata: async (tabId: string, metadata: any) => {
+      console.log('Mock: updateLLMMetadata', tabId, metadata);
       return { success: true };
     },
     openRawMessageViewer: async (tabId: string) => {

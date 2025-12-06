@@ -1,5 +1,5 @@
 import { WebContentsView, BrowserWindow, Menu, MenuItem } from 'electron';
-import type { Tab, TabData, TabType } from '../types';
+import type { Tab, TabData, TabMetadata, TabType } from '../types';
 import { SessionManager } from './services/session-manager.js';
 import { createNoteHTML } from './templates/note-template.js';
 import { createRawMessageViewerHTML } from './templates/raw-message-template.js';
@@ -354,6 +354,21 @@ class TabManager {
     this.saveSession();
 
     return { tabId, tab: this.getTabData(tabId)! };
+  }
+
+  /**
+   * Update metadata on an in-progress LLM tab without ending streaming
+   */
+  updateLLMMetadata(tabId: string, metadata: Partial<TabMetadata>): { success: boolean; error?: string } {
+    const tab = this.tabs.get(tabId);
+    if (!tab?.metadata) {
+      return { success: false, error: 'Tab not found or missing metadata' };
+    }
+
+    Object.assign(tab.metadata, metadata);
+    this.sendToRenderer('tab-updated', { tab: this.getTabData(tabId) });
+
+    return { success: true };
   }
 
   updateLLMResponseTab(tabId: string, response: string, metadata?: any): { success: boolean; error?: string } {

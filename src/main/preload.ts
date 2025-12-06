@@ -72,6 +72,9 @@ const electronAPI = {
   updateLLMResponseTab: (tabId: string, response: string, metadata?: any): Promise<IPCResponse> =>
     ipcRenderer.invoke('update-llm-response-tab', tabId, response, metadata),
 
+  updateLLMMetadata: (tabId: string, metadata: any): Promise<IPCResponse> =>
+    ipcRenderer.invoke('update-llm-metadata', tabId, metadata),
+
   openRawMessageViewer: (tabId: string): Promise<IPCResponse> =>
     ipcRenderer.invoke('open-raw-message-viewer', tabId),
 
