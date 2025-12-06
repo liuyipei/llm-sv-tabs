@@ -140,6 +140,84 @@ class TabManager {
   }
 
   /**
+   * Set up keyboard shortcut forwarding from WebContentsView to main window
+   * This ensures shortcuts like Ctrl+L, Ctrl+F work even when WebContentsView has focus
+   * (Chromium's built-in shortcuts would otherwise intercept these)
+   */
+  private setupKeyboardShortcutForwarding(view: WebContentsView): void {
+    const isMac = process.platform === 'darwin';
+
+    view.webContents.on('before-input-event', (event, input) => {
+      if (input.type !== 'keyDown') return;
+
+      const ctrlOrCmd = isMac ? input.meta : input.control;
+      const key = input.key.toLowerCase();
+
+      // Ctrl/Cmd+L - Focus URL bar
+      if (ctrlOrCmd && key === 'l' && !input.alt && !input.shift) {
+        event.preventDefault();
+        this.mainWindow.focus();
+        this.mainWindow.webContents.focus();
+        setTimeout(() => {
+          this.mainWindow.webContents.send('focus-url-bar');
+        }, 10);
+        return;
+      }
+
+      // Ctrl/Cmd+F - Focus search bar
+      if (ctrlOrCmd && key === 'f' && !input.alt && !input.shift) {
+        event.preventDefault();
+        this.mainWindow.focus();
+        this.mainWindow.webContents.focus();
+        setTimeout(() => {
+          this.mainWindow.webContents.send('focus-search-bar');
+        }, 10);
+        return;
+      }
+
+      // Ctrl/Cmd+T - New tab (focus URL bar)
+      if (ctrlOrCmd && key === 't' && !input.alt && !input.shift) {
+        event.preventDefault();
+        this.mainWindow.focus();
+        this.mainWindow.webContents.focus();
+        setTimeout(() => {
+          this.mainWindow.webContents.send('focus-url-bar');
+        }, 10);
+        return;
+      }
+
+      // Ctrl/Cmd+W - Close active tab
+      if (ctrlOrCmd && key === 'w' && !input.alt && !input.shift) {
+        event.preventDefault();
+        const activeTabId = this.activeTabId;
+        if (activeTabId) {
+          this.closeTab(activeTabId);
+        }
+        return;
+      }
+
+      // Ctrl/Cmd+R - Reload
+      if (ctrlOrCmd && key === 'r' && !input.alt && !input.shift) {
+        event.preventDefault();
+        const activeTabId = this.activeTabId;
+        if (activeTabId) {
+          this.reloadTab(activeTabId);
+        }
+        return;
+      }
+
+      // Ctrl+. - Focus LLM input (renderer-side shortcut, forward to main window)
+      if (input.control && key === '.' && !input.alt && !input.shift) {
+        event.preventDefault();
+        this.mainWindow.focus();
+        this.mainWindow.webContents.focus();
+        // Let the renderer-side keyboard handler pick this up
+        return;
+      }
+    });
+  }
+
+  /**
    * Set up window open handler to intercept control-click, cmd-click, and middle-click on links
    * This converts new window requests into new tabs
    */
@@ -183,6 +261,9 @@ class TabManager {
 
     // Set up handler for control-click/cmd-click to open links in new tabs
     this.setupWindowOpenHandler(view);
+
+    // Set up keyboard shortcut forwarding from WebContentsView
+    this.setupKeyboardShortcutForwarding(view);
 
     // Update title when page loads
     view.webContents.on('page-title-updated', (_event, title) => {
@@ -262,6 +343,9 @@ class TabManager {
 
     // Set up handler for control-click/cmd-click to open links in new tabs
     this.setupWindowOpenHandler(view);
+
+    // Set up keyboard shortcut forwarding from WebContentsView
+    this.setupKeyboardShortcutForwarding(view);
 
     // Set as active tab (if autoSelect is true)
     if (autoSelect) {
@@ -454,6 +538,9 @@ class TabManager {
 
     // Set up handler for control-click/cmd-click to open links in new tabs
     this.setupWindowOpenHandler(view);
+
+    // Set up keyboard shortcut forwarding from WebContentsView
+    this.setupKeyboardShortcutForwarding(view);
 
     // Set as active tab (if autoSelect is true)
     if (autoSelect) {
