@@ -192,6 +192,11 @@ export interface ExtractedContent {
     data: string; // base64 encoded image (data URL or just base64)
     mimeType: string; // e.g., 'image/png', 'image/jpeg'
   };
+  metadata?: {
+    extractionType?: 'article' | 'app'; // Smart extraction type
+    tokenEstimate?: number; // Estimated tokens in content
+    [key: string]: any; // Allow other metadata fields
+  };
 }
 
 // ============================================================================

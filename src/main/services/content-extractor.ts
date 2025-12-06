@@ -1,20 +1,62 @@
 import { WebContentsView } from 'electron';
 import type { ExtractedContent, SerializedDOM, TabData } from '../../types';
 import { ImageResizer } from './image-resizer.js';
+import { SmartContentExtractor } from './smart-content-extractor.js';
 
 /**
  * Content Extraction Service
  *
  * Extracts content from tabs for LLM context:
- * - DOM serialization (headings, paragraphs, links)
+ * - Smart DOM extraction (article vs app routing, Markdown/HTML output)
+ * - Legacy DOM serialization (headings, paragraphs, links)
  * - Screenshots for vision models
  * - Images from uploaded image tabs
  */
 export class ContentExtractor {
   /**
-   * Extract content from a tab's WebContentsView
+   * Extract content from a tab's WebContentsView using smart extraction
+   *
+   * Uses SmartContentExtractor to intelligently process pages:
+   * - Articles (blogs, news) → Markdown via Readability
+   * - Apps (SPAs, dashboards) → Simplified semantic HTML
+   *
+   * This is the recommended extraction method.
    */
   static async extractFromTab(
+    view: WebContentsView,
+    _tabId: string,
+    includeScreenshot = false
+  ): Promise<ExtractedContent> {
+    const url = view.webContents.getURL();
+
+    // Use smart extraction
+    const smartContent = await SmartContentExtractor.extract(view);
+
+    // Capture screenshot if requested
+    let screenshot: string | undefined;
+    if (includeScreenshot) {
+      screenshot = await this.captureScreenshot(view);
+    }
+
+    return {
+      type: 'html',
+      title: smartContent.title,
+      url,
+      content: smartContent.content, // Already formatted as Markdown or HTML
+      screenshot,
+      metadata: {
+        extractionType: smartContent.type,
+        tokenEstimate: smartContent.tokenEstimate,
+      },
+    };
+  }
+
+  /**
+   * Extract content using legacy DOM serialization
+   *
+   * @deprecated Use extractFromTab() which uses SmartContentExtractor
+   */
+  static async extractFromTabLegacy(
     view: WebContentsView,
     _tabId: string,
     includeScreenshot = false
