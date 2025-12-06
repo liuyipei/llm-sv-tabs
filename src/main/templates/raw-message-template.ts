@@ -234,12 +234,19 @@ export function createRawMessageViewerHTML(metadata: any): string {
       </div>
     ` : ''}
 
-    ${metadata.selectedTabIds && metadata.selectedTabIds.length > 0 ? `
+    ${metadata.contextTabs && metadata.contextTabs.length > 0 ? `
       <div class="section">
-        <div class="section-title">Context (${metadata.selectedTabIds.length} tab${metadata.selectedTabIds.length === 1 ? '' : 's'})</div>
-        <div class="field">
-          <div class="field-value">${metadata.selectedTabIds.map((id: string) => escapeHtml(id)).join(', ')}</div>
-        </div>
+        <div class="section-title">Context (${metadata.contextTabs.length} tab${metadata.contextTabs.length === 1 ? '' : 's'})</div>
+        ${metadata.contextTabs.map((tab: any) => `
+          <div class="field" style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #3e3e42;">
+            <div class="field-name">${escapeHtml(tab.title)}</div>
+            <div class="field-value" style="font-size: 12px; color: #808080;">
+              ${escapeHtml(tab.url)}
+              ${tab.slug ? `<br><span style="color: #4ec9b0;">slug:</span> ${escapeHtml(tab.slug)}` : ''}
+              ${tab.shortId ? `<br><span style="color: #4ec9b0;">shortId:</span> ${escapeHtml(tab.shortId)}` : ''}
+            </div>
+          </div>
+        `).join('')}
       </div>
     ` : ''}
 

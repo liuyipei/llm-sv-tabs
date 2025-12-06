@@ -639,10 +639,21 @@ class TabManager {
   </div>
   ` : ''}
 
-  ${metadata.selectedTabIds && metadata.selectedTabIds.length > 0 ? `
+  ${metadata.contextTabs && metadata.contextTabs.length > 0 ? `
   <div class="section">
-    <h2>Context (${metadata.selectedTabIds.length} tab${metadata.selectedTabIds.length === 1 ? '' : 's'})</h2>
-    <pre>${metadata.selectedTabIds.join(', ')}</pre>
+    <h2>Context (${metadata.contextTabs.length} tab${metadata.contextTabs.length === 1 ? '' : 's'})</h2>
+    <table>
+      ${metadata.contextTabs.map((tab: any) => `
+        <tr>
+          <td style="vertical-align: top; padding-bottom: 10px;">
+            <strong>${this.escapeHtml(tab.title)}</strong><br>
+            <span style="color: #808080; font-size: 12px;">${this.escapeHtml(tab.url)}</span>
+            ${tab.slug ? `<br><span style="color: #4ec9b0;">slug:</span> ${this.escapeHtml(tab.slug)}` : ''}
+            ${tab.shortId ? `<br><span style="color: #4ec9b0;">shortId:</span> ${this.escapeHtml(tab.shortId)}` : ''}
+          </td>
+        </tr>
+      `).join('')}
+    </table>
   </div>
   ` : ''}
 

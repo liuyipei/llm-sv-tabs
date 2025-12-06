@@ -9,7 +9,7 @@ import { BookmarkManager } from './services/bookmark-manager.js';
 import { ScreenshotService } from './services/screenshot-service.js';
 import { normalizeWhitespace } from './utils/text-normalizer.js';
 import { formatSerializedDOM } from './utils/dom-formatter.js';
-import type { QueryOptions, LLMResponse, Bookmark, ExtractedContent, ProviderType, ContentBlock, MessageContent, SerializedDOM } from '../types';
+import type { QueryOptions, LLMResponse, Bookmark, ExtractedContent, ProviderType, ContentBlock, MessageContent, SerializedDOM, ContextTabInfo } from '../types';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -378,10 +378,24 @@ function setupIPCHandlers(): void {
 
       // Extract content from selected tabs if requested
       const extractedContents: ExtractedContent[] = [];
+      const contextTabs: ContextTabInfo[] = [];
       if (options.selectedTabIds && options.selectedTabIds.length > 0) {
         for (const selectedTabId of options.selectedTabIds) {
           const tab = tabManager.getTab(selectedTabId);
           if (!tab) continue;
+
+          // Build context tab info for persistence
+          const contextTabInfo: ContextTabInfo = {
+            id: selectedTabId,
+            title: tab.title,
+            url: tab.url,
+            type: tab.type,
+            // Include persistent identifiers if this is an LLM response tab
+            persistentId: tab.metadata?.persistentId,
+            shortId: tab.metadata?.shortId,
+            slug: tab.metadata?.slug,
+          };
+          contextTabs.push(contextTabInfo);
 
           try {
             // Check if this is a note tab (could be image, text, or LLM response)
@@ -530,6 +544,7 @@ ${formattedContent}
         tab.metadata.model = response.model;
         tab.metadata.fullQuery = typeof fullQuery === 'string' && fullQuery !== query ? fullQuery : undefined;
         tab.metadata.selectedTabIds = options.selectedTabIds;
+        tab.metadata.contextTabs = contextTabs.length > 0 ? contextTabs : undefined;
 
         // Update title
         const modelName = response.model || '';
@@ -548,6 +563,7 @@ ${formattedContent}
           model: response.model,
           error: response.error,
           selectedTabIds: options.selectedTabIds,
+          contextTabs: contextTabs.length > 0 ? contextTabs : undefined,
         });
       }
 
