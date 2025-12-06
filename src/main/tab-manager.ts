@@ -500,9 +500,6 @@ class TabManager {
     const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent);
     debugWindow.loadURL(dataUrl);
 
-    // Open DevTools for easy inspection
-    debugWindow.webContents.openDevTools();
-
     return { success: true };
   }
 
@@ -608,6 +605,24 @@ class TabManager {
       <tr>
         <td>Model:</td>
         <td>${metadata.model || 'N/A'}</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Tab Identifiers</h2>
+    <table>
+      <tr>
+        <td>Persistent ID:</td>
+        <td>${metadata.persistentId || 'N/A'}</td>
+      </tr>
+      <tr>
+        <td>Short ID:</td>
+        <td>${metadata.shortId || 'N/A'}</td>
+      </tr>
+      <tr>
+        <td>Slug:</td>
+        <td>${metadata.slug || 'N/A'}</td>
       </tr>
     </table>
   </div>

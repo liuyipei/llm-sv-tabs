@@ -194,6 +194,30 @@ export function createRawMessageViewerHTML(metadata: any): string {
       ` : ''}
     </div>
 
+    ${metadata.persistentId || metadata.shortId || metadata.slug ? `
+    <div class="section">
+      <div class="section-title">Tab Identifiers</div>
+      ${metadata.persistentId ? `
+        <div class="field">
+          <div class="field-name">Persistent ID (UUID)</div>
+          <div class="field-value">${escapeHtml(metadata.persistentId)}</div>
+        </div>
+      ` : ''}
+      ${metadata.shortId ? `
+        <div class="field">
+          <div class="field-name">Short ID</div>
+          <div class="field-value">${escapeHtml(metadata.shortId)}</div>
+        </div>
+      ` : ''}
+      ${metadata.slug ? `
+        <div class="field">
+          <div class="field-name">Slug</div>
+          <div class="field-value">${escapeHtml(metadata.slug)}</div>
+        </div>
+      ` : ''}
+    </div>
+    ` : ''}
+
     <div class="section">
       <div class="section-title">Query</div>
       <div class="field">
