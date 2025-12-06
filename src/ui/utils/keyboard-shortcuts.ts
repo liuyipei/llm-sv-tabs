@@ -12,9 +12,22 @@ import { shortcuts, matchesShortcut, type ShortcutAction } from '../config/short
  */
 export function initKeyboardShortcuts(actions: ShortcutAction): () => void {
   const handleKeyDown = (event: KeyboardEvent): void => {
+    // Debug: Log key presses that involve modifiers or special keys
+    const ctrlOrMeta = event.ctrlKey || event.metaKey;
+    if (ctrlOrMeta || event.altKey) {
+      console.log('Keyboard event:', {
+        key: event.key,
+        ctrl: event.ctrlKey,
+        meta: event.metaKey,
+        alt: event.altKey,
+        shift: event.shiftKey,
+      });
+    }
+
     // Find matching shortcut
     for (const shortcut of shortcuts) {
       if (matchesShortcut(event, shortcut)) {
+        console.log(`Keyboard shortcut matched: ${shortcut.action}`, { key: event.key });
         // Prevent default browser behavior
         event.preventDefault();
         event.stopPropagation();

@@ -13,7 +13,6 @@
   import ApiKeyInstructionsView from '$components/llm/ApiKeyInstructionsView.svelte';
   import { activeSidebarView, sidebarTabsHeightPercent } from '$stores/ui';
   import { activeTabId, activeTabs, sortedTabs } from '$stores/tabs';
-  import { initKeyboardShortcuts } from '$utils/keyboard-shortcuts';
 
   // Import styles for markdown rendering
   import '~/highlight.js/styles/github-dark.css';
@@ -192,30 +191,48 @@
     return 'text';
   }
 
-  // Initialize keyboard shortcuts on mount
+  // Initialize IPC listeners for keyboard shortcuts on mount
+  // All shortcuts are now handled by before-input-event in main process
   onMount(() => {
-    const cleanup = initKeyboardShortcuts({
-      focusUrlInput,
-      focusLLMInput,
-      closeActiveTab,
-      bookmarkActiveTab,
-      toggleSearchBar,
-    });
+    // Track IPC cleanup functions
+    let urlBarCleanup: (() => void) | undefined;
+    let searchBarCleanup: (() => void) | undefined;
+    let llmInputCleanup: (() => void) | undefined;
+    let bookmarkCleanup: (() => void) | undefined;
 
-    // Set up IPC listener for focus-url-bar event (triggered by global shortcut)
     if (typeof window !== 'undefined' && window.electronAPI) {
-      window.electronAPI.onFocusUrlBar(() => {
+      // Ctrl+L or Ctrl+T - Focus URL bar
+      urlBarCleanup = window.electronAPI.onFocusUrlBar(() => {
+        console.log('App.svelte: focusUrlInput called from IPC');
         focusUrlInput();
       });
 
-      // Set up IPC listener for focus-search-bar event (triggered by Ctrl+F global shortcut)
-      window.electronAPI.onFocusSearchBar(() => {
+      // Ctrl+F - Show search bar
+      searchBarCleanup = window.electronAPI.onFocusSearchBar(() => {
+        console.log('App.svelte: showSearchBar called from IPC');
         showSearchBar();
+      });
+
+      // Ctrl+. - Focus LLM input
+      llmInputCleanup = window.electronAPI.onFocusLLMInput(() => {
+        console.log('App.svelte: focusLLMInput called from IPC');
+        focusLLMInput();
+      });
+
+      // Ctrl+D - Bookmark current tab
+      bookmarkCleanup = window.electronAPI.onBookmarkTab(() => {
+        console.log('App.svelte: bookmarkActiveTab called from IPC');
+        bookmarkActiveTab();
       });
     }
 
     // Cleanup on unmount
-    return cleanup;
+    return () => {
+      urlBarCleanup?.();
+      searchBarCleanup?.();
+      llmInputCleanup?.();
+      bookmarkCleanup?.();
+    };
   });
 </script>
 

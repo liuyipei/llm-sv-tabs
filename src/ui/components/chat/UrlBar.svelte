@@ -88,10 +88,29 @@
   }
 
   function handleUrlKeydown(event: KeyboardEvent): void {
+    // Debug: Log keydown events in URL bar
+    console.log('URL Bar keydown:', {
+      key: event.key,
+      code: event.code,
+      ctrl: event.ctrlKey,
+      meta: event.metaKey,
+      alt: event.altKey,
+      shift: event.shiftKey,
+    });
+
     if (event.key === 'Enter') {
       event.preventDefault();
       handleUrlSubmit();
     }
+  }
+
+  function handleUrlFocus(): void {
+    console.log('URL Bar: received focus');
+  }
+
+  function handleUrlBlur(event: FocusEvent): void {
+    const relatedTarget = event.relatedTarget as HTMLElement | null;
+    console.log('URL Bar: lost focus to:', relatedTarget?.tagName, relatedTarget?.className);
   }
 
   function focusUrlInputElement(): void {
@@ -156,6 +175,8 @@
     bind:this={urlInputElement}
     bind:value={$urlInput}
     onkeydown={handleUrlKeydown}
+    onfocus={handleUrlFocus}
+    onblur={handleUrlBlur}
     placeholder="Enter URL to open a new tab..."
     class="url-input"
     title="Address bar (Ctrl+L to focus, Ctrl+T for new tab)"

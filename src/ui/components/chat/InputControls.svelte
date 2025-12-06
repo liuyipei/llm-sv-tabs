@@ -83,10 +83,30 @@
   }
 
   function handleQueryKeydown(event: KeyboardEvent): void {
+    // Debug: Log all keydown events in the LLM input
+    console.log('LLM Input keydown:', {
+      key: event.key,
+      code: event.code,
+      ctrl: event.ctrlKey,
+      meta: event.metaKey,
+      alt: event.altKey,
+      shift: event.shiftKey,
+      target: (event.target as HTMLElement)?.tagName,
+    });
+
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
       handleQuerySubmit();
     }
+  }
+
+  function handleQueryFocus(): void {
+    console.log('LLM Input: received focus');
+  }
+
+  function handleQueryBlur(event: FocusEvent): void {
+    const relatedTarget = event.relatedTarget as HTMLElement | null;
+    console.log('LLM Input: lost focus to:', relatedTarget?.tagName, relatedTarget?.className);
   }
 
   function focusQueryInputElement(): void {
@@ -111,6 +131,8 @@
       bind:this={queryInputElement}
       bind:value={$queryInput}
       onkeydown={handleQueryKeydown}
+      onfocus={handleQueryFocus}
+      onblur={handleQueryBlur}
       placeholder="Ask a question about your tabs... (Enter to send, Shift+Enter for new line)"
       class="query-input"
       rows="8"
