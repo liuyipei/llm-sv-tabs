@@ -145,12 +145,24 @@ const electronAPI = {
     ipcRenderer.on('active-tab-changed', (_event, data) => callback(data));
   },
 
-  onFocusUrlBar: (callback: () => void): void => {
-    ipcRenderer.on('focus-url-bar', () => callback());
+  onFocusUrlBar: (callback: () => void): (() => void) => {
+    const handler = () => {
+      console.log('Preload: focus-url-bar event received');
+      callback();
+    };
+    ipcRenderer.on('focus-url-bar', handler);
+    // Return cleanup function
+    return () => ipcRenderer.removeListener('focus-url-bar', handler);
   },
 
-  onFocusSearchBar: (callback: () => void): void => {
-    ipcRenderer.on('focus-search-bar', () => callback());
+  onFocusSearchBar: (callback: () => void): (() => void) => {
+    const handler = () => {
+      console.log('Preload: focus-search-bar event received');
+      callback();
+    };
+    ipcRenderer.on('focus-search-bar', handler);
+    // Return cleanup function
+    return () => ipcRenderer.removeListener('focus-search-bar', handler);
   },
 
   onFoundInPage: (callback: (data: { activeMatchOrdinal: number; matches: number }) => void): void => {

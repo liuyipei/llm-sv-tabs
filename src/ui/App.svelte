@@ -194,7 +194,7 @@
 
   // Initialize keyboard shortcuts on mount
   onMount(() => {
-    const cleanup = initKeyboardShortcuts({
+    const keyboardCleanup = initKeyboardShortcuts({
       focusUrlInput,
       focusLLMInput,
       closeActiveTab,
@@ -202,20 +202,30 @@
       toggleSearchBar,
     });
 
+    // Track IPC cleanup functions
+    let urlBarCleanup: (() => void) | undefined;
+    let searchBarCleanup: (() => void) | undefined;
+
     // Set up IPC listener for focus-url-bar event (triggered by global shortcut)
     if (typeof window !== 'undefined' && window.electronAPI) {
-      window.electronAPI.onFocusUrlBar(() => {
+      urlBarCleanup = window.electronAPI.onFocusUrlBar(() => {
+        console.log('App.svelte: focusUrlInput called from IPC');
         focusUrlInput();
       });
 
       // Set up IPC listener for focus-search-bar event (triggered by Ctrl+F global shortcut)
-      window.electronAPI.onFocusSearchBar(() => {
+      searchBarCleanup = window.electronAPI.onFocusSearchBar(() => {
+        console.log('App.svelte: showSearchBar called from IPC');
         showSearchBar();
       });
     }
 
     // Cleanup on unmount
-    return cleanup;
+    return () => {
+      keyboardCleanup();
+      urlBarCleanup?.();
+      searchBarCleanup?.();
+    };
   });
 </script>
 
