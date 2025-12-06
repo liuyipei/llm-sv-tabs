@@ -605,6 +605,11 @@ ${formattedContent}
         tab.metadata.isStreaming = false;
       }
 
+      // Ensure renderer transitions out of streaming state even on failures
+      tabManager.updateLLMResponseTab(tabId, tab?.metadata?.response || '', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+
       return {
         response: '',
         error: error instanceof Error ? error.message : String(error),
