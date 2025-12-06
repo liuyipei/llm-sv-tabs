@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, session } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, session, globalShortcut } from 'electron';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { dirname, join } from 'path';
 import TabManager from './tab-manager.js';
@@ -675,195 +675,258 @@ ${formattedContent}
   });
 }
 
-// Helper to check if a shortcut matches the input event
-function matchesShortcut(
-  input: Electron.Input,
-  key: string,
-  modifiers: { ctrl?: boolean; alt?: boolean; shift?: boolean; meta?: boolean }
-): boolean {
-  const isMac = process.platform === 'darwin';
+function setupGlobalShortcuts(): void {
+  // Register Cmd+F / Ctrl+F for opening search bar (browser-style find)
+  const findShortcut = process.platform === 'darwin' ? 'Command+F' : 'Ctrl+F';
+  const findRegistered = globalShortcut.register(findShortcut, () => {
+    console.log('Find shortcut triggered:', findShortcut);
+    const windows = BrowserWindow.getAllWindows();
+    if (windows.length > 0) {
+      const mainWindow = windows[0];
+      // Focus at all three levels: OS window, UI webContents, then send event
+      mainWindow.show();
+      mainWindow.focus();
+      mainWindow.webContents.focus();
 
-  // Normalize key comparison (case-insensitive for letters)
-  const inputKey = input.key.toLowerCase();
-  const targetKey = key.toLowerCase();
-
-  if (inputKey !== targetKey) return false;
-
-  // On Mac, use meta (Cmd) for primary shortcuts; on other platforms use ctrl
-  const ctrlOrCmd = isMac ? input.meta : input.control;
-
-  if (modifiers.ctrl && !ctrlOrCmd) return false;
-  if (modifiers.alt && !input.alt) return false;
-  if (modifiers.shift && !input.shift) return false;
-  if (modifiers.meta && !input.meta) return false;
-
-  // Ensure no extra modifiers are pressed (unless explicitly required)
-  if (!modifiers.ctrl && ctrlOrCmd) return false;
-  if (!modifiers.alt && input.alt) return false;
-  if (!modifiers.shift && input.shift) return false;
-
-  return true;
-}
-
-function setupWindowShortcuts(window: BrowserWindow): void {
-  // Handle keyboard shortcuts only when this window is focused
-  // Using before-input-event ensures shortcuts work even when webview has focus
-  window.webContents.on('before-input-event', (event, input) => {
-    // Only handle keydown events
-    if (input.type !== 'keyDown') return;
-
-    const isMac = process.platform === 'darwin';
-
-    // Ctrl+F / Cmd+F - Focus search bar
-    if (matchesShortcut(input, 'f', { ctrl: true })) {
-      event.preventDefault();
-      console.log('Find shortcut triggered');
-      window.webContents.send('focus-search-bar');
-      return;
+      // Send event to renderer to show/focus search bar
+      setTimeout(() => {
+        mainWindow.webContents.send('focus-search-bar');
+      }, 10);
     }
+  });
 
-    // Ctrl+W / Cmd+W - Close active tab
-    if (matchesShortcut(input, 'w', { ctrl: true })) {
-      event.preventDefault();
-      console.log('Close tab shortcut triggered');
-      if (tabManager) {
-        const activeTabId = tabManager.getActiveTabs().activeTabId;
-        if (activeTabId) {
-          tabManager.closeTab(activeTabId);
+  if (!findRegistered) {
+    console.error('Failed to register find shortcut:', findShortcut);
+  } else {
+    console.log(`Find shortcut registered: ${findShortcut}`);
+  }
+
+  // Register Ctrl+W / Cmd+W for closing the active tab (not the window)
+  const closeTabShortcut = process.platform === 'darwin' ? 'Command+W' : 'Ctrl+W';
+  const closeTabRegistered = globalShortcut.register(closeTabShortcut, () => {
+    console.log('Close tab shortcut triggered:', closeTabShortcut);
+    if (tabManager) {
+      const activeTabId = tabManager.getActiveTabs().activeTabId;
+      if (activeTabId) {
+        tabManager.closeTab(activeTabId);
+      }
+    }
+  });
+
+  if (!closeTabRegistered) {
+    console.error('Failed to register close tab shortcut:', closeTabShortcut);
+  } else {
+    console.log(`Close tab shortcut registered: ${closeTabShortcut}`);
+  }
+
+  // Register Ctrl+T / Cmd+T for opening a new tab (focus URL bar)
+  const newTabShortcut = process.platform === 'darwin' ? 'Command+T' : 'Ctrl+T';
+  const newTabRegistered = globalShortcut.register(newTabShortcut, () => {
+    console.log('New tab shortcut triggered:', newTabShortcut);
+    const windows = BrowserWindow.getAllWindows();
+    if (windows.length > 0) {
+      const mainWindow = windows[0];
+      mainWindow.show();
+      mainWindow.focus();
+      mainWindow.webContents.focus();
+
+      // Focus URL bar for new tab input
+      setTimeout(() => {
+        mainWindow.webContents.send('focus-url-bar');
+      }, 10);
+    }
+  });
+
+  if (!newTabRegistered) {
+    console.error('Failed to register new tab shortcut:', newTabShortcut);
+  } else {
+    console.log(`New tab shortcut registered: ${newTabShortcut}`);
+  }
+
+  // Register Ctrl+R / Cmd+R for reloading the current tab
+  const reloadShortcut = process.platform === 'darwin' ? 'Command+R' : 'Ctrl+R';
+  const reloadRegistered = globalShortcut.register(reloadShortcut, () => {
+    console.log('Reload shortcut triggered:', reloadShortcut);
+    if (tabManager) {
+      const activeTabId = tabManager.getActiveTabs().activeTabId;
+      if (activeTabId) {
+        tabManager.reloadTab(activeTabId);
+      }
+    }
+  });
+
+  if (!reloadRegistered) {
+    console.error('Failed to register reload shortcut:', reloadShortcut);
+  } else {
+    console.log(`Reload shortcut registered: ${reloadShortcut}`);
+  }
+
+  // Register Cmd+L / Ctrl+L for focusing URL bar (browser-style)
+  const focusUrlShortcut = process.platform === 'darwin' ? 'Command+L' : 'Ctrl+L';
+  const focusUrlRegistered = globalShortcut.register(focusUrlShortcut, () => {
+    console.log('Focus URL bar shortcut triggered:', focusUrlShortcut);
+    const windows = BrowserWindow.getAllWindows();
+    if (windows.length > 0) {
+      const mainWindow = windows[0];
+      // Focus at all three levels: OS window, UI webContents, then DOM element
+      mainWindow.show();
+      mainWindow.focus();                 // 1. Focus the OS window
+      mainWindow.webContents.focus();     // 2. Focus the UI webContents (not the WebContentsView!)
+
+      // Small defer so focus settles before trying to focus DOM element
+      setTimeout(() => {
+        mainWindow.webContents.send('focus-url-bar');
+      }, 10);
+    }
+  });
+
+  if (!focusUrlRegistered) {
+    console.error('Failed to register focus URL bar shortcut:', focusUrlShortcut);
+  } else {
+    console.log(`Focus URL bar shortcut registered: ${focusUrlShortcut}`);
+  }
+
+  // Register platform-specific screenshot shortcut
+  const shortcut = process.platform === 'darwin' ? 'CommandOrControl+Alt+S' : 'Ctrl+Alt+S';
+
+  const registered = globalShortcut.register(shortcut, () => {
+    console.log('Screenshot shortcut triggered:', shortcut);
+    if (screenshotService) {
+      screenshotService.startCapture().then((dataUrl) => {
+        if (dataUrl && tabManager) {
+          const timestamp = new Date().toLocaleString('en-US', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false,
+          }).replace(/\//g, '-').replace(',', '');
+
+          const title = `Screenshot ${timestamp}`;
+          const noteId = Date.now();
+
+          tabManager.openNoteTab(noteId, title, dataUrl, 'image', true);
         }
-      }
-      return;
+      }).catch((error) => {
+        console.error('Screenshot shortcut error:', error);
+      });
     }
+  });
 
-    // Ctrl+T / Cmd+T - New tab (focus URL bar)
-    if (matchesShortcut(input, 't', { ctrl: true })) {
-      event.preventDefault();
-      console.log('New tab shortcut triggered');
-      window.webContents.send('focus-url-bar');
-      return;
-    }
+  if (!registered) {
+    console.error('Failed to register screenshot shortcut:', shortcut);
+  } else {
+    console.log(`Screenshot shortcut registered: ${shortcut}`);
+  }
 
-    // Ctrl+R / Cmd+R - Reload tab
-    if (matchesShortcut(input, 'r', { ctrl: true })) {
-      event.preventDefault();
-      console.log('Reload shortcut triggered');
-      if (tabManager) {
-        const activeTabId = tabManager.getActiveTabs().activeTabId;
-        if (activeTabId) {
-          tabManager.reloadTab(activeTabId);
-        }
-      }
-      return;
-    }
+  // Register navigation shortcuts (back/forward)
+  // Mac: Cmd+[, Cmd+], Alt+Left, Alt+Right
+  // Windows/Linux: Alt+Left, Alt+Right
+  const backShortcuts = process.platform === 'darwin'
+    ? ['Command+[', 'Alt+Left']
+    : ['Alt+Left'];
+  const forwardShortcuts = process.platform === 'darwin'
+    ? ['Command+]', 'Alt+Right']
+    : ['Alt+Right'];
 
-    // Ctrl+L / Cmd+L - Focus URL bar
-    if (matchesShortcut(input, 'l', { ctrl: true })) {
-      event.preventDefault();
-      console.log('Focus URL bar shortcut triggered');
-      window.webContents.send('focus-url-bar');
-      return;
-    }
-
-    // Ctrl+Alt+S / Cmd+Alt+S - Screenshot
-    if (matchesShortcut(input, 's', { ctrl: true, alt: true })) {
-      event.preventDefault();
-      console.log('Screenshot shortcut triggered');
-      if (screenshotService) {
-        screenshotService.startCapture().then((dataUrl) => {
-          if (dataUrl && tabManager) {
-            const timestamp = new Date().toLocaleString('en-US', {
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit',
-              hour12: false,
-            }).replace(/\//g, '-').replace(',', '');
-
-            const title = `Screenshot ${timestamp}`;
-            const noteId = Date.now();
-
-            tabManager.openNoteTab(noteId, title, dataUrl, 'image', true);
-          }
-        }).catch((error) => {
-          console.error('Screenshot shortcut error:', error);
-        });
-      }
-      return;
-    }
-
-    // Alt+Left - Back navigation (also Cmd+[ on Mac)
-    if (matchesShortcut(input, 'ArrowLeft', { alt: true }) ||
-        (isMac && matchesShortcut(input, '[', { ctrl: true }))) {
-      event.preventDefault();
-      console.log('Back navigation shortcut triggered');
+  for (const backShortcut of backShortcuts) {
+    const backRegistered = globalShortcut.register(backShortcut, () => {
+      console.log('Back navigation shortcut triggered:', backShortcut);
       if (tabManager) {
         const activeTabId = tabManager.getActiveTabs().activeTabId;
         if (activeTabId) {
           tabManager.goBack(activeTabId);
         }
       }
-      return;
-    }
+    });
 
-    // Alt+Right - Forward navigation (also Cmd+] on Mac)
-    if (matchesShortcut(input, 'ArrowRight', { alt: true }) ||
-        (isMac && matchesShortcut(input, ']', { ctrl: true }))) {
-      event.preventDefault();
-      console.log('Forward navigation shortcut triggered');
+    if (!backRegistered) {
+      console.error('Failed to register back shortcut:', backShortcut);
+    } else {
+      console.log(`Back navigation shortcut registered: ${backShortcut}`);
+    }
+  }
+
+  for (const forwardShortcut of forwardShortcuts) {
+    const forwardRegistered = globalShortcut.register(forwardShortcut, () => {
+      console.log('Forward navigation shortcut triggered:', forwardShortcut);
       if (tabManager) {
         const activeTabId = tabManager.getActiveTabs().activeTabId;
         if (activeTabId) {
           tabManager.goForward(activeTabId);
         }
       }
-      return;
+    });
+
+    if (!forwardRegistered) {
+      console.error('Failed to register forward shortcut:', forwardShortcut);
+    } else {
+      console.log(`Forward navigation shortcut registered: ${forwardShortcut}`);
     }
+  }
 
-    // Ctrl+Tab - Next tab
-    if (input.control && input.key === 'Tab' && !input.shift) {
-      event.preventDefault();
-      console.log('Next tab shortcut triggered');
-      if (tabManager) {
-        tabManager.nextTab();
-      }
-      return;
-    }
+  // Register tab switching shortcuts
+  // Windows/Linux: Ctrl+Tab, Ctrl+Shift+Tab
+  // Mac: Also supports Ctrl+Tab, Ctrl+Shift+Tab (in addition to Cmd+Option+Right/Left)
+  const nextTabShortcut = 'Ctrl+Tab';
+  const previousTabShortcut = 'Ctrl+Shift+Tab';
 
-    // Ctrl+Shift+Tab - Previous tab
-    if (input.control && input.key === 'Tab' && input.shift) {
-      event.preventDefault();
-      console.log('Previous tab shortcut triggered');
-      if (tabManager) {
-        tabManager.previousTab();
-      }
-      return;
-    }
-
-    // Mac-only: Cmd+Option+Left/Right for tab switching
-    if (isMac) {
-      if (input.meta && input.alt && input.key === 'ArrowRight') {
-        event.preventDefault();
-        console.log('Next tab shortcut triggered: Cmd+Option+Right');
-        if (tabManager) {
-          tabManager.nextTab();
-        }
-        return;
-      }
-
-      if (input.meta && input.alt && input.key === 'ArrowLeft') {
-        event.preventDefault();
-        console.log('Previous tab shortcut triggered: Cmd+Option+Left');
-        if (tabManager) {
-          tabManager.previousTab();
-        }
-        return;
-      }
+  const nextTabRegistered = globalShortcut.register(nextTabShortcut, () => {
+    console.log('Next tab shortcut triggered:', nextTabShortcut);
+    if (tabManager) {
+      tabManager.nextTab();
     }
   });
 
-  console.log('Window keyboard shortcuts initialized');
+  if (!nextTabRegistered) {
+    console.error('Failed to register next tab shortcut:', nextTabShortcut);
+  } else {
+    console.log(`Next tab shortcut registered: ${nextTabShortcut}`);
+  }
+
+  const previousTabRegistered = globalShortcut.register(previousTabShortcut, () => {
+    console.log('Previous tab shortcut triggered:', previousTabShortcut);
+    if (tabManager) {
+      tabManager.previousTab();
+    }
+  });
+
+  if (!previousTabRegistered) {
+    console.error('Failed to register previous tab shortcut:', previousTabShortcut);
+  } else {
+    console.log(`Previous tab shortcut registered: ${previousTabShortcut}`);
+  }
+
+  // On Mac, also register Cmd+Option+Left/Right for tab switching
+  if (process.platform === 'darwin') {
+    const macNextTab = globalShortcut.register('Command+Alt+Right', () => {
+      console.log('Next tab shortcut triggered: Command+Alt+Right');
+      if (tabManager) {
+        tabManager.nextTab();
+      }
+    });
+
+    const macPreviousTab = globalShortcut.register('Command+Alt+Left', () => {
+      console.log('Previous tab shortcut triggered: Command+Alt+Left');
+      if (tabManager) {
+        tabManager.previousTab();
+      }
+    });
+
+    if (!macNextTab) {
+      console.error('Failed to register Command+Alt+Right');
+    } else {
+      console.log('Tab switching shortcut registered: Command+Alt+Right');
+    }
+
+    if (!macPreviousTab) {
+      console.error('Failed to register Command+Alt+Left');
+    } else {
+      console.log('Tab switching shortcut registered: Command+Alt+Left');
+    }
+  }
 }
 
 // Disable client hints that would reveal "Electron" in the Sec-CH-UA header.
@@ -877,16 +940,18 @@ app.whenReady().then(() => {
   setupIPCHandlers();
   setupDownloadHandler();
 
-  // Set up window-scoped keyboard shortcuts (only active when window is focused)
-  if (mainWindow) {
-    setupWindowShortcuts(mainWindow);
-  }
+  setupGlobalShortcuts();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
     }
   });
+});
+
+app.on('will-quit', () => {
+  // Unregister all global shortcuts
+  globalShortcut.unregisterAll();
 });
 
 app.on('window-all-closed', () => {
