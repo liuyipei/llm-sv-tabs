@@ -161,6 +161,86 @@ export function createRawMessageViewerHTML(metadata: any): string {
       font-size: 18px;
       font-weight: bold;
     }
+
+    /* Context section - pink/purple theme */
+    .context-section {
+      margin: 20px 0;
+      padding: 15px;
+      background-color: #1e1e1e;
+      border-left: 3px solid #c586c0;
+      border-radius: 4px;
+    }
+
+    .context-label {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: #c586c0;
+      margin-bottom: 10px;
+      letter-spacing: 0.5px;
+    }
+
+    .context-tabs {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .context-tab-item {
+      padding: 10px;
+      background-color: #252526;
+      border-radius: 3px;
+      border: 1px solid #3e3e42;
+    }
+
+    .context-tab-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 4px;
+    }
+
+    .context-tab-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: #d4d4d4;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .context-tab-type {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      background-color: #3e3e42;
+      color: #9cdcfe;
+      border-radius: 3px;
+      letter-spacing: 0.5px;
+      flex-shrink: 0;
+    }
+
+    .context-tab-url {
+      font-size: 12px;
+      color: #8c8c8c;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    }
+
+    .context-tab-ids {
+      margin-top: 4px;
+      font-size: 11px;
+      color: #4ec9b0;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    }
+
+    .context-id {
+      margin-right: 12px;
+    }
   </style>
 </head>
 <body>
@@ -235,18 +315,25 @@ export function createRawMessageViewerHTML(metadata: any): string {
     ` : ''}
 
     ${metadata.contextTabs && metadata.contextTabs.length > 0 ? `
-      <div class="section">
-        <div class="section-title">Context (${metadata.contextTabs.length} tab${metadata.contextTabs.length === 1 ? '' : 's'})</div>
-        ${metadata.contextTabs.map((tab: any) => `
-          <div class="field" style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #3e3e42;">
-            <div class="field-name">${escapeHtml(tab.title)}</div>
-            <div class="field-value" style="font-size: 12px; color: #808080;">
-              ${escapeHtml(tab.url)}
-              ${tab.slug ? `<br><span style="color: #4ec9b0;">slug:</span> ${escapeHtml(tab.slug)}` : ''}
-              ${tab.shortId ? `<br><span style="color: #4ec9b0;">shortId:</span> ${escapeHtml(tab.shortId)}` : ''}
+      <div class="context-section">
+        <div class="context-label">Context (${metadata.contextTabs.length} tab${metadata.contextTabs.length === 1 ? '' : 's'})</div>
+        <div class="context-tabs">
+          ${metadata.contextTabs.map((tab: any) => `
+            <div class="context-tab-item">
+              <div class="context-tab-header">
+                <span class="context-tab-title">${escapeHtml(tab.title)}</span>
+                <span class="context-tab-type">${escapeHtml(tab.type)}</span>
+              </div>
+              ${tab.url ? `<div class="context-tab-url">${escapeHtml(tab.url)}</div>` : ''}
+              ${tab.slug || tab.shortId ? `
+                <div class="context-tab-ids">
+                  ${tab.slug ? `<span class="context-id">slug: ${escapeHtml(tab.slug)}</span>` : ''}
+                  ${tab.shortId ? `<span class="context-id">id: ${escapeHtml(tab.shortId)}</span>` : ''}
+                </div>
+              ` : ''}
             </div>
-          </div>
-        `).join('')}
+          `).join('')}
+        </div>
       </div>
     ` : ''}
 

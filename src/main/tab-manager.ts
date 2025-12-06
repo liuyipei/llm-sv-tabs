@@ -582,6 +582,70 @@ class TabManager {
     .copy-btn:hover {
       background-color: #005a9e;
     }
+    /* Context section - pink/purple theme */
+    .context-section {
+      background-color: #1e1e1e;
+      border: 1px solid #3e3e42;
+      border-left: 3px solid #c586c0;
+      border-radius: 4px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+    .context-label {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: #c586c0;
+      margin-bottom: 10px;
+      letter-spacing: 0.5px;
+    }
+    .context-tabs {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .context-tab-item {
+      padding: 10px;
+      background-color: #252526;
+      border-radius: 3px;
+      border: 1px solid #3e3e42;
+    }
+    .context-tab-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 4px;
+    }
+    .context-tab-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: #d4d4d4;
+    }
+    .context-tab-type {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      background-color: #3e3e42;
+      color: #9cdcfe;
+      border-radius: 3px;
+      letter-spacing: 0.5px;
+    }
+    .context-tab-url {
+      font-size: 12px;
+      color: #8c8c8c;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    }
+    .context-tab-ids {
+      margin-top: 4px;
+      font-size: 11px;
+      color: #4ec9b0;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    }
+    .context-id {
+      margin-right: 12px;
+    }
   </style>
 </head>
 <body>
@@ -640,20 +704,25 @@ class TabManager {
   ` : ''}
 
   ${metadata.contextTabs && metadata.contextTabs.length > 0 ? `
-  <div class="section">
-    <h2>Context (${metadata.contextTabs.length} tab${metadata.contextTabs.length === 1 ? '' : 's'})</h2>
-    <table>
+  <div class="context-section">
+    <div class="context-label">Context (${metadata.contextTabs.length} tab${metadata.contextTabs.length === 1 ? '' : 's'})</div>
+    <div class="context-tabs">
       ${metadata.contextTabs.map((tab: any) => `
-        <tr>
-          <td style="vertical-align: top; padding-bottom: 10px;">
-            <strong>${this.escapeHtml(tab.title)}</strong><br>
-            <span style="color: #808080; font-size: 12px;">${this.escapeHtml(tab.url)}</span>
-            ${tab.slug ? `<br><span style="color: #4ec9b0;">slug:</span> ${this.escapeHtml(tab.slug)}` : ''}
-            ${tab.shortId ? `<br><span style="color: #4ec9b0;">shortId:</span> ${this.escapeHtml(tab.shortId)}` : ''}
-          </td>
-        </tr>
+        <div class="context-tab-item">
+          <div class="context-tab-header">
+            <span class="context-tab-title">${this.escapeHtml(tab.title)}</span>
+            <span class="context-tab-type">${this.escapeHtml(tab.type)}</span>
+          </div>
+          ${tab.url ? `<div class="context-tab-url">${this.escapeHtml(tab.url)}</div>` : ''}
+          ${tab.slug || tab.shortId ? `
+            <div class="context-tab-ids">
+              ${tab.slug ? `<span class="context-id">slug: ${this.escapeHtml(tab.slug)}</span>` : ''}
+              ${tab.shortId ? `<span class="context-id">id: ${this.escapeHtml(tab.shortId)}</span>` : ''}
+            </div>
+          ` : ''}
+        </div>
       `).join('')}
-    </table>
+    </div>
   </div>
   ` : ''}
 
