@@ -236,7 +236,7 @@ export function createRawMessageViewerHTML(metadata: any): string {
 
     ${metadata.selectedTabIds && metadata.selectedTabIds.length > 0 ? `
       <div class="section">
-        <div class="section-title">Selected Tabs</div>
+        <div class="section-title">Context (${metadata.selectedTabIds.length} tab${metadata.selectedTabIds.length === 1 ? '' : 's'})</div>
         <div class="field">
           <div class="field-value">${metadata.selectedTabIds.map((id: string) => escapeHtml(id)).join(', ')}</div>
         </div>

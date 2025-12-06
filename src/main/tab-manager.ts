@@ -641,8 +641,8 @@ class TabManager {
 
   ${metadata.selectedTabIds && metadata.selectedTabIds.length > 0 ? `
   <div class="section">
-    <h2>Selected Tabs</h2>
-    <pre>${JSON.stringify(metadata.selectedTabIds, null, 2)}</pre>
+    <h2>Context (${metadata.selectedTabIds.length} tab${metadata.selectedTabIds.length === 1 ? '' : 's'})</h2>
+    <pre>${metadata.selectedTabIds.join(', ')}</pre>
   </div>
   ` : ''}
 
