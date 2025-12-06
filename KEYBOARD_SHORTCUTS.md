@@ -37,7 +37,7 @@ The following keyboard shortcuts are available, combining Chrome conventions wit
 | Shortcut | Action | Description |
 |----------|--------|-------------|
 | `Ctrl+D` | Bookmark Tab | Bookmarks the currently active tab |
-| `Esc` | Return to Page Content | When focus is in controls (URL bar, find, tabs, settings), returns focus to the active WebContents view |
+| `Esc` | Return to Page Content | Returns focus to the active WebContents view from anywhere in the UI unless another handler consumes the key |
 
 > **Note**: On macOS, use `Cmd` instead of `Ctrl` for all shortcuts.
 

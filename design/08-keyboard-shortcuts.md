@@ -194,7 +194,7 @@ If you see all logs but the element doesn't focus, the issue is likely missing `
 | Cmd/Ctrl+W | Close tab | Menu accelerator → TabManager |
 | Cmd/Ctrl+T | New tab (focus address) | Menu accelerator → IPC |
 | Cmd/Ctrl+D | Bookmark tab | Menu accelerator → IPC → bookmark sync |
-| Esc | Return focus to page content | Renderer handler → IPC → focus active WebContentsView |
+| Esc | Return focus to page content | Renderer handler (fires anywhere unless already handled) → IPC → focus active WebContentsView |
 
 **Note**: Accelerators fire at the application window level, so they work inside `WebContentsView` without stealing shortcuts when the window is unfocused. Use `globalShortcut` only for truly background behaviors.
 
