@@ -175,6 +175,14 @@
   }
 
   function handleGlobalKeydown(event: KeyboardEvent): void {
+    const isCtrlOrMeta = event.ctrlKey || event.metaKey;
+
+    if (isCtrlOrMeta && event.key.toLowerCase() === 'f') {
+      event.preventDefault();
+      showSearchBar();
+      return;
+    }
+
     if (event.key !== 'Escape') return;
     if (isControlPanelElement(event.target)) {
       event.preventDefault();
