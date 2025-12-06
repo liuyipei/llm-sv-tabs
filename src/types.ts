@@ -33,6 +33,11 @@ export interface TabMetadata {
   isStreaming?: boolean;
   error?: string;
 
+  // Persistent identifiers for LLM tabs (survive restarts, more meaningful than tab-N)
+  persistentId?: string; // UUID v4 - globally unique
+  shortId?: string; // 8-char hash - derived from query+timestamp
+  slug?: string; // Human-readable slug from query
+
   // For file/image tabs
   fileType?: 'text' | 'pdf' | 'image';
   mimeType?: string;

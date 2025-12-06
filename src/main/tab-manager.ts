@@ -3,6 +3,7 @@ import type { Tab, TabData, TabType } from '../types';
 import { SessionManager } from './services/session-manager.js';
 import { createNoteHTML } from './templates/note-template.js';
 import { createRawMessageViewerHTML } from './templates/raw-message-template.js';
+import { generateLLMTabIdentifiers } from './utils/tab-id-generator.js';
 
 interface TabWithView extends Tab {
   view?: WebContentsView;  // Optional for Svelte-rendered tabs
@@ -283,6 +284,9 @@ class TabManager {
     const timestamp = Date.now();
     const isLoading = !response && !error;
 
+    // Generate persistent identifiers for this LLM conversation
+    const identifiers = generateLLMTabIdentifiers(query, timestamp);
+
     // No BrowserView for LLM responses - use Svelte component instead
     const tab: TabWithView = {
       id: tabId,
@@ -298,6 +302,10 @@ class TabManager {
         response: response,
         error: error,
         isStreaming: isLoading,
+        // Persistent identifiers
+        persistentId: identifiers.persistentId,
+        shortId: identifiers.shortId,
+        slug: identifiers.slug,
       },
     };
 
