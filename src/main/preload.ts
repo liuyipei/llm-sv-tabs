@@ -153,6 +153,10 @@ const electronAPI = {
     ipcRenderer.on('focus-search-bar', () => callback());
   },
 
+  onFocusLLMInput: (callback: () => void): void => {
+    ipcRenderer.on('focus-llm-input', () => callback());
+  },
+
   onFoundInPage: (callback: (data: { activeMatchOrdinal: number; matches: number }) => void): void => {
     ipcRenderer.on('found-in-page', (_event, data) => callback(data));
   },

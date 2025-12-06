@@ -718,6 +718,7 @@ function createApplicationMenu(): void {
   const reloadShortcut = 'CommandOrControl+R';
   const findShortcut = 'CommandOrControl+F';
   const screenshotShortcut = 'CommandOrControl+Alt+S';
+  const focusLLMInputShortcut = 'CommandOrControl+.';
 
   const navigationShortcuts = {
     back: process.platform === 'darwin' ? ['Command+[', 'Alt+Left'] : ['Alt+Left'],
@@ -741,6 +742,15 @@ function createApplicationMenu(): void {
 
     setTimeout(() => {
       window.webContents.send('focus-search-bar');
+    }, 10);
+  };
+
+  const focusLLMInput = (): void => {
+    const window = focusMainUI();
+    if (!window) return;
+
+    setTimeout(() => {
+      window.webContents.send('focus-llm-input');
     }, 10);
   };
 
@@ -859,6 +869,7 @@ function createApplicationMenu(): void {
       submenu: [
         { label: 'Reload Tab', accelerator: reloadShortcut, click: reloadActiveTab },
         { label: 'Focus Address Bar', accelerator: focusUrlShortcut, click: focusUrlBar },
+        { label: 'Focus LLM Input', accelerator: focusLLMInputShortcut, click: focusLLMInput },
         { label: 'Find in Page', accelerator: findShortcut, click: focusSearchBar },
         { label: 'Screenshot', accelerator: screenshotShortcut, click: captureScreenshot },
       ],

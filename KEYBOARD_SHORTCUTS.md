@@ -65,6 +65,8 @@ The keyboard shortcuts system is structured into separate files for better organ
 ### Integration
 - **App.svelte**: Initializes keyboard shortcuts on mount and defines action handlers
 - **InputControls.svelte**: Exposes URL input and LLM query input focus functionality
+- **Main process menu (src/main/main.ts)**: Registers accelerators (Ctrl/Cmd+W, T, R, F, L, `Ctrl+.`) so shortcuts fire even when a
+  WebContentsView has focus.
 
 ## Adding New Shortcuts
 

@@ -186,6 +186,7 @@ If you see all logs but the element doesn't focus, the issue is likely missing `
 |----------|--------|----------------|
 | Cmd/Ctrl+L | Focus URL bar | Menu accelerator → IPC → focus element |
 | Cmd/Ctrl+F | Focus search bar | Menu accelerator → IPC → focus element |
+| Cmd/Ctrl+. | Focus LLM input | Menu accelerator → IPC → focus element |
 | Cmd/Ctrl+Alt+S | Screenshot | Menu accelerator → screenshot service |
 | Cmd/Ctrl+W | Close tab | Menu accelerator → TabManager |
 | Cmd/Ctrl+T | New tab (focus address) | Menu accelerator → IPC |

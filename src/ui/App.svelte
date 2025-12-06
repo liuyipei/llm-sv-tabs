@@ -212,6 +212,10 @@
       window.electronAPI.onFocusSearchBar(() => {
         showSearchBar();
       });
+
+      window.electronAPI.onFocusLLMInput(() => {
+        focusLLMInput();
+      });
     }
 
     // Cleanup on unmount
