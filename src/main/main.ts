@@ -677,11 +677,16 @@ ${formattedContent}
 
 function setupApplicationMenu(): void {
   // Helper to focus main window's webContents and send IPC event
+  // Must focus at multiple levels: BrowserWindow → webContents → DOM element
   const focusAndSend = (channel: string): void => {
     const windows = BrowserWindow.getAllWindows();
     if (windows.length > 0) {
       const win = windows[0];
+      // Focus the BrowserWindow first (important when WebContentsView has focus)
+      win.focus();
+      // Then focus the main window's webContents (not the WebContentsView)
       win.webContents.focus();
+      // Finally send IPC to focus the DOM element
       setTimeout(() => {
         win.webContents.send(channel);
       }, 10);
