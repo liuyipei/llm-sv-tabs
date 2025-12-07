@@ -34,6 +34,9 @@ const electronAPI = {
   setActiveTab: (tabId: string): Promise<IPCResponse> =>
     ipcRenderer.invoke('set-active-tab', tabId),
 
+  focusActiveWebContents: (): Promise<IPCResponse> =>
+    ipcRenderer.invoke('focus-active-web-contents'),
+
   selectTabs: (tabIds: string[]): Promise<IPCResponse<{ success: boolean; selectedTabs: string[] }>> =>
     ipcRenderer.invoke('select-tabs', tabIds),
 

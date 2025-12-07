@@ -184,12 +184,46 @@ If you see all logs but the element doesn't focus, the issue is likely missing `
 
 | Shortcut | Action | Implementation |
 |----------|--------|----------------|
-| Cmd/Ctrl+L | Focus URL bar | globalShortcut → IPC → focus element |
-| Cmd/Ctrl+Alt+S | Screenshot | globalShortcut → direct action |
-| Cmd/Ctrl+W | Close tab | Window-level listener (when UI has focus) |
-| Cmd/Ctrl+D | Bookmark tab | Window-level listener (when UI has focus) |
+| Cmd/Ctrl+L | Focus URL bar | Menu accelerator → IPC → focus element |
+| Cmd/Ctrl+F | Focus search bar | Menu accelerator → IPC → focus element |
+| Cmd/Ctrl+. | Focus LLM input | Menu accelerator → IPC → focus element |
+| Cmd/Ctrl+Alt+S | Screenshot | Menu accelerator → screenshot service |
+| Cmd/Ctrl+W | Close tab | Menu accelerator → TabManager |
+| Cmd/Ctrl+T | New tab (focus address) | Menu accelerator → IPC |
+| Cmd/Ctrl+D | Bookmark tab | Menu accelerator → IPC → bookmark sync |
+| Esc | Return focus to page content | Renderer handler (fires anywhere unless already handled) → IPC → focus active WebContentsView |
 
-**Note**: Cmd+W and Cmd+D work when the UI has focus, but not when browsing web content. To make them work globally, move them to `globalShortcut` registration following the same pattern as Cmd+L.
+### How the `Esc` Focus Return Works (copy/paste ready)
+
+```ts
+// src/ui/App.svelte (renderer)
+<svelte:window on:keydown={async (event) => {
+  if (event.key !== 'Escape' || event.defaultPrevented) return;
+  event.preventDefault();
+  // blur any control-panel element, then hand off to main
+  await ipc.focusActiveWebContents();
+}} />
+
+// src/ui/lib/ipc-bridge.ts (preload bridge)
+focusActiveWebContents: () => window.electronAPI.focusActiveWebContents(),
+
+// src/main/preload.ts (exposed to renderer)
+focusActiveWebContents: () => ipcRenderer.invoke('focus-active-web-contents'),
+
+// src/main/main.ts (IPC handler)
+ipcMain.handle('focus-active-web-contents', () => tabManager.focusActiveWebContents());
+
+// src/main/tab-manager.ts (focus helper)
+focusActiveWebContents() {
+  this.mainWindow.focus();
+  this.mainWindow.webContents.focus();
+  this.activeWebContentsView.webContents.focus(); // page content focus
+}
+```
+
+**Note**: Accelerators fire at the application window level, so they work inside `WebContentsView` without stealing shortcuts when the window is unfocused. Use `globalShortcut` only for truly background behaviors.
+
+Renderer surfaces can explicitly return focus to the browsing context by calling `ipc.focusActiveWebContents()`. Use this when a UI overlay (URL bar, tabs, settings, find bar) wants to relinquish focus after handling a keyboard shortcut like `Esc`.
 
 ---
 
@@ -205,10 +239,10 @@ If you see all logs but the element doesn't focus, the issue is likely missing `
    - Element simply doesn't receive focus
    - Always ensure parent webContents has focus first
 
-3. **`globalShortcut` is the right tool for browser-style shortcuts**
-   - OS-level capture
-   - Single registration point
-   - Consistent with Electron best practices
+3. **Menu accelerators are preferred for browser-style shortcuts**
+   - Avoid background capture while still bypassing WebContentsView focus
+   - Single registration point via the menu template
+   - Consistent with Electron best practices for app-scoped commands
 
 4. **Timing matters**
    - Focus operations are asynchronous

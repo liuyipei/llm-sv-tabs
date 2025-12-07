@@ -37,6 +37,7 @@ The following keyboard shortcuts are available, combining Chrome conventions wit
 | Shortcut | Action | Description |
 |----------|--------|-------------|
 | `Ctrl+D` | Bookmark Tab | Bookmarks the currently active tab |
+| `Esc` | Return to Page Content | Returns focus to the active WebContents view from anywhere in the UI unless another handler consumes the key |
 
 > **Note**: On macOS, use `Cmd` instead of `Ctrl` for all shortcuts.
 
@@ -44,27 +45,18 @@ The following keyboard shortcuts are available, combining Chrome conventions wit
 
 ## Implementation
 
-The keyboard shortcuts system is structured into separate files for better organization:
+Most keyboard shortcuts are routed through the **main process application menu**, which fires even when a `WebContentsView`
+holds focus. The renderer listens for the resulting IPC events and performs UI-specific work (focusing inputs, updating
+bookmark UI, etc.). The `Esc` shortcut is handled in the renderer so it can run anywhere and then call IPC to return focus to
+the active `WebContentsView`.
 
-### Configuration File
-- **Location**: `src/ui/config/shortcuts.ts`
-- **Purpose**: Contains the keyboard shortcut definitions
-- **Features**:
-  - Declarative shortcut configuration
-  - Shortcut matching logic
-  - Display formatting utilities
-
-### Handler Utility
-- **Location**: `src/ui/utils/keyboard-shortcuts.ts`
-- **Purpose**: Manages keyboard event listeners and action dispatch
-- **Features**:
-  - Event listener initialization
-  - Action routing
-  - Cleanup function for unmounting
-
-### Integration
-- **App.svelte**: Initializes keyboard shortcuts on mount and defines action handlers
-- **InputControls.svelte**: Exposes URL input and LLM query input focus functionality
+- **Main process menu (`src/main/main.ts`)**: Defines accelerators (Cmd/Ctrl+W, T, R, F, L, `Cmd/Ctrl+.`, `Cmd/Ctrl+D`,
+  `Cmd/Ctrl+Alt+S`) and performs browser actions or emits IPC focus/bookmark events.
+- **Preload bridge (`src/main/preload.ts`)**: Exposes renderer listeners such as `onFocusUrlBar`, `onFocusLLMInput`,
+  `onFocusSearchBar`, and `onBookmarkAdded`, and exposes `focusActiveWebContents()` so the renderer can request page focus for
+  `Esc`.
+- **Renderer (`src/ui/App.svelte`)**: Subscribes to those IPC events, focuses the relevant inputs, keeps the bookmark store in
+  sync, and listens for `Esc` to call `focusActiveWebContents()`.
 
 ## Adding New Shortcuts
 
