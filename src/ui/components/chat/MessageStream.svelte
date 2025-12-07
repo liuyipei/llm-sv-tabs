@@ -33,6 +33,7 @@
   let tabsUnsubscribe: (() => void) | null = null;
   let renderScheduled = false;
   let hasLoadedInitialData = $state(false);
+  let lastAppliedMetadataResponse = $state('');
   let renderCount = 0;
 
   // DOM search instance
@@ -91,8 +92,10 @@
       hasResponse: Boolean(fullText.length || metadata?.response?.length),
     });
 
-    if (!hasLoadedInitialData && metadata?.response) {
-      fullText = metadata.response;
+    const metadataResponse = metadata?.response || '';
+    if (metadataResponse && metadataResponse !== lastAppliedMetadataResponse) {
+      fullText = metadataResponse;
+      lastAppliedMetadataResponse = metadataResponse;
       updateBuffers();
       hasLoadedInitialData = true;
     }
@@ -204,16 +207,20 @@
       }
     });
 
-    // Load existing conversation data if present
-    if (metadata?.response) {
-      fullText = metadata.response;
-      updateBuffers();
-    }
-
     if (!window.electronAPI?.onLLMChunk) return;
 
     unsubscribe = window.electronAPI.onLLMChunk(({ tabId: incomingId, chunk }) => {
       if (incomingId !== tabId) return;
+
+      // Skip duplicate chunks when the response has already been merged into metadata
+      if (chunk && fullText.endsWith(chunk)) {
+        console.log(`🟢 [MessageStream-${mountId}] skipped duplicate chunk`, {
+          tabId,
+          chunkPreview: chunk.slice(0, 32),
+        });
+        return;
+      }
+
       fullText += chunk;
       scheduleRender();
     });
@@ -306,30 +313,32 @@
       <strong>Error:</strong> {error}
     </div>
   {:else}
-    <div class="response-header">
-      <div class="response-label">Response</div>
-      <div class="metadata">
-        {#if model}
-          <span class="metadata-item"><span class="metadata-label">Model:</span> {model}</span>
-        {/if}
-        {#if tokensIn !== undefined && tokensIn !== null}
-          <span class="metadata-item"><span class="metadata-label">Tokens In:</span> <strong>{tokensIn.toLocaleString()}</strong></span>
-        {/if}
-        {#if tokensOut !== undefined && tokensOut !== null}
-          <span class="metadata-item"><span class="metadata-label">Tokens Out:</span> <strong>{tokensOut.toLocaleString()}</strong></span>
-        {/if}
-        {#if (tokensIn !== undefined && tokensIn !== null) && (tokensOut !== undefined && tokensOut !== null)}
-          <span class="metadata-item"><span class="metadata-label">Total:</span> <strong>{(tokensIn + tokensOut).toLocaleString()}</strong></span>
-        {/if}
-        {#if isStreaming}
-          <span class="metadata-item streaming">● Streaming...</span>
-        {/if}
+    <div class="response-card">
+      <div class="response-header">
+        <div class="response-label">Response</div>
+        <div class="metadata">
+          {#if model}
+            <span class="metadata-item"><span class="metadata-label">Model:</span> {model}</span>
+          {/if}
+          {#if tokensIn !== undefined && tokensIn !== null}
+            <span class="metadata-item"><span class="metadata-label">Tokens In:</span> <strong>{tokensIn.toLocaleString()}</strong></span>
+          {/if}
+          {#if tokensOut !== undefined && tokensOut !== null}
+            <span class="metadata-item"><span class="metadata-label">Tokens Out:</span> <strong>{tokensOut.toLocaleString()}</strong></span>
+          {/if}
+          {#if (tokensIn !== undefined && tokensIn !== null) && (tokensOut !== undefined && tokensOut !== null)}
+            <span class="metadata-item"><span class="metadata-label">Total:</span> <strong>{(tokensIn + tokensOut).toLocaleString()}</strong></span>
+          {/if}
+          {#if isStreaming}
+            <span class="metadata-item streaming">● Streaming...</span>
+          {/if}
+        </div>
       </div>
-    </div>
 
-    <div class="response-content">
-      <div class="stable">{@html stableHtml}</div>
-      <div class="unstable">{@html unstableHtml}</div>
+      <div class="response-content">
+        <div class="stable">{@html stableHtml}</div>
+        <div class="unstable">{@html unstableHtml}</div>
+      </div>
     </div>
   {/if}
 </div>
@@ -472,12 +481,17 @@
     margin-right: 1rem;
   }
 
-  .response-header {
+  .response-card {
     margin-bottom: 1rem;
-    padding: 0.75rem;
     background-color: #1e1e1e;
     border-left: 3px solid #4ec9b0;
     border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .response-header {
+    padding: 0.75rem;
+    background-color: #1e1e1e;
   }
 
   .response-label {
@@ -517,6 +531,10 @@
   .metadata-item.streaming {
     color: #4ec9b0;
     font-weight: 500;
+  }
+
+  .response-content {
+    padding: 0 0.75rem 0.75rem;
   }
 
   .error-message {

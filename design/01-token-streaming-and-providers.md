@@ -263,6 +263,16 @@ onMount(() => {
 
 This architecture prevents the common bug where conversations disappear when navigating away during streaming. See `design/06-round-trip-test-pattern.md` for testing strategies.
 
+### Diagnostic Note: Streaming Completion & Duplicate Chunks
+
+When a renderer mounts mid-stream, it may already receive the latest `metadata.response` from the main-process store **and** continue to hear live `llm-stream-chunk` events. Without guardrails, the first chunk after mount can be appended twice (once from the metadata preload and once from the live event), which surfaces as duplicated opening tokens (for example, `Hello!Hello!`).
+
+Mitigations now baked into `MessageStream`:
+
+- **Metadata-first sync with memoization**: The component always seeds `fullText` from `metadata.response`, but only when the value changes from the last applied snapshot. This keeps the renderer aligned with the main-process source of truth after any tab-update event.
+- **Chunk deduplication**: Each incoming chunk is skipped if the current `fullText` already ends with the same substring, preventing double-append scenarios when metadata merges race with a late IPC chunk.
+- **Single response container**: The response header and streaming body now live inside one teal-accented card so live tokens render inside the same visual container as the finalized text, matching the debug view.
+
 ## API Key Management
 
 ### Storage Strategy
