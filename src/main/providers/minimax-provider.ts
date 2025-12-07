@@ -2,25 +2,23 @@
  * Minimax provider implementation
  */
 
-import { BaseProvider, type ProviderCapabilities } from './base-provider.js';
-import type { LLMModel, LLMResponse, QueryOptions, MessageContent } from '../../types';
-import { convertToOpenAIContent, parseOpenAIStream } from './openai-helpers.js';
+import type { LLMModel } from '../../types';
+import { OpenAICompatibleProvider } from './openai-compatible-provider.js';
 
-export class MinimaxProvider extends BaseProvider {
-  private readonly baseUrl = 'https://api.minimax.chat/v1';
-
+export class MinimaxProvider extends OpenAICompatibleProvider {
   constructor(apiKey?: string) {
-    super('minimax', apiKey);
-  }
-
-  getCapabilities(): ProviderCapabilities {
-    return {
-      supportsStreaming: true,
-      supportsVision: false,
-      requiresApiKey: true,
-      requiresEndpoint: false,
-      supportsSystemPrompt: true,
-    };
+    super('minimax', 'https://api.minimax.chat/v1', apiKey, {
+      capabilities: {
+        supportsVision: false,
+        requiresApiKey: true,
+        requiresEndpoint: false,
+      },
+      defaultModel: 'abab6.5-chat',
+      paths: {
+        chatCompletions: '/text/chatcompletion_v2',
+        models: '/models',
+      },
+    });
   }
 
   async getAvailableModels(): Promise<LLMModel[]> {
@@ -49,146 +47,4 @@ export class MinimaxProvider extends BaseProvider {
     ];
   }
 
-  async query(
-    messages: Array<{ role: string; content: MessageContent }>,
-    options?: QueryOptions
-  ): Promise<LLMResponse> {
-    if (!this.apiKey) {
-      return { response: '', error: 'API key is required' };
-    }
-
-    const model = options?.model || 'abab6.5-chat';
-    const startTime = Date.now();
-
-    try {
-      const openAIMessages = messages.map(msg => ({
-        role: msg.role,
-        content: convertToOpenAIContent(msg.content)
-      }));
-      const requestBody = {
-        model,
-        messages: openAIMessages,
-        temperature: options?.temperature ?? 0.7,
-        max_tokens: options?.maxTokens ?? 2000,
-      };
-
-      const url = `${this.baseUrl}/text/chatcompletion_v2`;
-      const response = await this.makeRequest(url, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      const data = await response.json();
-
-      if (!data.choices || data.choices.length === 0) {
-        return { response: '', error: 'No response from Minimax' };
-      }
-
-      return {
-        response: data.choices[0].message?.content || data.choices[0].text,
-        tokensIn: data.usage?.prompt_tokens,
-        tokensOut: data.usage?.completion_tokens,
-        responseTime: Date.now() - startTime,
-        model,
-      };
-    } catch (error) {
-      return {
-        response: '',
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
-  }
-
-  async queryStream(
-    messages: Array<{ role: string; content: MessageContent }>,
-    options: QueryOptions | undefined,
-    onChunk: (chunk: string) => void
-  ): Promise<LLMResponse> {
-    if (!this.apiKey) {
-      return { response: '', error: 'API key is required' };
-    }
-
-    const model = options?.model || 'abab6.5-chat';
-    const startTime = Date.now();
-
-    try {
-      const openAIMessages = messages.map(msg => ({
-        role: msg.role,
-        content: convertToOpenAIContent(msg.content)
-      }));
-      const requestBody = {
-        model,
-        messages: openAIMessages,
-        temperature: options?.temperature ?? 0.7,
-        max_tokens: options?.maxTokens ?? 2000,
-        stream: true,
-        stream_options: { include_usage: true },
-      };
-
-      const url = `${this.baseUrl}/text/chatcompletion_v2`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`HTTP ${response.status}: ${error}`);
-      }
-
-      const { fullText, tokensIn, tokensOut } = await parseOpenAIStream(
-        response,
-        onChunk,
-        model
-      );
-
-      return {
-        response: fullText,
-        tokensIn,
-        tokensOut,
-        responseTime: Date.now() - startTime,
-        model,
-      };
-    } catch (error) {
-      return {
-        response: '',
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
-  }
-
-  async validate(): Promise<{ valid: boolean; error?: string }> {
-    if (!this.apiKey) {
-      return { valid: false, error: 'API key is required' };
-    }
-
-    try {
-      // Make a minimal query to validate the API key
-      const url = `${this.baseUrl}/text/chatcompletion_v2`;
-      await this.makeRequest(url, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'abab6.5-chat',
-          messages: [{ role: 'user', content: 'test' }],
-          max_tokens: 1,
-        }),
-      });
-      return { valid: true };
-    } catch (error) {
-      return {
-        valid: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
-  }
 }
