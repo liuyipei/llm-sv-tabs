@@ -7,28 +7,21 @@ import { ScreenshotService } from './services/screenshot-service.js';
 import { shutdownManager } from './services/shutdown-manager.js';
 import { configureSessionSecurity } from './session-security.js';
 import { registerIpcHandlers } from './ipc/register-ipc-handlers.js';
-import type { Bookmark } from '../types';
+import type { MainProcessContext } from './ipc/register-ipc-handlers.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 let mainWindow: BrowserWindow | null = null;
-const appContext = {
-  tabManager: null as TabManager | null,
-  bookmarkManager: null as BookmarkManager | null,
-  screenshotService: null as ScreenshotService | null,
+const appContext: MainProcessContext = {
+  tabManager: null,
+  bookmarkManager: null,
+  screenshotService: null,
 };
 let sessionSecurityConfigured = false;
 
 function createWindow(): void {
   const preloadPath = join(__dirname, 'preload.js');
-  console.log('Main process __dirname:', __dirname);
-  console.log('Preload path:', preloadPath);
-
-  if (!sessionSecurityConfigured) {
-    configureSessionSecurity(__dirname);
-    sessionSecurityConfigured = true;
-  }
 
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -224,26 +217,31 @@ function setupGlobalShortcuts(): void {
     const screenshotService = getScreenshotService();
     const tabManager = getTabManager();
     if (screenshotService) {
-      screenshotService.startCapture().then((dataUrl) => {
-        if (dataUrl && tabManager) {
-          const timestamp = new Date().toLocaleString('en-US', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false,
-          }).replace(/\//g, '-').replace(',', '');
+      screenshotService
+        .startCapture()
+        .then((dataUrl) => {
+          if (dataUrl && tabManager) {
+            const timestamp = new Date()
+              .toLocaleString('en-US', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false,
+              })
+              .replace(/\//g, '-').replace(',', '');
 
-          const title = `Screenshot ${timestamp}`;
-          const noteId = Date.now();
+            const title = `Screenshot ${timestamp}`;
+            const noteId = Date.now();
 
-          tabManager.openNoteTab(noteId, title, dataUrl, 'image', true);
-        }
-      }).catch((error) => {
-        console.error('Screenshot shortcut error:', error);
-      });
+            tabManager.openNoteTab(noteId, title, dataUrl, 'image', true);
+          }
+        })
+        .catch((error) => {
+          console.error('Screenshot shortcut error:', error);
+        });
     }
   });
 
@@ -336,22 +334,22 @@ function setupGlobalShortcuts(): void {
   }
 
   // On Mac, also register Cmd+Option+Left/Right for tab switching
-    if (process.platform === 'darwin') {
-      const macNextTab = globalShortcut.register('Command+Alt+Right', () => {
-        console.log('Next tab shortcut triggered: Command+Alt+Right');
-        const tabManager = getTabManager();
-        if (tabManager) {
-          tabManager.nextTab();
-        }
-      });
+  if (process.platform === 'darwin') {
+    const macNextTab = globalShortcut.register('Command+Alt+Right', () => {
+      console.log('Next tab shortcut triggered: Command+Alt+Right');
+      const tabManager = getTabManager();
+      if (tabManager) {
+        tabManager.nextTab();
+      }
+    });
 
-      const macPreviousTab = globalShortcut.register('Command+Alt+Left', () => {
-        console.log('Previous tab shortcut triggered: Command+Alt+Left');
-        const tabManager = getTabManager();
-        if (tabManager) {
-          tabManager.previousTab();
-        }
-      });
+    const macPreviousTab = globalShortcut.register('Command+Alt+Left', () => {
+      console.log('Previous tab shortcut triggered: Command+Alt+Left');
+      const tabManager = getTabManager();
+      if (tabManager) {
+        tabManager.previousTab();
+      }
+    });
 
     if (!macNextTab) {
       console.error('Failed to register Command+Alt+Right');
@@ -371,15 +369,20 @@ function setupGlobalShortcuts(): void {
 // configureSessionSecurity sets a Chrome-like user agent so browsing appears as a real browser.
 app.commandLine.appendSwitch('disable-features', 'UserAgentClientHint');
 
-  app.whenReady().then(() => {
-    // Setup shutdown handlers first to catch early termination
-    shutdownManager.setup();
+app.whenReady().then(() => {
+  // Setup shutdown handlers first to catch early termination
+  shutdownManager.setup();
 
-    createWindow();
+  if (!sessionSecurityConfigured) {
+    configureSessionSecurity(__dirname);
+    sessionSecurityConfigured = true;
+  }
 
-    // Set up IPC handlers once (not per-window, as ipcMain.handle registers globally)
-    registerIpcHandlers(appContext);
-    setupDownloadHandler();
+  createWindow();
+
+  // Set up IPC handlers once (not per-window, as ipcMain.handle registers globally)
+  registerIpcHandlers(appContext);
+  setupDownloadHandler();
 
   setupGlobalShortcuts();
 
