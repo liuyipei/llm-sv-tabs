@@ -7,7 +7,7 @@ import { OpenAICompatibleProvider } from './openai-compatible-provider.js';
 
 export class XAIProvider extends OpenAICompatibleProvider {
   constructor(apiKey?: string) {
-    super('xai', 'https://api.x.ai/v1', apiKey, {
+    super('xai', 'https://api.x.ai', apiKey, {
       capabilities: {
         supportsVision: true,
         requiresApiKey: true,
