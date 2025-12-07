@@ -48,7 +48,6 @@ export class AnthropicProvider extends BaseProvider {
 
     const apiKey = (options?.apiKey || this.apiKey)!; // Non-null assertion - we validated above
     const model = options?.model || this.model || 'claude-3-5-sonnet-20241022';
-    const temperature = options?.temperature ?? 0.7;
     const maxTokens = options?.maxTokens ?? 4096;
 
     try {
@@ -66,7 +65,6 @@ export class AnthropicProvider extends BaseProvider {
           model,
           messages: userMessages,
           system: systemMessages.length > 0 ? systemMessages[0].content : undefined,
-          temperature,
           max_tokens: maxTokens,
         }),
       });
@@ -106,7 +104,6 @@ export class AnthropicProvider extends BaseProvider {
 
     const apiKey = (options?.apiKey || this.apiKey)!;
     const model = options?.model || this.model || 'claude-3-5-sonnet-20241022';
-    const temperature = options?.temperature ?? 0.7;
     const maxTokens = options?.maxTokens ?? 4096;
 
     try {
@@ -125,7 +122,6 @@ export class AnthropicProvider extends BaseProvider {
           model,
           messages: userMessages,
           system: systemMessages.length > 0 ? systemMessages[0].content : undefined,
-          temperature,
           max_tokens: maxTokens,
           stream: true,
         }),

@@ -6,23 +6,50 @@ import { BaseProvider, type ProviderCapabilities } from './base-provider.js';
 import type { LLMModel, LLMResponse, QueryOptions, ProviderType, MessageContent } from '../../types';
 import { convertToOpenAIContent, parseOpenAIStream } from './openai-helpers.js';
 
+export interface OpenAICompatibleOptions {
+  capabilities?: Partial<ProviderCapabilities>;
+  paths?: {
+    chatCompletions: string;
+    models: string;
+  };
+  defaultModel?: string;
+  extraHeaders?: Record<string, string>;
+}
+
 export class OpenAICompatibleProvider extends BaseProvider {
+  private readonly capabilities: ProviderCapabilities;
+  private readonly paths: { chatCompletions: string; models: string };
+  private readonly defaultModel: string;
+  private readonly extraHeaders: Record<string, string>;
+
   constructor(
     providerType: ProviderType = 'local-openai-compatible',
     endpoint?: string,
-    apiKey?: string
+    apiKey?: string,
+    options?: OpenAICompatibleOptions,
   ) {
     super(providerType, apiKey, endpoint);
+
+    this.capabilities = {
+      supportsStreaming: true,
+      supportsVision: false,
+      requiresApiKey: false,
+      requiresEndpoint: true,
+      supportsSystemPrompt: true,
+      ...options?.capabilities,
+    };
+
+    this.paths = options?.paths ?? {
+      chatCompletions: '/v1/chat/completions',
+      models: '/v1/models',
+    };
+
+    this.defaultModel = options?.defaultModel ?? 'default';
+    this.extraHeaders = options?.extraHeaders ?? {};
   }
 
   getCapabilities(): ProviderCapabilities {
-    return {
-      supportsStreaming: true,
-      supportsVision: false, // Depends on the specific provider
-      requiresApiKey: false, // Optional for local providers
-      requiresEndpoint: true,
-      supportsSystemPrompt: true,
-    };
+    return this.capabilities;
   }
 
   async getAvailableModels(): Promise<LLMModel[]> {
@@ -31,12 +58,9 @@ export class OpenAICompatibleProvider extends BaseProvider {
     }
 
     try {
-      const headers: Record<string, string> = {};
-      if (this.apiKey) {
-        headers['Authorization'] = `Bearer ${this.apiKey}`;
-      }
+      const headers = this.buildHeaders(this.apiKey);
 
-      const response = await this.makeRequest(`${this.endpoint}/v1/models`, {
+      const response = await this.makeRequest(`${this.endpoint}${this.paths.models}`, {
         method: 'GET',
         headers,
       });
@@ -67,9 +91,7 @@ export class OpenAICompatibleProvider extends BaseProvider {
       };
     }
 
-    // Check if API key is required for cloud providers
-    const cloudProviders: string[] = ['fireworks', 'openrouter', 'xai', 'gemini', 'minimax'];
-    if (cloudProviders.includes(this.providerType) && !this.apiKey && !options?.apiKey) {
+    if (this.capabilities.requiresApiKey && !this.apiKey && !options?.apiKey) {
       return {
         response: '',
         error: `API key is required for ${this.providerType}`,
@@ -78,8 +100,7 @@ export class OpenAICompatibleProvider extends BaseProvider {
 
     const endpoint = options?.endpoint || this.endpoint;
     const apiKey = options?.apiKey || this.apiKey;
-    const model = options?.model || this.model || 'default';
-    const temperature = options?.temperature ?? 0.7;
+    const model = options?.model || this.model || this.defaultModel;
     const maxTokens = options?.maxTokens ?? 4096;
 
     try {
@@ -89,18 +110,14 @@ export class OpenAICompatibleProvider extends BaseProvider {
         content: convertToOpenAIContent(msg.content)
       }));
 
-      const headers: Record<string, string> = {};
-      if (apiKey) {
-        headers['Authorization'] = `Bearer ${apiKey}`;
-      }
+      const headers = this.buildHeaders(apiKey);
 
-      const response = await this.makeRequest(`${endpoint}/v1/chat/completions`, {
+      const response = await this.makeRequest(`${endpoint}${this.paths.chatCompletions}`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
           model,
           messages: openAIMessages,
-          temperature,
           max_tokens: maxTokens,
         }),
       });
@@ -138,9 +155,7 @@ export class OpenAICompatibleProvider extends BaseProvider {
       };
     }
 
-    // Check if API key is required for cloud providers
-    const cloudProviders: string[] = ['fireworks', 'openrouter', 'xai', 'gemini', 'minimax'];
-    if (cloudProviders.includes(this.providerType) && !this.apiKey && !options?.apiKey) {
+    if (this.capabilities.requiresApiKey && !this.apiKey && !options?.apiKey) {
       return {
         response: '',
         error: `API key is required for ${this.providerType}`,
@@ -149,8 +164,7 @@ export class OpenAICompatibleProvider extends BaseProvider {
 
     const endpoint = options?.endpoint || this.endpoint;
     const apiKey = options?.apiKey || this.apiKey;
-    const model = options?.model || this.model || 'default';
-    const temperature = options?.temperature ?? 0.7;
+    const model = options?.model || this.model || this.defaultModel;
     const maxTokens = options?.maxTokens ?? 4096;
 
     try {
@@ -160,20 +174,14 @@ export class OpenAICompatibleProvider extends BaseProvider {
         content: convertToOpenAIContent(msg.content)
       }));
 
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      if (apiKey) {
-        headers['Authorization'] = `Bearer ${apiKey}`;
-      }
+      const headers = this.buildHeaders(apiKey, true);
 
-      const response = await fetch(`${endpoint}/v1/chat/completions`, {
+      const response = await fetch(`${endpoint}${this.paths.chatCompletions}`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
           model,
           messages: openAIMessages,
-          temperature,
           max_tokens: maxTokens,
           stream: true,
           stream_options: { include_usage: true },
@@ -213,12 +221,9 @@ export class OpenAICompatibleProvider extends BaseProvider {
     }
 
     try {
-      const headers: Record<string, string> = {};
-      if (this.apiKey) {
-        headers['Authorization'] = `Bearer ${this.apiKey}`;
-      }
+      const headers = this.buildHeaders(this.apiKey);
 
-      const response = await this.makeRequest(`${this.endpoint}/v1/models`, {
+      const response = await this.makeRequest(`${this.endpoint}${this.paths.models}`, {
         method: 'GET',
         headers,
       });
@@ -231,5 +236,19 @@ export class OpenAICompatibleProvider extends BaseProvider {
         error: error instanceof Error ? error.message : 'Failed to connect to endpoint',
       };
     }
+  }
+
+  private buildHeaders(apiKey?: string, includeContentType = false): Record<string, string> {
+    const headers: Record<string, string> = { ...this.extraHeaders };
+
+    if (includeContentType) {
+      headers['Content-Type'] = 'application/json';
+    }
+
+    if (apiKey) {
+      headers['Authorization'] = `Bearer ${apiKey}`;
+    }
+
+    return headers;
   }
 }

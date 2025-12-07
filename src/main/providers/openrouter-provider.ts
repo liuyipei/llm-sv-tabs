@@ -2,28 +2,38 @@
  * OpenRouter provider implementation
  */
 
-import { BaseProvider, type ProviderCapabilities } from './base-provider.js';
-import type { LLMModel, LLMResponse, QueryOptions, MessageContent } from '../../types';
-import { convertToOpenAIContent, parseOpenAIStream } from './openai-helpers.js';
+import type { LLMModel } from '../../types';
+import { OpenAICompatibleProvider } from './openai-compatible-provider.js';
 
-export class OpenRouterProvider extends BaseProvider {
-  private readonly baseUrl = 'https://openrouter.ai/api/v1';
+const OPENROUTER_HEADERS = {
+  'HTTP-Referer': 'https://github.com/your-username/llm-sv-tabs',
+  'X-Title': 'LLM SV Tabs',
+};
 
+export class OpenRouterProvider extends OpenAICompatibleProvider {
   constructor(apiKey?: string) {
-    super('openrouter', apiKey);
-  }
-
-  getCapabilities(): ProviderCapabilities {
-    return {
-      supportsStreaming: true,
-      supportsVision: true,
-      requiresApiKey: true,
-      requiresEndpoint: false,
-      supportsSystemPrompt: true,
-    };
+    super('openrouter', 'https://openrouter.ai/api/v1', apiKey, {
+      capabilities: {
+        supportsVision: true,
+        requiresApiKey: true,
+        requiresEndpoint: false,
+      },
+      defaultModel: 'anthropic/claude-3.5-sonnet',
+      extraHeaders: OPENROUTER_HEADERS,
+      // Endpoint already includes /api/v1, so avoid double-prefixing the v1 paths
+      paths: {
+        chatCompletions: '/chat/completions',
+        models: '/models',
+      },
+    });
   }
 
   async getAvailableModels(): Promise<LLMModel[]> {
+    const discovered = await super.getAvailableModels();
+    if (discovered.length > 0) {
+      return discovered;
+    }
+
     // OpenRouter has many models - return popular ones
     return [
       {
@@ -57,150 +67,4 @@ export class OpenRouterProvider extends BaseProvider {
     ];
   }
 
-  async query(
-    messages: Array<{ role: string; content: MessageContent }>,
-    options?: QueryOptions
-  ): Promise<LLMResponse> {
-    if (!this.apiKey) {
-      return { response: '', error: 'API key is required' };
-    }
-
-    const model = options?.model || 'anthropic/claude-3.5-sonnet';
-    const startTime = Date.now();
-
-    try {
-      // Convert messages to OpenAI format
-      const openAIMessages = messages.map(msg => ({
-        role: msg.role,
-        content: convertToOpenAIContent(msg.content)
-      }));
-
-      const requestBody = {
-        model,
-        messages: openAIMessages,
-        temperature: options?.temperature ?? 0.7,
-        max_tokens: options?.maxTokens ?? 2000,
-      };
-
-      const url = `${this.baseUrl}/chat/completions`;
-      const response = await this.makeRequest(url, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          'HTTP-Referer': 'https://github.com/your-username/llm-sv-tabs',
-          'X-Title': 'LLM SV Tabs',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      const data = await response.json();
-
-      if (!data.choices || data.choices.length === 0) {
-        return { response: '', error: 'No response from OpenRouter' };
-      }
-
-      return {
-        response: data.choices[0].message.content,
-        tokensIn: data.usage?.prompt_tokens,
-        tokensOut: data.usage?.completion_tokens,
-        responseTime: Date.now() - startTime,
-        model,
-      };
-    } catch (error) {
-      return {
-        response: '',
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
-  }
-
-  async queryStream(
-    messages: Array<{ role: string; content: MessageContent }>,
-    options: QueryOptions | undefined,
-    onChunk: (chunk: string) => void
-  ): Promise<LLMResponse> {
-    if (!this.apiKey) {
-      return { response: '', error: 'API key is required' };
-    }
-
-    const model = options?.model || 'anthropic/claude-3.5-sonnet';
-    const startTime = Date.now();
-
-    try {
-      // Convert messages to OpenAI format
-      const openAIMessages = messages.map(msg => ({
-        role: msg.role,
-        content: convertToOpenAIContent(msg.content)
-      }));
-
-      const requestBody = {
-        model,
-        messages: openAIMessages,
-        temperature: options?.temperature ?? 0.7,
-        max_tokens: options?.maxTokens ?? 2000,
-        stream: true,
-        stream_options: { include_usage: true },
-      };
-
-      const url = `${this.baseUrl}/chat/completions`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://github.com/your-username/llm-sv-tabs',
-          'X-Title': 'LLM SV Tabs',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`HTTP ${response.status}: ${error}`);
-      }
-
-      const { fullText, tokensIn, tokensOut, model: returnedModel } = await parseOpenAIStream(
-        response,
-        onChunk,
-        model
-      );
-
-      return {
-        response: fullText,
-        tokensIn,
-        tokensOut,
-        responseTime: Date.now() - startTime,
-        model: returnedModel,
-      };
-    } catch (error) {
-      return {
-        response: '',
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
-  }
-
-  async validate(): Promise<{ valid: boolean; error?: string }> {
-    if (!this.apiKey) {
-      return { valid: false, error: 'API key is required' };
-    }
-
-    try {
-      // OpenRouter doesn't have a models endpoint that requires auth
-      // So we'll do a minimal test query
-      const url = `${this.baseUrl}/models`;
-      await this.makeRequest(url, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-        },
-      });
-      return { valid: true };
-    } catch (error) {
-      return {
-        valid: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
-  }
 }

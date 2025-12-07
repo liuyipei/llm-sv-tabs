@@ -5,7 +5,6 @@ import {
   model,
   apiKeys,
   maxTokens,
-  temperature,
   systemPrompt,
 } from '../../src/ui/stores/config.js';
 
@@ -21,7 +20,6 @@ describe('config store', () => {
       expect(get(model)).toBe(null);
       expect(get(apiKeys)).toEqual({});
       expect(get(maxTokens)).toBe(2000);
-      expect(get(temperature)).toBe(0.7);
       expect(get(systemPrompt)).toBe('');
     });
 
@@ -39,11 +37,6 @@ describe('config store', () => {
     it('should persist maxTokens to localStorage', () => {
       maxTokens.set(4000);
       expect(localStorage.getItem('maxTokens')).toBe('4000');
-    });
-
-    it('should persist temperature to localStorage', () => {
-      temperature.set(0.9);
-      expect(localStorage.getItem('temperature')).toBe('0.9');
     });
 
     it('should persist systemPrompt to localStorage', () => {
