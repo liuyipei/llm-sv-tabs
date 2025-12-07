@@ -23,7 +23,7 @@ export class GeminiProvider extends BaseProvider {
   }
 
   async getAvailableModels(): Promise<LLMModel[]> {
-    return [
+    const fallback: LLMModel[] = [
       {
         id: 'gemini-2.0-flash-exp',
         name: 'Gemini 2.0 Flash (Experimental)',
@@ -46,6 +46,36 @@ export class GeminiProvider extends BaseProvider {
         supportsVision: true,
       },
     ];
+
+    if (!this.apiKey) {
+      return fallback;
+    }
+
+    try {
+      const url = `${this.baseUrl}/models?key=${this.apiKey}`;
+      const response = await this.makeRequest(url, { method: 'GET' });
+      const data = await response.json();
+
+      if (!Array.isArray(data.models)) {
+        return fallback;
+      }
+
+      const models: LLMModel[] = data.models.map((model: any) => {
+        const id: string = model.name?.split('/').pop() ?? model.name ?? 'unknown-model';
+        return {
+          id,
+          name: model.displayName || id,
+          provider: 'gemini',
+          contextWindow: model.inputTokenLimit || undefined,
+          supportsVision: /flash|pro/i.test(id),
+        } as LLMModel;
+      });
+
+      return models.length ? models : fallback;
+    } catch (error) {
+      console.error('Failed to fetch Gemini models:', error);
+      return fallback;
+    }
   }
 
   private convertToString(content: MessageContent): string {
