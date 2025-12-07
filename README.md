@@ -120,7 +120,6 @@ See [TESTING.md](./TESTING.md) for details.
 - **Scoped component styles**
 
 - **Type safety** throughout
-
 ## License
 
 MIT
