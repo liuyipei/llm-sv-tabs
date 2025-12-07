@@ -77,6 +77,11 @@
           });
         }
       } finally {
+        // Belt-and-suspenders: force streaming state to end in the UI even
+        // if the main-process completion signal was dropped.
+        if (tabId) {
+          await ipc.updateLLMMetadata(tabId, { isStreaming: false });
+        }
         isLoading.set(false);
       }
     }
