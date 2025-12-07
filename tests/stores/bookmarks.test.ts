@@ -78,6 +78,19 @@ describe('Bookmarks Store', () => {
       expect(get(bookmarks)).toHaveLength(2);
     });
 
+    it('should preserve provided id and created fields', () => {
+      const bookmark = addBookmark({
+        id: 'bookmark-main-1',
+        created: 12345,
+        title: 'From main',
+        url: 'https://from-main.example.com',
+      });
+
+      expect(bookmark.id).toBe('bookmark-main-1');
+      expect(bookmark.created).toBe(12345);
+      expect(get(bookmarks)[0]).toEqual(bookmark);
+    });
+
     it('should persist to localStorage', () => {
       addBookmark({
         title: 'Test Page',

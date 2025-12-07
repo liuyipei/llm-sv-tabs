@@ -45,12 +45,15 @@ function createPersistedStore<T>(key: string, initial: T): Writable<T> {
 // Bookmarks store with localStorage persistence
 export const bookmarks: Writable<Bookmark[]> = createPersistedStore<Bookmark[]>('bookmarks', []);
 
+type BookmarkInput = Omit<Bookmark, 'id' | 'created'> &
+  Partial<Pick<Bookmark, 'id' | 'created'>>;
+
 // Helper functions
-export function addBookmark(bookmark: Omit<Bookmark, 'id' | 'created'>): Bookmark {
+export function addBookmark(bookmark: BookmarkInput): Bookmark {
   const newBookmark: Bookmark = {
     ...bookmark,
-    id: `bookmark-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    created: Date.now(),
+    id: bookmark.id || `bookmark-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    created: bookmark.created || Date.now(),
   };
 
   bookmarks.update((items) => [...items, newBookmark]);
