@@ -13,6 +13,7 @@
   import ApiKeyInstructionsView from '$components/llm/ApiKeyInstructionsView.svelte';
   import { activeSidebarView, sidebarTabsHeightPercent } from '$stores/ui';
   import { activeTabId, activeTabs, sortedTabs } from '$stores/tabs';
+  import { addBookmark as addBookmarkToStore } from '$stores/bookmarks';
   import { initKeyboardShortcuts } from '$utils/keyboard-shortcuts';
 
   // Import styles for markdown rendering
@@ -91,10 +92,12 @@
     if (!activeTab) return;
 
     try {
-      await ipc.addBookmark({
+      const result = await ipc.addBookmark({
         title: activeTab.title,
         url: activeTab.url,
       });
+      const bookmark = (result as any)?.data || { title: activeTab.title, url: activeTab.url };
+      addBookmarkToStore(bookmark);
       console.log('Bookmark added:', activeTab.title);
     } catch (error) {
       console.error('Failed to bookmark tab:', error);
@@ -256,6 +259,7 @@
       if (window.electronAPI.onBookmarkAdded) {
         window.electronAPI.onBookmarkAdded((bookmark) => {
           console.log('Bookmark added via IPC:', bookmark);
+          addBookmarkToStore(bookmark);
         });
       }
     }
