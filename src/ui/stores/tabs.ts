@@ -82,11 +82,34 @@ export function updateTab(tabId: string, updates: Partial<Tab>): void {
   activeTabs.update((tabs) => {
     const tab = tabs.get(tabId);
     if (tab) {
-      Object.assign(tab, updates);
+      const guardedUpdates = applyStreamingLatch(tab, updates);
+
+      // Preserve existing metadata fields when applying partial updates
+      if (guardedUpdates.metadata) {
+        tab.metadata = { ...tab.metadata, ...guardedUpdates.metadata };
+      }
+
+      const { metadata, ...rest } = guardedUpdates;
+      Object.assign(tab, rest);
+
       return new Map(tabs);
     }
     return tabs;
   });
+}
+
+function applyStreamingLatch(tab: Tab, updates: Partial<Tab>): Partial<Tab> {
+  const incomingMeta = updates.metadata;
+  if (!incomingMeta) return updates;
+
+  const currentMeta = tab.metadata || {};
+  const guardedMeta = { ...incomingMeta };
+
+  if (currentMeta.isStreaming === false && incomingMeta.isStreaming === true) {
+    guardedMeta.isStreaming = false;
+  }
+
+  return { ...updates, metadata: guardedMeta };
 }
 
 export function updateTabTitle(tabId: string, title: string): void {
