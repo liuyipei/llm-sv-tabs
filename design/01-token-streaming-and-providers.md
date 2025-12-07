@@ -485,3 +485,18 @@ async queryStream(messages, options, onChunk) {
 3. **Retry Logic**: Automatic retry with exponential backoff for failed streams
 4. **Provider Health**: Monitor availability and switch to fallback providers
 5. **Batch Queries**: Support multiple queries in parallel with resource pooling
+
+## PR comment snippet (streaming fix)
+
+Use this block to summarize the current streaming improvements in a review thread:
+
+```
+Summary: Streaming now de-dupes initial tokens when metadata snapshots and chunk events overlap, and live tokens render inside the teal response card to match the final view.
+
+Details:
+- Tab store memoizes the last response text and drops duplicate chunks rather than re-appending the opening tokens.
+- MessageStream renders streaming content inside the unified Response card so the layout stays consistent with debug/final render states.
+- Added logging and latch context to the token streaming design note for future investigations.
+
+Testing: npm test
+```
