@@ -90,24 +90,26 @@ export function updateTab(tabId: string, updates: Partial<Tab>): void {
     }
 
     const guardedUpdates = applyStreamingLatch(tab, updates);
+    const { metadata: incomingMetadata, ...rest } = guardedUpdates;
 
-    // Preserve existing metadata fields when applying partial updates
-    if (guardedUpdates.metadata) {
-      const previousStreaming = tab.metadata?.isStreaming;
-      tab.metadata = { ...tab.metadata, ...guardedUpdates.metadata };
-      if (previousStreaming !== tab.metadata?.isStreaming) {
-        console.log('[STORE] Streaming state changed', {
-          tabId,
-          previousStreaming,
-          nextStreaming: tab.metadata?.isStreaming,
-        });
-      }
+    const mergedMetadata = incomingMetadata
+      ? { ...tab.metadata, ...incomingMetadata }
+      : tab.metadata;
+
+    const previousStreaming = tab.metadata?.isStreaming;
+    const nextStreaming = mergedMetadata?.isStreaming;
+    if (previousStreaming !== nextStreaming) {
+      console.log('[STORE] Streaming state changed', {
+        tabId,
+        previousStreaming,
+        nextStreaming,
+      });
     }
 
-    const { metadata, ...rest } = guardedUpdates;
-    Object.assign(tab, rest);
-
-    return new Map(tabs);
+    const nextTab = { ...tab, ...rest, metadata: mergedMetadata };
+    const nextTabs = new Map(tabs);
+    nextTabs.set(tabId, nextTab);
+    return nextTabs;
   });
 }
 
