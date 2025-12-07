@@ -184,19 +184,14 @@ If you see all logs but the element doesn't focus, the issue is likely missing `
 
 | Shortcut | Action | Implementation |
 |----------|--------|----------------|
-| Cmd/Ctrl+L | Focus URL bar | globalShortcut → IPC → focus element |
 | Cmd/Ctrl+Alt+S | Screenshot | globalShortcut → direct action |
-| Cmd/Ctrl+W | Close tab | Window-level listener (when UI has focus) |
-| Cmd/Ctrl+D | Bookmark tab | Window-level listener (when UI has focus) |
+| Cmd/Ctrl+W | Close tab | Menu accelerator → TabManager |
 | Cmd/Ctrl+L | Focus URL bar | Menu accelerator → IPC → focus element |
 | Cmd/Ctrl+F | Focus search bar | Menu accelerator → IPC → focus element |
 | Cmd/Ctrl+. | Focus LLM input | Menu accelerator → IPC → focus element |
-| Cmd/Ctrl+Alt+S | Screenshot | Menu accelerator → screenshot service |
-| Cmd/Ctrl+W | Close tab | Menu accelerator → TabManager |
 | Cmd/Ctrl+T | New tab (focus address) | Menu accelerator → IPC |
 | Cmd/Ctrl+D | Bookmark tab | Menu accelerator → IPC → bookmark sync |
 | Esc | Return focus to page content | Renderer handler (fires anywhere unless already handled) → IPC → focus active WebContentsView |
-
 
 **Note**: Cmd+W and Cmd+D work when the UI has focus, but not when browsing web content. To make them work globally, move them to `globalShortcut` registration following the same pattern as Cmd+L.
 
