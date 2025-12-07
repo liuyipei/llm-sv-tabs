@@ -40,6 +40,7 @@ export interface IPCBridgeAPI {
   findPrevious(tabId: string): Promise<IPCResponse | { success: boolean }>;
   stopFindInPage(tabId: string): Promise<IPCResponse | { success: boolean }>;
   setSearchBarVisible(visible: boolean): Promise<IPCResponse | { success: boolean }>;
+  focusActiveWebContents(): Promise<IPCResponse | { success: boolean; error?: string }>;
   onLLMChunk?(callback: (payload: { tabId: string; chunk: string }) => void): () => void;
 }
 
@@ -118,6 +119,7 @@ export function initializeIPC(): IPCBridgeAPI {
     findPrevious: (tabId: string) => window.electronAPI.findPrevious(tabId),
     stopFindInPage: (tabId: string) => window.electronAPI.stopFindInPage(tabId),
     setSearchBarVisible: (visible: boolean) => window.electronAPI.setSearchBarVisible(visible),
+    focusActiveWebContents: () => window.electronAPI.focusActiveWebContents(),
   };
 }
 
@@ -332,6 +334,10 @@ function createMockAPI(): IPCBridgeAPI {
     },
     setSearchBarVisible: async (visible: boolean) => {
       console.log('Mock: setSearchBarVisible', visible);
+      return { success: true };
+    },
+    focusActiveWebContents: async () => {
+      console.log('Mock: focusActiveWebContents');
       return { success: true };
     },
   };

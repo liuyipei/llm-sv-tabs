@@ -131,6 +131,40 @@
     }
   }
 
+  async function focusWebContentsView(): Promise<void> {
+    if (!ipc) return;
+
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+
+    try {
+      const result = await ipc.focusActiveWebContents();
+      if ((result as { success?: boolean })?.success === false) {
+        console.warn('WebContentsView focus request was not successful:', result);
+      }
+    } catch (error) {
+      console.error('Failed to focus active WebContentsView:', error);
+    }
+  }
+
+  function handleGlobalKeydown(event: KeyboardEvent): void {
+    const isCtrlOrMeta = event.ctrlKey || event.metaKey;
+
+    if (isCtrlOrMeta && event.key.toLowerCase() === 'f') {
+      event.preventDefault();
+      event.stopPropagation();
+      showSearchBar();
+      return;
+    }
+
+    if (event.key !== 'Escape') return;
+    if (event.defaultPrevented) return;
+
+    event.preventDefault();
+    focusWebContentsView();
+  }
+
   // Global drag and drop handler to open files in tabs
   function handleGlobalDragOver(event: DragEvent): void {
     event.preventDefault();
@@ -212,12 +246,26 @@
       window.electronAPI.onFocusSearchBar(() => {
         showSearchBar();
       });
+
+      if (window.electronAPI.onFocusLLMInput) {
+        window.electronAPI.onFocusLLMInput(() => {
+          focusLLMInput();
+        });
+      }
+
+      if (window.electronAPI.onBookmarkAdded) {
+        window.electronAPI.onBookmarkAdded((bookmark) => {
+          console.log('Bookmark added via IPC:', bookmark);
+        });
+      }
     }
 
     // Cleanup on unmount
     return cleanup;
   });
 </script>
+
+<svelte:window on:keydown={handleGlobalKeydown} />
 
 <main class="app-container" ondragover={handleGlobalDragOver} ondrop={handleGlobalDrop}>
   <div class="app-content">

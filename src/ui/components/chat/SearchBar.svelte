@@ -59,7 +59,7 @@
 
   // Clear search when hidden
   $: if (!visible && searchInput) {
-    stopFind();
+    await stopFind();
   }
 
   async function performSearch(): Promise<void> {
@@ -135,10 +135,20 @@
     }
   }
 
-  function handleClose(): void {
-    stopFind();
+  async function handleClose(): Promise<void> {
+    await stopFind();
     searchInput = '';
     onClose();
+    if (ipc) {
+      try {
+        const result = await ipc.focusActiveWebContents();
+        if ((result as { success?: boolean })?.success === false) {
+          console.warn('Active tab focus was not restored after closing search bar:', result);
+        }
+      } catch (error) {
+        console.error('Failed to focus active tab after closing search bar:', error);
+      }
+    }
   }
 
   function handleKeydown(event: KeyboardEvent): void {
