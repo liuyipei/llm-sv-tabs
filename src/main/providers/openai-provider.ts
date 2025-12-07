@@ -70,7 +70,6 @@ export class OpenAIProvider extends BaseProvider {
     const model = options?.model || this.model || 'gpt-4o-mini';
     const temperature = options?.temperature ?? 0.7;
     const maxTokens = options?.maxTokens ?? 4096;
-    const maxTokenField = this.getMaxTokenField(model);
 
     try {
       // Convert messages to OpenAI format
@@ -88,7 +87,7 @@ export class OpenAIProvider extends BaseProvider {
           model,
           messages: openAIMessages,
           temperature,
-          [maxTokenField]: maxTokens,
+          max_completion_tokens: maxTokens,
         }),
       });
 
@@ -129,7 +128,6 @@ export class OpenAIProvider extends BaseProvider {
     const model = options?.model || this.model || 'gpt-4o-mini';
     const temperature = options?.temperature ?? 0.7;
     const maxTokens = options?.maxTokens ?? 4096;
-    const maxTokenField = this.getMaxTokenField(model);
 
     try {
       // Convert messages to OpenAI format
@@ -148,7 +146,7 @@ export class OpenAIProvider extends BaseProvider {
           model,
           messages: openAIMessages,
           temperature,
-          [maxTokenField]: maxTokens,
+          max_completion_tokens: maxTokens,
           stream: true,
           stream_options: { include_usage: true },
         }),
@@ -216,14 +214,5 @@ export class OpenAIProvider extends BaseProvider {
       name: modelId,
       provider: 'openai',
     };
-  }
-
-  private getMaxTokenField(model: string): 'max_tokens' | 'max_completion_tokens' {
-    // Newer OpenAI chat models reject max_tokens in favor of max_completion_tokens
-    if (model.startsWith('gpt-4o') || model.startsWith('gpt-4.1') || model.startsWith('o1') || model.startsWith('o3')) {
-      return 'max_completion_tokens';
-    }
-
-    return 'max_tokens';
   }
 }
