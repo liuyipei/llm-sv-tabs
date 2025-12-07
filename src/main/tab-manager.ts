@@ -161,11 +161,17 @@ class TabManager {
    */
   private setupWindowOpenHandler(view: WebContentsView): void {
     view.webContents.setWindowOpenHandler((details) => {
-      // Open the URL in a new tab instead of a new window
-      this.openUrl(details.url);
+      // Only intercept explicit tab requests (e.g. ctrl/cmd click or middle-click)
+      if (details.disposition === 'foreground-tab' || details.disposition === 'background-tab') {
+        // Open the URL in a new tab instead of a new window
+        this.openUrl(details.url);
 
-      // Deny the window from opening
-      return { action: 'deny' };
+        // Deny the window from opening
+        return { action: 'deny' };
+      }
+
+      // Allow other window.open uses (e.g. OAuth popups) to proceed normally
+      return { action: 'allow' };
     });
   }
 
