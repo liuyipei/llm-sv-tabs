@@ -22,14 +22,18 @@
 
   let container: HTMLDivElement | null = null;
 
+  const mountId = Math.random().toString(36).slice(2, 8);
+
   // Svelte 5 runes state
   let fullText = $state('');
   let stableHtml = $state('');
   let unstableHtml = $state('');
 
   let unsubscribe: (() => void) | null = null;
+  let tabsUnsubscribe: (() => void) | null = null;
   let renderScheduled = false;
   let hasLoadedInitialData = $state(false);
+  let renderCount = 0;
 
   // DOM search instance
   let domSearch: DOMSearchInstance | null = null;
@@ -80,6 +84,13 @@
 
   // Effect to load existing data when metadata becomes available
   $effect(() => {
+    renderCount += 1;
+    console.log(`⚡ [MessageStream-${mountId}] render #${renderCount}`, {
+      tabId,
+      streaming: metadata?.isStreaming,
+      hasResponse: Boolean(fullText.length || metadata?.response?.length),
+    });
+
     if (!hasLoadedInitialData && metadata?.response) {
       fullText = metadata.response;
       updateBuffers();
@@ -171,6 +182,28 @@
   }
 
   onMount(() => {
+    console.log(`🟡 [MessageStream-${mountId}] mounting`, {
+      tabId,
+      initialStreaming: metadata?.isStreaming,
+    });
+
+    tabsUnsubscribe = activeTabs.subscribe((tabsMap) => {
+      const currentTab = tabsMap.get(tabId);
+      if (currentTab) {
+        console.log(`🟣 [MessageStream-${mountId}] store update`, {
+          tabId,
+          streaming: currentTab.metadata?.isStreaming,
+          hasResponse: Boolean(currentTab.metadata?.response?.length),
+          knownTabs: tabsMap.size,
+        });
+      } else {
+        console.warn(`🟣 [MessageStream-${mountId}] store update missing tab`, {
+          tabId,
+          knownTabs: tabsMap.size,
+        });
+      }
+    });
+
     // Load existing conversation data if present
     if (metadata?.response) {
       fullText = metadata.response;
@@ -187,7 +220,9 @@
   });
 
   onDestroy(() => {
+    console.log(`🟡 [MessageStream-${mountId}] unmounting`, { tabId });
     if (unsubscribe) unsubscribe();
+    if (tabsUnsubscribe) tabsUnsubscribe();
     if (domSearch) {
       domSearch.destroy();
       domSearch = null;

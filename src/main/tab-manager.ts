@@ -1131,6 +1131,26 @@ class TabManager {
     };
   }
 
+  getLLMTabsSnapshot(): Array<{ id: string; title: string; streaming?: boolean; hasResponse: boolean; responseLength: number } > {
+    return Array.from(this.tabs.values())
+      .filter((tab) => tab.metadata?.isLLMResponse)
+      .map((tab) => ({
+        id: tab.id,
+        title: tab.title,
+        streaming: tab.metadata?.isStreaming,
+        hasResponse: Boolean(tab.metadata?.response?.length),
+        responseLength: tab.metadata?.response?.length || 0,
+      }));
+  }
+
+  getTabMetadataSnapshot(tabId: string): Record<string, unknown> | null {
+    const tab = this.tabs.get(tabId);
+    if (!tab?.metadata) return null;
+
+    const { response, ...rest } = tab.metadata;
+    return { ...rest };
+  }
+
   getTabData(tabId: string): TabData | null {
     const tab = this.tabs.get(tabId);
     if (!tab) return null;

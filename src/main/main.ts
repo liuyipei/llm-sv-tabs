@@ -616,8 +616,14 @@ ${formattedContent}
       };
     } finally {
       // Ensure renderer exits streaming state even if upstream handlers throw
+      const preFinishMetadata = tabManager?.getTabMetadataSnapshot(tabId);
+      const preFinishTabs = tabManager?.getLLMTabsSnapshot();
+      console.log('🔵 [MAIN] Finishing stream', { tabId, preFinishMetadata, preFinishTabs });
       tabManager.updateLLMMetadata(tabId, { isStreaming: false });
       tabManager.markLLMStreamingComplete(tabId);
+      const postFinishMetadata = tabManager?.getTabMetadataSnapshot(tabId);
+      const postFinishTabs = tabManager?.getLLMTabsSnapshot();
+      console.log('🔵 [MAIN] Finished stream', { tabId, postFinishMetadata, postFinishTabs });
     }
   });
 

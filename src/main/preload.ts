@@ -171,6 +171,21 @@ const electronAPI = {
   },
 };
 
+// Diagnostic: log every tab-updated payload to trace streaming completion signals
+ipcRenderer.on('tab-updated', (_event, rawData) => {
+  const tabData = (rawData as any)?.tab ?? rawData;
+  const metadata = tabData?.metadata ?? {};
+  const { response: _response, ...metadataWithoutResponse } = metadata;
+
+  console.log('🟢 [PRELOAD] tab-updated', {
+    id: tabData?.id,
+    streaming: metadata?.isStreaming,
+    hasResponse: Boolean(metadata?.response?.length),
+    metadata: metadataWithoutResponse,
+    timestamp: Date.now(),
+  });
+});
+
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);
 console.log('Preload: electronAPI exposed to window');
 
