@@ -617,6 +617,7 @@ ${formattedContent}
     } finally {
       // Ensure renderer exits streaming state even if upstream handlers throw
       tabManager.updateLLMMetadata(tabId, { isStreaming: false });
+      tabManager.markLLMStreamingComplete(tabId);
     }
   });
 

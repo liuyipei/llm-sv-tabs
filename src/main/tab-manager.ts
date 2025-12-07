@@ -371,6 +371,26 @@ class TabManager {
     return { success: true };
   }
 
+  /**
+   * Force a streaming session to finish and notify the renderer, even if
+   * upstream handlers failed to send a final update.
+   */
+  markLLMStreamingComplete(tabId: string): void {
+    const tab = this.tabs.get(tabId);
+    if (!tab) return;
+
+    if (!tab.metadata) {
+      tab.metadata = {};
+    }
+
+    tab.metadata.isStreaming = false;
+
+    // Clear throttle tracking so future streams can update immediately
+    this.lastMetadataUpdate.delete(tabId);
+
+    this.sendToRenderer('tab-updated', { tab: this.getTabData(tabId) });
+  }
+
   updateLLMResponseTab(tabId: string, response: string, metadata?: any): { success: boolean; error?: string } {
     const tab = this.tabs.get(tabId);
     if (!tab) return { success: false, error: 'Tab not found' };
