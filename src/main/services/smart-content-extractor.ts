@@ -202,11 +202,11 @@ export class SmartContentExtractor {
           return null;
         }
 
-        // Skip hidden elements
-        if (el instanceof HTMLElement) {
-          if (el.style.display === 'none' || el.style.visibility === 'hidden') {
-            return null;
-          }
+        // Skip hidden elements (check style property directly for JSDOM compatibility)
+        const style = el.getAttribute('style') || '';
+        if (style.includes('display: none') || style.includes('display:none') ||
+            style.includes('visibility: hidden') || style.includes('visibility:hidden')) {
+          return null;
         }
 
         // Preserve important attributes for context
