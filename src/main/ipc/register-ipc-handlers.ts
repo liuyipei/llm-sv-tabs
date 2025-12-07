@@ -25,213 +25,159 @@ export interface MainProcessContext {
   screenshotService: ScreenshotService | null;
 }
 
+type HandlerError = { success: false; error: string };
+
+const toHandlerError = (error: unknown): HandlerError => ({
+  success: false,
+  error: error instanceof Error ? error.message : String(error),
+});
+
+const toLLMError = (error: unknown): LLMResponse => ({
+  response: '',
+  error: error instanceof Error ? error.message : String(error),
+});
+
+function createContextAccessors(context: MainProcessContext) {
+  const ensure = <T>(value: T | null, name: string): T => {
+    if (!value) {
+      throw new Error(`${name} not initialized`);
+    }
+
+    return value;
+  };
+
+  return {
+    tabManager: () => ensure(context.tabManager, 'TabManager'),
+    bookmarkManager: () => ensure(context.bookmarkManager, 'BookmarkManager'),
+    screenshotService: () => ensure(context.screenshotService, 'ScreenshotService'),
+  };
+}
+
+async function handleSafely<T>(
+  handler: () => Promise<T> | T
+): Promise<T | HandlerError> {
+  try {
+    return await handler();
+  } catch (error) {
+    return toHandlerError(error);
+  }
+}
+
 export function registerIpcHandlers(context: MainProcessContext): void {
+  const get = createContextAccessors(context);
 
   // Tab management
-  ipcMain.handle('open-url', async (_event, url: string) => {
-    const tabManager = context.tabManager;
-    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
-    try {
+  ipcMain.handle('open-url', async (_event, url: string) =>
+    handleSafely(() => {
+      const tabManager = get.tabManager();
+
       // Handle special URL schemes
       if (url.startsWith('api-keys://')) {
-        const result = tabManager.openApiKeyInstructionsTab();
-        return { success: true, data: result };
+        return { success: true, data: tabManager.openApiKeyInstructionsTab() };
       }
 
-      const result = tabManager.openUrl(url);
-      return { success: true, data: result };
-    } catch (error) {
-      return { success: false, error: String(error) };
-    }
-  });
+      return { success: true, data: tabManager.openUrl(url) };
+    })
+  );
 
-  ipcMain.handle('close-tab', async (_event, tabId: string) => {
-    const tabManager = context.tabManager;
-    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
-    return tabManager.closeTab(tabId);
-  });
+  ipcMain.handle('close-tab', async (_event, tabId: string) =>
+    handleSafely(() => get.tabManager().closeTab(tabId))
+  );
 
-  ipcMain.handle('get-active-tabs', async () => {
-    const tabManager = context.tabManager;
-    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
-    try {
-      const result = tabManager.getActiveTabs();
-      return { success: true, data: result };
-    } catch (error) {
-      return { success: false, error: String(error) };
-    }
-  });
+  ipcMain.handle('get-active-tabs', async () =>
+    handleSafely(() => ({ success: true, data: get.tabManager().getActiveTabs() }))
+  );
 
-  ipcMain.handle('set-active-tab', async (_event, tabId: string) => {
-    const tabManager = context.tabManager;
-    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
-    return tabManager.setActiveTab(tabId);
-  });
+  ipcMain.handle('set-active-tab', async (_event, tabId: string) =>
+    handleSafely(() => get.tabManager().setActiveTab(tabId))
+  );
 
-  ipcMain.handle('focus-active-web-contents', async () => {
-    const tabManager = context.tabManager;
-    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
-    return tabManager.focusActiveWebContents();
-  });
+  ipcMain.handle('focus-active-web-contents', async () =>
+    handleSafely(() => get.tabManager().focusActiveWebContents())
+  );
 
-  ipcMain.handle('select-tabs', async (_event, tabIds: string[]) => {
-    const tabManager = context.tabManager;
-    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
-    try {
-      const result = tabManager.selectTabs(tabIds);
-      return { success: true, data: result };
-    } catch (error) {
-      return { success: false, error: String(error) };
-    }
-  });
+  ipcMain.handle('select-tabs', async (_event, tabIds: string[]) =>
+    handleSafely(() => ({ success: true, data: get.tabManager().selectTabs(tabIds) }))
+  );
 
-  ipcMain.handle('reload-tab', async (_event, tabId: string) => {
-    const tabManager = context.tabManager;
-    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
-    return tabManager.reloadTab(tabId);
-  });
+  ipcMain.handle('reload-tab', async (_event, tabId: string) =>
+    handleSafely(() => get.tabManager().reloadTab(tabId))
+  );
 
-  ipcMain.handle('go-back', async (_event, tabId: string) => {
-    const tabManager = context.tabManager;
-    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
-    return tabManager.goBack(tabId);
-  });
+  ipcMain.handle('go-back', async (_event, tabId: string) =>
+    handleSafely(() => get.tabManager().goBack(tabId))
+  );
 
-  ipcMain.handle('go-forward', async (_event, tabId: string) => {
-    const tabManager = context.tabManager;
-    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
-    return tabManager.goForward(tabId);
-  });
+  ipcMain.handle('go-forward', async (_event, tabId: string) =>
+    handleSafely(() => get.tabManager().goForward(tabId))
+  );
 
-  ipcMain.handle('get-navigation-state', async (_event, tabId: string) => {
-    const tabManager = context.tabManager;
-    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
-    return tabManager.getNavigationState(tabId);
-  });
+  ipcMain.handle('get-navigation-state', async (_event, tabId: string) =>
+    handleSafely(() => get.tabManager().getNavigationState(tabId))
+  );
 
-  ipcMain.handle('next-tab', async () => {
-    const tabManager = context.tabManager;
-    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
-    return tabManager.nextTab();
-  });
+  ipcMain.handle('next-tab', async () => handleSafely(() => get.tabManager().nextTab()));
 
-  ipcMain.handle('previous-tab', async () => {
-    const tabManager = context.tabManager;
-    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
-    return tabManager.previousTab();
-  });
+  ipcMain.handle('previous-tab', async () => handleSafely(() => get.tabManager().previousTab()));
 
-  ipcMain.handle('update-tab-title', async (_event, tabId: string, title: string) => {
-    const tabManager = context.tabManager;
-    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
-    return tabManager.updateTabTitle(tabId, title);
-  });
+  ipcMain.handle('update-tab-title', async (_event, tabId: string, title: string) =>
+    handleSafely(() => get.tabManager().updateTabTitle(tabId, title))
+  );
 
-  ipcMain.handle('copy-tab-url', async (_event, tabId: string) => {
-    const tabManager = context.tabManager;
-    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
-    return tabManager.copyTabUrl(tabId);
-  });
+  ipcMain.handle('copy-tab-url', async (_event, tabId: string) =>
+    handleSafely(() => get.tabManager().copyTabUrl(tabId))
+  );
 
-  ipcMain.handle('open-note-tab', async (_event, noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image') => {
-    const tabManager = context.tabManager;
-    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
-    try {
-      const result = tabManager.openNoteTab(noteId, title, content, fileType);
-      return { success: true, data: result };
-    } catch (error) {
-      return { success: false, error: String(error) };
-    }
-  });
+  ipcMain.handle(
+    'open-note-tab',
+    async (_event, noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image') =>
+      handleSafely(() => ({ success: true, data: get.tabManager().openNoteTab(noteId, title, content, fileType) }))
+  );
 
-  ipcMain.handle('open-llm-response-tab', async (_event, query: string, response?: string, error?: string) => {
-    const tabManager = context.tabManager;
-    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
-    try {
-      const result = tabManager.openLLMResponseTab(query, response, error);
-      return { success: true, data: result };
-    } catch (error) {
-      return { success: false, error: String(error) };
-    }
-  });
+  ipcMain.handle('open-llm-response-tab', async (_event, query: string, response?: string, error?: string) =>
+    handleSafely(() => ({ success: true, data: get.tabManager().openLLMResponseTab(query, response, error) }))
+  );
 
-  ipcMain.handle('update-llm-response-tab', async (_event, tabId: string, response: string, metadata?: any) => {
-    const tabManager = context.tabManager;
-    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
-    try {
-      const result = tabManager.updateLLMResponseTab(tabId, response, metadata);
+  ipcMain.handle('update-llm-response-tab', async (_event, tabId: string, response: string, metadata?: any) =>
+    handleSafely(() => {
+      const result = get.tabManager().updateLLMResponseTab(tabId, response, metadata);
       return result.success ? { success: true } : { success: false, error: result.error };
-    } catch (error) {
-      return { success: false, error: String(error) };
-    }
-  });
+    })
+  );
 
-  ipcMain.handle('update-llm-metadata', async (_event, tabId: string, metadata: any) => {
-    const tabManager = context.tabManager;
-    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
-    try {
-      const result = tabManager.updateLLMMetadata(tabId, metadata);
+  ipcMain.handle('update-llm-metadata', async (_event, tabId: string, metadata: any) =>
+    handleSafely(() => {
+      const result = get.tabManager().updateLLMMetadata(tabId, metadata);
       return result.success ? { success: true } : { success: false, error: result.error };
-    } catch (error) {
-      return { success: false, error: String(error) };
-    }
-  });
+    })
+  );
 
-  ipcMain.handle('open-raw-message-viewer', async (_event, tabId: string) => {
-    const tabManager = context.tabManager;
-    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
-    try {
-      const result = tabManager.openRawMessageViewer(tabId);
+  ipcMain.handle('open-raw-message-viewer', async (_event, tabId: string) =>
+    handleSafely(() => {
+      const result = get.tabManager().openRawMessageViewer(tabId);
       return result.success ? { success: true } : { success: false, error: result.error };
-    } catch (error) {
-      return { success: false, error: String(error) };
-    }
-  });
+    })
+  );
 
-  ipcMain.handle('open-debug-info-window', async (_event, tabId: string) => {
-    const tabManager = context.tabManager;
-    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
-    try {
-      const result = tabManager.openDebugInfoWindow(tabId);
+  ipcMain.handle('open-debug-info-window', async (_event, tabId: string) =>
+    handleSafely(() => {
+      const result = get.tabManager().openDebugInfoWindow(tabId);
       return result.success ? { success: true } : { success: false, error: result.error };
-    } catch (error) {
-      return { success: false, error: String(error) };
-    }
-  });
+    })
+  );
 
   // Bookmarks
-  ipcMain.handle('get-bookmarks', async () => {
-    const bookmarkManager = context.bookmarkManager;
-    if (!bookmarkManager) return { success: false, error: 'BookmarkManager not initialized' };
-    try {
-      const bookmarks = bookmarkManager.getBookmarks();
-      return { success: true, data: bookmarks };
-    } catch (error) {
-      return { success: false, error: String(error) };
-    }
-  });
+  ipcMain.handle('get-bookmarks', async () =>
+    handleSafely(() => ({ success: true, data: get.bookmarkManager().getBookmarks() }))
+  );
 
-  ipcMain.handle('add-bookmark', async (_event, bookmark: Omit<Bookmark, 'id' | 'created'>) => {
-    const bookmarkManager = context.bookmarkManager;
-    if (!bookmarkManager) return { success: false, error: 'BookmarkManager not initialized' };
-    try {
-      const newBookmark = bookmarkManager.addBookmark(bookmark);
-      return { success: true, data: newBookmark };
-    } catch (error) {
-      return { success: false, error: String(error) };
-    }
-  });
+  ipcMain.handle('add-bookmark', async (_event, bookmark: Omit<Bookmark, 'id' | 'created'>) =>
+    handleSafely(() => ({ success: true, data: get.bookmarkManager().addBookmark(bookmark) }))
+  );
 
-  ipcMain.handle('delete-bookmark', async (_event, id: string) => {
-    const bookmarkManager = context.bookmarkManager;
-    if (!bookmarkManager) return { success: false, error: 'BookmarkManager not initialized' };
-    try {
-      const success = bookmarkManager.deleteBookmark(id);
-      return { success, data: { id } };
-    } catch (error) {
-      return { success: false, error: String(error) };
-    }
-  });
+  ipcMain.handle('delete-bookmark', async (_event, id: string) =>
+    handleSafely(() => ({ success: get.bookmarkManager().deleteBookmark(id), data: { id } }))
+  );
 
   // LLM Query with Streaming
   ipcMain.handle('send-query', async (_event, query: string, options?: QueryOptions): Promise<LLMResponse> => {
@@ -242,12 +188,11 @@ export function registerIpcHandlers(context: MainProcessContext): void {
       };
     }
 
-    const tabManager = context.tabManager;
-    if (!tabManager) {
-      return {
-        response: '',
-        error: 'TabManager not initialized',
-      };
+    let tabManager: TabManager;
+    try {
+      tabManager = get.tabManager();
+    } catch (error) {
+      return toLLMError(error);
     }
 
     // Use existing tab ID if provided, otherwise create a new LLM response tab
@@ -495,10 +440,7 @@ ${formattedContent}
         error: error instanceof Error ? error.message : String(error),
       });
 
-      return {
-        response: '',
-        error: error instanceof Error ? error.message : String(error),
-      };
+      return toLLMError(error);
     } finally {
       // Ensure renderer exits streaming state even if upstream handlers throw
       const preFinishMetadata = tabManager?.getTabMetadataSnapshot(tabId);
@@ -513,101 +455,79 @@ ${formattedContent}
   });
 
   // Content extraction
-  ipcMain.handle('extract-content', async (_event, tabId: string, includeScreenshot = false) => {
-    const tabManager = context.tabManager;
-    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
-
-    try {
-      const view = tabManager.getTabView(tabId);
+  ipcMain.handle('extract-content', async (_event, tabId: string, includeScreenshot = false) =>
+    handleSafely(async () => {
+      const view = get.tabManager().getTabView(tabId);
       if (!view) {
-        return { success: false, error: 'Tab not found' };
+        return { success: false, error: 'Tab not found' } as const;
       }
 
       const content = await ContentExtractor.extractFromTab(view, tabId, includeScreenshot);
       return { success: true, data: content };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
-  });
+    })
+  );
 
   // Model discovery
-  ipcMain.handle('discover-models', async (_event, provider: ProviderType, apiKey?: string, endpoint?: string) => {
-    try {
+  ipcMain.handle('discover-models', async (_event, provider: ProviderType, apiKey?: string, endpoint?: string) =>
+    handleSafely(async () => {
       const models = await ModelDiscovery.discoverModels(provider, apiKey, endpoint);
       return { success: true, data: models };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
-  });
+    })
+  );
 
   // Find in page
-  ipcMain.handle('find-in-page', async (_event, tabId: string, text: string) => {
-    const tabManager = context.tabManager;
-    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
-    return tabManager.findInPage(tabId, text);
-  });
+  ipcMain.handle('find-in-page', async (_event, tabId: string, text: string) =>
+    handleSafely(() => get.tabManager().findInPage(tabId, text))
+  );
 
-  ipcMain.handle('find-next', async (_event, tabId: string) => {
-    const tabManager = context.tabManager;
-    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
-    return tabManager.findNext(tabId);
-  });
+  ipcMain.handle('find-next', async (_event, tabId: string) =>
+    handleSafely(() => get.tabManager().findNext(tabId))
+  );
 
-  ipcMain.handle('find-previous', async (_event, tabId: string) => {
-    const tabManager = context.tabManager;
-    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
-    return tabManager.findPrevious(tabId);
-  });
+  ipcMain.handle('find-previous', async (_event, tabId: string) =>
+    handleSafely(() => get.tabManager().findPrevious(tabId))
+  );
 
-  ipcMain.handle('stop-find-in-page', async (_event, tabId: string) => {
-    const tabManager = context.tabManager;
-    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
-    return tabManager.stopFindInPage(tabId);
-  });
+  ipcMain.handle('stop-find-in-page', async (_event, tabId: string) =>
+    handleSafely(() => get.tabManager().stopFindInPage(tabId))
+  );
 
-  ipcMain.handle('set-search-bar-visible', async (_event, visible: boolean) => {
-    const tabManager = context.tabManager;
-    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
-    tabManager.setSearchBarVisible(visible);
-    return { success: true };
-  });
+  ipcMain.handle('set-search-bar-visible', async (_event, visible: boolean) =>
+    handleSafely(() => {
+      get.tabManager().setSearchBarVisible(visible);
+      return { success: true };
+    })
+  );
 
   // Screenshot capture
-  ipcMain.handle('trigger-screenshot', async () => {
-    const screenshotService = context.screenshotService;
-    const tabManager = context.tabManager;
-    if (!screenshotService || !tabManager) {
-      console.error('Screenshot service or tab manager not initialized');
-      return { success: false, error: 'Screenshot service not initialized' };
-    }
+  ipcMain.handle('trigger-screenshot', async () =>
+    handleSafely(async () => {
+      const screenshotService = get.screenshotService();
+      const tabManager = get.tabManager();
 
-    try {
       console.log('Main: Starting screenshot capture...');
       const dataUrl = await screenshotService.startCapture();
 
       if (!dataUrl) {
         console.log('Main: Screenshot was cancelled by user');
-        return { success: false, error: 'Screenshot cancelled' };
+        return { success: false, error: 'Screenshot cancelled' } as const;
       }
 
       console.log('Main: Screenshot captured successfully, creating tab...');
 
       // Create a new image tab with the screenshot
-      const timestamp = new Date().toLocaleString('en-US', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false,
-      }).replace(/\//g, '-').replace(',', '');
+      const timestamp = new Date()
+        .toLocaleString('en-US', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+        })
+        .replace(/\//g, '-')
+        .replace(',', '');
 
       const title = `Screenshot ${timestamp}`;
       const noteId = Date.now();
@@ -616,13 +536,7 @@ ${formattedContent}
 
       console.log('Main: Screenshot tab created successfully');
       return { success: true };
-    } catch (error) {
-      console.error('Screenshot error:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
-  });
+    })
+  );
 }
 
