@@ -1,3 +1,5 @@
+<svelte:options runes={false} />
+
 <script lang="ts">
   import { getContext, onMount } from 'svelte';
   import { activeTabId, activeTabs } from '$stores/tabs';
@@ -59,7 +61,7 @@
 
   // Clear search when hidden
   $: if (!visible && searchInput) {
-    await stopFind();
+    void stopFind();
   }
 
   async function performSearch(): Promise<void> {
