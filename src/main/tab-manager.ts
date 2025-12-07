@@ -391,6 +391,43 @@ class TabManager {
     this.sendToRenderer('tab-updated', { tab: this.getTabData(tabId) });
   }
 
+  /**
+   * Reset an existing LLM tab so it can be reused for a new streaming request
+   */
+  prepareLLMTabForStreaming(tabId: string, query: string): { success: boolean; error?: string } {
+    const tab = this.tabs.get(tabId);
+    if (!tab || !tab.metadata?.isLLMResponse) {
+      return { success: false, error: 'Tab not found or not an LLM response tab' };
+    }
+
+    // Reset metadata for the new request
+    tab.metadata.response = '';
+    tab.metadata.error = undefined;
+    tab.metadata.isStreaming = true;
+    tab.metadata.query = query;
+    tab.metadata.tokensIn = undefined;
+    tab.metadata.tokensOut = undefined;
+    tab.metadata.model = undefined;
+    tab.metadata.fullQuery = undefined;
+    tab.metadata.contextTabs = undefined;
+    tab.metadata.selectedTabIds = undefined;
+
+    // Update tab title to reflect loading state
+    tab.title = 'Loading...';
+
+    // Notify renderer of updates
+    this.sendToRenderer('tab-title-updated', { id: tabId, title: tab.title });
+    this.sendToRenderer('tab-updated', { tab: this.getTabData(tabId) });
+
+    // Clear throttling to allow immediate updates for the new stream
+    this.lastMetadataUpdate.delete(tabId);
+
+    // Save session state
+    this.saveSession();
+
+    return { success: true };
+  }
+
   updateLLMResponseTab(tabId: string, response: string, metadata?: any): { success: boolean; error?: string } {
     const tab = this.tabs.get(tabId);
     if (!tab) return { success: false, error: 'Tab not found' };

@@ -381,7 +381,17 @@ function setupIPCHandlers(): void {
     }
 
     // Use existing tab ID if provided, otherwise create a new LLM response tab
-    const tabId = options.tabId || tabManager.openLLMResponseTab(query).tabId;
+    let tabId = options.tabId || tabManager.openLLMResponseTab(query).tabId;
+
+    // When reusing an existing LLM tab, reset it to streaming state so new chunks attach correctly
+    if (options.tabId) {
+      const prepareResult = tabManager.prepareLLMTabForStreaming(options.tabId, query);
+      if (!prepareResult.success) {
+        // Fallback: create a fresh tab if the provided ID is invalid
+        const newTab = tabManager.openLLMResponseTab(query);
+        tabId = newTab.tabId;
+      }
+    }
 
     try {
       // Get provider instance
