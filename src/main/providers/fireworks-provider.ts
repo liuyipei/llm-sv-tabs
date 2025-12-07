@@ -7,13 +7,17 @@ import { OpenAICompatibleProvider } from './openai-compatible-provider.js';
 
 export class FireworksProvider extends OpenAICompatibleProvider {
   constructor(apiKey?: string) {
-    super('fireworks', 'https://api.fireworks.ai/inference/v1', apiKey, {
+    super('fireworks', 'https://api.fireworks.ai/inference', apiKey, {
       capabilities: {
         supportsVision: true,
         requiresApiKey: true,
         requiresEndpoint: false,
       },
       defaultModel: 'accounts/fireworks/models/deepseek-v3p1',
+      paths: {
+        chatCompletions: '/v1/chat/completions',
+        models: '/v1/models',
+      },
     });
   }
 
@@ -28,7 +32,7 @@ export class FireworksProvider extends OpenAICompatibleProvider {
         return [];
       }
 
-      const url = `${this.endpoint}/models`;
+      const url = `${this.endpoint}/v1/models`;
       const response = await this.makeRequest(url, {
         method: 'GET',
         headers: {
