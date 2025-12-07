@@ -68,7 +68,6 @@ export class OpenAIProvider extends BaseProvider {
 
     const apiKey = options?.apiKey || this.apiKey;
     const model = options?.model || this.model || 'gpt-4o-mini';
-    const temperature = options?.temperature ?? 0.7;
     const maxTokens = options?.maxTokens ?? 4096;
 
     try {
@@ -86,7 +85,6 @@ export class OpenAIProvider extends BaseProvider {
         body: JSON.stringify({
           model,
           messages: openAIMessages,
-          temperature,
           max_completion_tokens: maxTokens,
         }),
       });
@@ -126,7 +124,6 @@ export class OpenAIProvider extends BaseProvider {
 
     const apiKey = options?.apiKey || this.apiKey;
     const model = options?.model || this.model || 'gpt-4o-mini';
-    const temperature = options?.temperature ?? 0.7;
     const maxTokens = options?.maxTokens ?? 4096;
 
     try {
@@ -145,7 +142,6 @@ export class OpenAIProvider extends BaseProvider {
         body: JSON.stringify({
           model,
           messages: openAIMessages,
-          temperature,
           max_completion_tokens: maxTokens,
           stream: true,
           stream_options: { include_usage: true },

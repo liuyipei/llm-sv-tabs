@@ -57,7 +57,6 @@ export class OllamaProvider extends BaseProvider {
 
     const endpoint = options?.endpoint || this.endpoint || OllamaProvider.DEFAULT_ENDPOINT;
     const model = options?.model || this.model || 'llama3.2';
-    const temperature = options?.temperature ?? 0.7;
 
     try {
       // Convert messages to OpenAI format
@@ -72,9 +71,7 @@ export class OllamaProvider extends BaseProvider {
           model,
           messages: openAIMessages,
           stream: false,
-          options: {
-            temperature,
-          },
+          options: {},
         }),
       });
 
@@ -106,7 +103,6 @@ export class OllamaProvider extends BaseProvider {
 
     const endpoint = options?.endpoint || this.endpoint || OllamaProvider.DEFAULT_ENDPOINT;
     const model = options?.model || this.model || 'llama3.2';
-    const temperature = options?.temperature ?? 0.7;
 
     try {
       // Convert messages to OpenAI format
@@ -124,9 +120,7 @@ export class OllamaProvider extends BaseProvider {
           model,
           messages: openAIMessages,
           stream: true,
-          options: {
-            temperature,
-          },
+          options: {},
         }),
       });
 

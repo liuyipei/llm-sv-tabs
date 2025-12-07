@@ -119,7 +119,6 @@ export class GeminiProvider extends BaseProvider {
       const requestBody: any = {
         contents,
         generationConfig: {
-          temperature: options?.temperature ?? 0.7,
           maxOutputTokens: options?.maxTokens ?? 2000,
         },
       };
@@ -192,7 +191,6 @@ export class GeminiProvider extends BaseProvider {
       const requestBody: any = {
         contents,
         generationConfig: {
-          temperature: options?.temperature ?? 0.7,
           maxOutputTokens: options?.maxTokens ?? 2000,
         },
       };
