@@ -614,6 +614,9 @@ ${formattedContent}
         response: '',
         error: error instanceof Error ? error.message : String(error),
       };
+    } finally {
+      // Ensure renderer exits streaming state even if upstream handlers throw
+      tabManager.updateLLMMetadata(tabId, { isStreaming: false });
     }
   });
 
