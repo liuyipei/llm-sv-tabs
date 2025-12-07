@@ -31,7 +31,26 @@ export class OpenAIProvider extends BaseProvider {
   }
 
   async getAvailableModels(): Promise<LLMModel[]> {
-    return OpenAIProvider.MODELS;
+    if (!this.apiKey) {
+      return OpenAIProvider.MODELS;
+    }
+
+    try {
+      const response = await this.makeRequest(`${OpenAIProvider.API_BASE}/models`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+        },
+      });
+
+      const data = await response.json() as { data?: Array<{ id: string }> };
+
+      const models = (data.data || []).map(model => this.mapModelMetadata(model.id));
+      return models.length > 0 ? models : OpenAIProvider.MODELS;
+    } catch (error) {
+      console.error('Failed to fetch OpenAI models:', error);
+      return OpenAIProvider.MODELS;
+    }
   }
 
   async query(
@@ -49,7 +68,6 @@ export class OpenAIProvider extends BaseProvider {
 
     const apiKey = options?.apiKey || this.apiKey;
     const model = options?.model || this.model || 'gpt-4o-mini';
-    const temperature = options?.temperature ?? 0.7;
     const maxTokens = options?.maxTokens ?? 4096;
 
     try {
@@ -67,8 +85,7 @@ export class OpenAIProvider extends BaseProvider {
         body: JSON.stringify({
           model,
           messages: openAIMessages,
-          temperature,
-          max_tokens: maxTokens,
+          max_completion_tokens: maxTokens,
         }),
       });
 
@@ -107,7 +124,6 @@ export class OpenAIProvider extends BaseProvider {
 
     const apiKey = options?.apiKey || this.apiKey;
     const model = options?.model || this.model || 'gpt-4o-mini';
-    const temperature = options?.temperature ?? 0.7;
     const maxTokens = options?.maxTokens ?? 4096;
 
     try {
@@ -126,8 +142,7 @@ export class OpenAIProvider extends BaseProvider {
         body: JSON.stringify({
           model,
           messages: openAIMessages,
-          temperature,
-          max_tokens: maxTokens,
+          max_completion_tokens: maxTokens,
           stream: true,
           stream_options: { include_usage: true },
         }),
@@ -182,5 +197,18 @@ export class OpenAIProvider extends BaseProvider {
         error: error instanceof Error ? error.message : 'Invalid API key',
       };
     }
+  }
+
+  private mapModelMetadata(modelId: string): LLMModel {
+    const knownModel = OpenAIProvider.MODELS.find(model => model.id === modelId);
+    if (knownModel) {
+      return knownModel;
+    }
+
+    return {
+      id: modelId,
+      name: modelId,
+      provider: 'openai',
+    };
   }
 }

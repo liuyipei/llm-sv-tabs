@@ -143,7 +143,6 @@ export interface ProviderConfig {
   apiKey?: string;
   endpoint?: string;
   model?: string;
-  temperature?: number;
   maxTokens?: number;
   systemPrompt?: string;
 }
@@ -161,7 +160,6 @@ export interface QueryOptions {
   model?: string;
   apiKey?: string;
   endpoint?: string;
-  temperature?: number;
   maxTokens?: number;
   systemPrompt?: string;
   includeMedia?: boolean;
@@ -272,7 +270,6 @@ export interface ConfigState {
   model: string | null;
   apiKeys: Record<ProviderType, string>;
   maxTokens: number;
-  temperature: number;
   systemPrompt: string;
 }
 

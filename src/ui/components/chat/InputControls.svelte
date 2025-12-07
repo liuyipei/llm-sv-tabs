@@ -1,7 +1,7 @@
 <script lang="ts">
   import { getContext, onMount } from 'svelte';
   import { queryInput, isLoading } from '$stores/ui';
-  import { provider, model, apiKeys, endpoint, temperature, maxTokens, systemPrompt, recordModelUsage } from '$stores/config';
+  import { provider, model, apiKeys, endpoint, maxTokens, systemPrompt, recordModelUsage } from '$stores/config';
   import { selectedTabs } from '$stores/tabs';
   import type { IPCBridgeAPI } from '$lib/ipc-bridge';
   import type { QueryOptions, LLMResponse } from '../../../types';
@@ -32,7 +32,6 @@
           model: $model || undefined,
           apiKey: $apiKeys[$provider] || undefined,
           endpoint: $endpoint || undefined,
-          temperature: $temperature,
           maxTokens: $maxTokens,
           systemPrompt: $systemPrompt || undefined,
           selectedTabIds: Array.from($selectedTabs),
