@@ -4,6 +4,7 @@
 
 import { BaseProvider, type ProviderCapabilities } from './base-provider.js';
 import type { LLMModel, LLMResponse, QueryOptions, MessageContent } from '../../types';
+import { convertToOpenAIContent } from './openai-helpers.js';
 
 export class OllamaProvider extends BaseProvider {
   private static readonly DEFAULT_ENDPOINT = 'http://localhost:11434';
@@ -48,31 +49,6 @@ export class OllamaProvider extends BaseProvider {
     }
   }
 
-  /**
-   * Convert our internal content format to OpenAI's format
-   */
-  private convertToOpenAIContent(content: MessageContent): any {
-    if (typeof content === 'string') {
-      return content;
-    }
-
-    // Convert ContentBlock[] to OpenAI format
-    return content.map(block => {
-      if (block.type === 'text') {
-        return { type: 'text', text: block.text };
-      } else if (block.type === 'image') {
-        // OpenAI uses image_url with data URL
-        const dataUrl = `data:${block.source.media_type};base64,${block.source.data}`;
-        return {
-          type: 'image_url',
-          image_url: { url: dataUrl }
-        };
-      }
-      return block;
-    });
-  }
-
-
   async query(
     messages: Array<{ role: string; content: MessageContent }>,
     options?: QueryOptions
@@ -87,7 +63,7 @@ export class OllamaProvider extends BaseProvider {
       // Convert messages to OpenAI format
       const openAIMessages = messages.map(msg => ({
         role: msg.role,
-        content: this.convertToOpenAIContent(msg.content)
+        content: convertToOpenAIContent(msg.content)
       }));
 
       const response = await this.makeRequest(`${endpoint}/api/chat`, {
@@ -136,7 +112,7 @@ export class OllamaProvider extends BaseProvider {
       // Convert messages to OpenAI format
       const openAIMessages = messages.map(msg => ({
         role: msg.role,
-        content: this.convertToOpenAIContent(msg.content)
+        content: convertToOpenAIContent(msg.content)
       }));
 
       const response = await fetch(`${endpoint}/api/chat`, {

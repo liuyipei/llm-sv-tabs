@@ -4,6 +4,7 @@
 
 import { BaseProvider, type ProviderCapabilities } from './base-provider.js';
 import type { LLMModel, LLMResponse, QueryOptions, MessageContent } from '../../types';
+import { convertToOpenAIContent, parseOpenAIStream } from './openai-helpers.js';
 
 export class OpenAIProvider extends BaseProvider {
   private static readonly API_BASE = 'https://api.openai.com/v1';
@@ -33,30 +34,6 @@ export class OpenAIProvider extends BaseProvider {
     return OpenAIProvider.MODELS;
   }
 
-  /**
-   * Convert our internal content format to OpenAI's format
-   */
-  private convertToOpenAIContent(content: MessageContent): any {
-    if (typeof content === 'string') {
-      return content;
-    }
-
-    // Convert ContentBlock[] to OpenAI format
-    return content.map(block => {
-      if (block.type === 'text') {
-        return { type: 'text', text: block.text };
-      } else if (block.type === 'image') {
-        // OpenAI uses image_url with data URL
-        const dataUrl = `data:${block.source.media_type};base64,${block.source.data}`;
-        return {
-          type: 'image_url',
-          image_url: { url: dataUrl }
-        };
-      }
-      return block;
-    });
-  }
-
   async query(
     messages: Array<{ role: string; content: MessageContent }>,
     options?: QueryOptions
@@ -79,7 +56,7 @@ export class OpenAIProvider extends BaseProvider {
       // Convert messages to OpenAI format
       const openAIMessages = messages.map(msg => ({
         role: msg.role,
-        content: this.convertToOpenAIContent(msg.content)
+        content: convertToOpenAIContent(msg.content)
       }));
 
       const response = await this.makeRequest(`${OpenAIProvider.API_BASE}/chat/completions`, {
@@ -137,7 +114,7 @@ export class OpenAIProvider extends BaseProvider {
       // Convert messages to OpenAI format
       const openAIMessages = messages.map(msg => ({
         role: msg.role,
-        content: this.convertToOpenAIContent(msg.content)
+        content: convertToOpenAIContent(msg.content)
       }));
 
       const response = await fetch(`${OpenAIProvider.API_BASE}/chat/completions`, {
@@ -161,57 +138,17 @@ export class OpenAIProvider extends BaseProvider {
         throw new Error(`HTTP ${response.status}: ${error}`);
       }
 
-      const reader = response.body!.getReader();
-      const decoder = new TextDecoder();
-      let fullText = '';
-      let buffer = '';
-      let returnedModel = model;
-      let tokensIn = 0;
-      let tokensOut = 0;
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (!line.trim() || line.startsWith(':')) continue;
-          if (!line.startsWith('data: ')) continue;
-
-          const data = line.slice(6);
-          if (data === '[DONE]') continue;
-
-          try {
-            const parsed = JSON.parse(data);
-            const delta = parsed.choices?.[0]?.delta?.content || '';
-            if (delta) {
-              fullText += delta;
-              onChunk(delta);
-            }
-            if (parsed.model) {
-              returnedModel = parsed.model;
-            }
-            // Extract token usage from the final chunk (when stream_options.include_usage is true)
-            if (parsed.usage) {
-              tokensIn = parsed.usage.prompt_tokens || 0;
-              tokensOut = parsed.usage.completion_tokens || 0;
-            }
-          } catch (e) {
-            // Skip malformed JSON
-          }
-        }
-      }
-
-      const responseTime = Date.now() - startTime;
+      const { fullText, tokensIn, tokensOut, model: returnedModel } = await parseOpenAIStream(
+        response,
+        onChunk,
+        model
+      );
 
       return {
         response: fullText,
         tokensIn,
         tokensOut,
-        responseTime,
+        responseTime: Date.now() - startTime,
         model: returnedModel,
       };
     } catch (error) {
