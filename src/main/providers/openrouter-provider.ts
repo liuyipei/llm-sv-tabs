@@ -29,6 +29,11 @@ export class OpenRouterProvider extends OpenAICompatibleProvider {
   }
 
   async getAvailableModels(): Promise<LLMModel[]> {
+    const discovered = await super.getAvailableModels();
+    if (discovered.length > 0) {
+      return discovered;
+    }
+
     // OpenRouter has many models - return popular ones
     return [
       {

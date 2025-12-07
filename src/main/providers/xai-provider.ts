@@ -14,10 +14,20 @@ export class XAIProvider extends OpenAICompatibleProvider {
         requiresEndpoint: false,
       },
       defaultModel: 'grok-beta',
+      paths: {
+        chatCompletions: '/v1/chat/completions',
+        models: '/v1/models',
+      },
     });
   }
 
   async getAvailableModels(): Promise<LLMModel[]> {
+    // Prefer the API list, but fall back to known models if the endpoint is unavailable
+    const discovered = await super.getAvailableModels();
+    if (discovered.length > 0) {
+      return discovered;
+    }
+
     return [
       {
         id: 'grok-2-1212',
