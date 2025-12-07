@@ -48,7 +48,6 @@ export const provider = createPersistedStore<ProviderType>('provider', 'openai')
 export const model = createPersistedStore<string | null>('model', null);
 export const apiKeys = createPersistedStore<Record<string, string>>('apiKeys', {});
 export const maxTokens = createPersistedStore<number>('maxTokens', 2000);
-export const temperature = createPersistedStore<number>('temperature', 0.7);
 export const systemPrompt = createPersistedStore<string>('systemPrompt', '');
 export const endpoint = createPersistedStore<string>('endpoint', '');
 
