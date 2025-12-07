@@ -118,8 +118,8 @@ See [TESTING.md](./TESTING.md) for details.
 - **Zero manual DOM manipulation**
 - **Automatic reactivity**
 - **Scoped component styles**
-- **Type safety** throughout
 
+- **Type safety** throughout
 ## License
 
 MIT

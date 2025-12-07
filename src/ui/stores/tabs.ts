@@ -81,12 +81,55 @@ export function removeTab(tabId: string): void {
 export function updateTab(tabId: string, updates: Partial<Tab>): void {
   activeTabs.update((tabs) => {
     const tab = tabs.get(tabId);
-    if (tab) {
-      Object.assign(tab, updates);
-      return new Map(tabs);
+    if (!tab) {
+      console.error('[STORE] Tab not found during update', {
+        tabId,
+        knownTabIds: Array.from(tabs.keys()),
+      });
+      return tabs;
     }
-    return tabs;
+
+    const guardedUpdates = applyStreamingLatch(tab, updates);
+    const { metadata: incomingMetadata, ...rest } = guardedUpdates;
+
+    const mergedMetadata = incomingMetadata
+      ? { ...tab.metadata, ...incomingMetadata }
+      : tab.metadata;
+
+    const previousStreaming = tab.metadata?.isStreaming;
+    const nextStreaming = mergedMetadata?.isStreaming;
+    if (previousStreaming !== nextStreaming) {
+      console.log('[STORE] Streaming state changed', {
+        tabId,
+        previousStreaming,
+        nextStreaming,
+      });
+    }
+
+    const nextTab = { ...tab, ...rest, metadata: mergedMetadata };
+    const nextTabs = new Map(tabs);
+    nextTabs.set(tabId, nextTab);
+    return nextTabs;
   });
+}
+
+function applyStreamingLatch(tab: Tab, updates: Partial<Tab>): Partial<Tab> {
+  const incomingMeta = updates.metadata;
+  if (!incomingMeta) return updates;
+
+  const currentMeta = tab.metadata || {};
+  const guardedMeta = { ...incomingMeta };
+
+  if (currentMeta.isStreaming === false && incomingMeta.isStreaming === true) {
+    console.warn('[STORE] Blocked zombie streaming update', {
+      tabId: tab.id,
+      previousStreaming: currentMeta.isStreaming,
+      incomingStreaming: incomingMeta.isStreaming,
+    });
+    guardedMeta.isStreaming = false;
+  }
+
+  return { ...updates, metadata: guardedMeta };
 }
 
 export function updateTabTitle(tabId: string, title: string): void {

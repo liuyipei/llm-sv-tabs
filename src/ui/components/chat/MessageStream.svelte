@@ -3,7 +3,7 @@
   import { marked } from 'marked';
   import DOMPurify from 'dompurify';
   import { activeTabs } from '$stores/tabs';
-  import type { Tab } from '../../../types';
+  import type { ContextTabInfo, Tab } from '../../../types';
   import { searchState, updateSearchResults } from '$stores/search';
   import { createDOMSearch, type DOMSearchInstance } from '$lib/dom-search';
 
@@ -22,14 +22,19 @@
 
   let container: HTMLDivElement | null = null;
 
+  const mountId = Math.random().toString(36).slice(2, 8);
+
   // Svelte 5 runes state
   let fullText = $state('');
   let stableHtml = $state('');
   let unstableHtml = $state('');
 
   let unsubscribe: (() => void) | null = null;
+  let tabsUnsubscribe: (() => void) | null = null;
   let renderScheduled = false;
   let hasLoadedInitialData = $state(false);
+  let lastAppliedMetadataResponse = $state('');
+  let renderCount = 0;
 
   // DOM search instance
   let domSearch: DOMSearchInstance | null = null;
@@ -47,19 +52,50 @@
   const created = $derived(tab?.created);
 
   // Get context tabs used in the query
-  const contextTabs = $derived.by((): Tab[] => {
+  const slug = $derived(metadata?.slug);
+  const shortId = $derived(metadata?.shortId);
+  const persistentId = $derived(metadata?.persistentId);
+  const showIdentifiers = $derived(Boolean(slug || shortId || persistentId));
+
+  const contextTabs = $derived.by((): Array<ContextTabInfo & { favicon?: string }> => {
+    if (metadata?.contextTabs && metadata.contextTabs.length > 0) {
+      return metadata.contextTabs;
+    }
+
     if (!metadata?.selectedTabIds || metadata.selectedTabIds.length === 0) {
       return [];
     }
+
     return metadata.selectedTabIds
       .map(id => $activeTabs.get(id))
-      .filter((t): t is Tab => t !== undefined);
+      .filter((t): t is Tab => t !== undefined)
+      .map(tab => ({
+        id: tab.id,
+        title: tab.title,
+        url: tab.url,
+        type: tab.type,
+        favicon: tab.favicon,
+        slug: tab.metadata?.slug,
+        shortId: tab.metadata?.shortId,
+        persistentId: tab.metadata?.persistentId
+      }));
   });
+
+  const showFullQuery = $derived(Boolean(metadata?.fullQuery && metadata.fullQuery !== metadata.query));
 
   // Effect to load existing data when metadata becomes available
   $effect(() => {
-    if (!hasLoadedInitialData && metadata?.response) {
-      fullText = metadata.response;
+    renderCount += 1;
+    console.log(`⚡ [MessageStream-${mountId}] render #${renderCount}`, {
+      tabId,
+      streaming: metadata?.isStreaming,
+      hasResponse: Boolean(fullText.length || metadata?.response?.length),
+    });
+
+    const metadataResponse = metadata?.response || '';
+    if (metadataResponse && metadataResponse !== lastAppliedMetadataResponse) {
+      fullText = metadataResponse;
+      lastAppliedMetadataResponse = metadataResponse;
       updateBuffers();
       hasLoadedInitialData = true;
     }
@@ -149,23 +185,51 @@
   }
 
   onMount(() => {
-    // Load existing conversation data if present
-    if (metadata?.response) {
-      fullText = metadata.response;
-      updateBuffers();
-    }
+    console.log(`🟡 [MessageStream-${mountId}] mounting`, {
+      tabId,
+      initialStreaming: metadata?.isStreaming,
+    });
+
+    tabsUnsubscribe = activeTabs.subscribe((tabsMap) => {
+      const currentTab = tabsMap.get(tabId);
+      if (currentTab) {
+        console.log(`🟣 [MessageStream-${mountId}] store update`, {
+          tabId,
+          streaming: currentTab.metadata?.isStreaming,
+          hasResponse: Boolean(currentTab.metadata?.response?.length),
+          knownTabs: tabsMap.size,
+        });
+      } else {
+        console.warn(`🟣 [MessageStream-${mountId}] store update missing tab`, {
+          tabId,
+          knownTabs: tabsMap.size,
+        });
+      }
+    });
 
     if (!window.electronAPI?.onLLMChunk) return;
 
     unsubscribe = window.electronAPI.onLLMChunk(({ tabId: incomingId, chunk }) => {
       if (incomingId !== tabId) return;
+
+      // Skip duplicate chunks when the response has already been merged into metadata
+      if (chunk && fullText.endsWith(chunk)) {
+        console.log(`🟢 [MessageStream-${mountId}] skipped duplicate chunk`, {
+          tabId,
+          chunkPreview: chunk.slice(0, 32),
+        });
+        return;
+      }
+
       fullText += chunk;
       scheduleRender();
     });
   });
 
   onDestroy(() => {
+    console.log(`🟡 [MessageStream-${mountId}] unmounting`, { tabId });
     if (unsubscribe) unsubscribe();
+    if (tabsUnsubscribe) tabsUnsubscribe();
     if (domSearch) {
       domSearch.destroy();
       domSearch = null;
@@ -183,6 +247,23 @@
         {/if}
       </div>
       <div class="query-text">{query}</div>
+    </div>
+  {/if}
+
+  {#if showIdentifiers}
+    <div class="identifiers-section">
+      <div class="identifiers-label">Tab Identifiers</div>
+      <div class="identifiers-list">
+        {#if slug}
+          <div class="identifier-row"><span class="identifier-label">Slug:</span> <span class="identifier-value">{slug}</span></div>
+        {/if}
+        {#if shortId}
+          <div class="identifier-row"><span class="identifier-label">Short ID:</span> <span class="identifier-value">{shortId}</span></div>
+        {/if}
+        {#if persistentId}
+          <div class="identifier-row"><span class="identifier-label">UUID:</span> <span class="identifier-value">{persistentId}</span></div>
+        {/if}
+      </div>
     </div>
   {/if}
 
@@ -204,9 +285,26 @@
             {#if contextTab.url && contextTab.url !== 'about:blank'}
               <div class="context-tab-url">{contextTab.url}</div>
             {/if}
+            {#if contextTab.slug || contextTab.shortId}
+              <div class="context-tab-ids">
+                {#if contextTab.slug}
+                  <span class="context-id">slug: {contextTab.slug}</span>
+                {/if}
+                {#if contextTab.shortId}
+                  <span class="context-id">id: {contextTab.shortId}</span>
+                {/if}
+              </div>
+            {/if}
           </div>
         {/each}
       </div>
+    </div>
+  {/if}
+
+  {#if showFullQuery}
+    <div class="fullquery-section">
+      <div class="fullquery-label">Full Query (with context)</div>
+      <div class="fullquery-content">{metadata?.fullQuery}</div>
     </div>
   {/if}
 
@@ -215,30 +313,32 @@
       <strong>Error:</strong> {error}
     </div>
   {:else}
-    <div class="response-header">
-      <div class="response-label">Response</div>
-      <div class="metadata">
-        {#if model}
-          <span class="metadata-item"><span class="metadata-label">Model:</span> {model}</span>
-        {/if}
-        {#if tokensIn !== undefined && tokensIn !== null}
-          <span class="metadata-item"><span class="metadata-label">Tokens In:</span> <strong>{tokensIn.toLocaleString()}</strong></span>
-        {/if}
-        {#if tokensOut !== undefined && tokensOut !== null}
-          <span class="metadata-item"><span class="metadata-label">Tokens Out:</span> <strong>{tokensOut.toLocaleString()}</strong></span>
-        {/if}
-        {#if (tokensIn !== undefined && tokensIn !== null) && (tokensOut !== undefined && tokensOut !== null)}
-          <span class="metadata-item"><span class="metadata-label">Total:</span> <strong>{(tokensIn + tokensOut).toLocaleString()}</strong></span>
-        {/if}
-        {#if isStreaming}
-          <span class="metadata-item streaming">● Streaming...</span>
-        {/if}
+    <div class="response-card">
+      <div class="response-header">
+        <div class="response-label">Response</div>
+        <div class="metadata">
+          {#if model}
+            <span class="metadata-item"><span class="metadata-label">Model:</span> {model}</span>
+          {/if}
+          {#if tokensIn !== undefined && tokensIn !== null}
+            <span class="metadata-item"><span class="metadata-label">Tokens In:</span> <strong>{tokensIn.toLocaleString()}</strong></span>
+          {/if}
+          {#if tokensOut !== undefined && tokensOut !== null}
+            <span class="metadata-item"><span class="metadata-label">Tokens Out:</span> <strong>{tokensOut.toLocaleString()}</strong></span>
+          {/if}
+          {#if (tokensIn !== undefined && tokensIn !== null) && (tokensOut !== undefined && tokensOut !== null)}
+            <span class="metadata-item"><span class="metadata-label">Total:</span> <strong>{(tokensIn + tokensOut).toLocaleString()}</strong></span>
+          {/if}
+          {#if isStreaming}
+            <span class="metadata-item streaming">● Streaming...</span>
+          {/if}
+        </div>
       </div>
-    </div>
 
-    <div class="response-content">
-      <div class="stable">{@html stableHtml}</div>
-      <div class="unstable">{@html unstableHtml}</div>
+      <div class="response-content">
+        <div class="stable">{@html stableHtml}</div>
+        <div class="unstable">{@html unstableHtml}</div>
+      </div>
     </div>
   {/if}
 </div>
@@ -370,12 +470,28 @@
     font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   }
 
-  .response-header {
+  .context-tab-ids {
+    margin-top: 0.25rem;
+    font-size: 0.7rem;
+    color: #4ec9b0;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  }
+
+  .context-id {
+    margin-right: 1rem;
+  }
+
+  .response-card {
     margin-bottom: 1rem;
-    padding: 0.75rem;
     background-color: #1e1e1e;
     border-left: 3px solid #4ec9b0;
     border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .response-header {
+    padding: 0.75rem;
+    background-color: #1e1e1e;
   }
 
   .response-label {
@@ -417,6 +533,10 @@
     font-weight: 500;
   }
 
+  .response-content {
+    padding: 0 0.75rem 0.75rem;
+  }
+
   .error-message {
     padding: 1rem;
     background-color: #5a1d1d;
@@ -431,6 +551,69 @@
 
   .unstable {
     opacity: 0.96;
+  }
+
+  .identifiers-section {
+    margin-bottom: 1.5rem;
+    padding: 0.75rem;
+    background-color: #1e1e1e;
+    border-left: 3px solid #569cd6;
+    border-radius: 4px;
+  }
+
+  .identifiers-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #569cd6;
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.5px;
+  }
+
+  .identifiers-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .identifier-row {
+    display: flex;
+    gap: 0.35rem;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 0.85rem;
+  }
+
+  .identifier-label {
+    color: #9cdcfe;
+    min-width: 70px;
+  }
+
+  .identifier-value {
+    color: #dcdcaa;
+  }
+
+  .fullquery-section {
+    margin-bottom: 1.5rem;
+    padding: 0.75rem;
+    background-color: #1e1e1e;
+    border-left: 3px solid #4ec9b0;
+    border-radius: 4px;
+  }
+
+  .fullquery-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #4ec9b0;
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.5px;
+  }
+
+  .fullquery-content {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-size: 0.9rem;
+    line-height: 1.5;
   }
 
   /* Inherit markdown styles from existing theme */

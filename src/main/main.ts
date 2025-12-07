@@ -298,6 +298,16 @@ function setupIPCHandlers(): void {
     }
   });
 
+  ipcMain.handle('update-llm-metadata', async (_event, tabId: string, metadata: any) => {
+    if (!tabManager) return { success: false, error: 'TabManager not initialized' };
+    try {
+      const result = tabManager.updateLLMMetadata(tabId, metadata);
+      return result.success ? { success: true } : { success: false, error: result.error };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
   ipcMain.handle('open-raw-message-viewer', async (_event, tabId: string) => {
     if (!tabManager) return { success: false, error: 'TabManager not initialized' };
     try {
@@ -533,6 +543,13 @@ ${formattedContent}
         userMessageContent = fullQuery;
       }
 
+      // Persist context metadata before streaming so the UI can render it immediately
+      tabManager.updateLLMMetadata(tabId, {
+        selectedTabIds: options.selectedTabIds,
+        contextTabs: contextTabs.length > 0 ? contextTabs : undefined,
+        fullQuery: typeof fullQuery === 'string' && fullQuery !== query ? fullQuery : undefined,
+      });
+
       // Add user message
       messages.push({ role: 'user', content: userMessageContent });
 
@@ -588,10 +605,25 @@ ${formattedContent}
         tab.metadata.isStreaming = false;
       }
 
+      // Ensure renderer transitions out of streaming state even on failures
+      tabManager.updateLLMResponseTab(tabId, tab?.metadata?.response || '', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+
       return {
         response: '',
         error: error instanceof Error ? error.message : String(error),
       };
+    } finally {
+      // Ensure renderer exits streaming state even if upstream handlers throw
+      const preFinishMetadata = tabManager?.getTabMetadataSnapshot(tabId);
+      const preFinishTabs = tabManager?.getLLMTabsSnapshot();
+      console.log('🔵 [MAIN] Finishing stream', { tabId, preFinishMetadata, preFinishTabs });
+      tabManager.updateLLMMetadata(tabId, { isStreaming: false });
+      tabManager.markLLMStreamingComplete(tabId);
+      const postFinishMetadata = tabManager?.getTabMetadataSnapshot(tabId);
+      const postFinishTabs = tabManager?.getLLMTabsSnapshot();
+      console.log('🔵 [MAIN] Finished stream', { tabId, postFinishMetadata, postFinishTabs });
     }
   });
 

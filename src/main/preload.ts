@@ -72,6 +72,9 @@ const electronAPI = {
   updateLLMResponseTab: (tabId: string, response: string, metadata?: any): Promise<IPCResponse> =>
     ipcRenderer.invoke('update-llm-response-tab', tabId, response, metadata),
 
+  updateLLMMetadata: (tabId: string, metadata: any): Promise<IPCResponse> =>
+    ipcRenderer.invoke('update-llm-metadata', tabId, metadata),
+
   openRawMessageViewer: (tabId: string): Promise<IPCResponse> =>
     ipcRenderer.invoke('open-raw-message-viewer', tabId),
 
@@ -167,6 +170,21 @@ const electronAPI = {
     return () => ipcRenderer.removeListener('llm-stream-chunk', handler);
   },
 };
+
+// Diagnostic: log every tab-updated payload to trace streaming completion signals
+ipcRenderer.on('tab-updated', (_event, rawData) => {
+  const tabData = (rawData as any)?.tab ?? rawData;
+  const metadata = tabData?.metadata ?? {};
+  const { response: _response, ...metadataWithoutResponse } = metadata;
+
+  console.log('🟢 [PRELOAD] tab-updated', {
+    id: tabData?.id,
+    streaming: metadata?.isStreaming,
+    hasResponse: Boolean(metadata?.response?.length),
+    metadata: metadataWithoutResponse,
+    timestamp: Date.now(),
+  });
+});
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);
 console.log('Preload: electronAPI exposed to window');
