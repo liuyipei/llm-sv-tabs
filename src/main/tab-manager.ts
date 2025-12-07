@@ -937,6 +937,32 @@ class TabManager {
     };
   }
 
+  focusActiveWebContents(): { success: boolean; error?: string } {
+    if (!this.activeTabId) {
+      return { success: false, error: 'No active tab' };
+    }
+
+    if (!this.activeWebContentsView) {
+      return { success: false, error: 'Active tab has no WebContentsView' };
+    }
+
+    if (this.activeWebContentsView.webContents.isDestroyed()) {
+      return { success: false, error: 'Active tab WebContentsView was destroyed' };
+    }
+
+    try {
+      this.mainWindow.focus();
+      this.mainWindow.webContents.focus();
+      this.activeWebContentsView.webContents.focus();
+      return { success: true };
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('destroyed')) {
+        return { success: false, error: 'Active tab WebContentsView was destroyed during focus' };
+      }
+      throw error;
+    }
+  }
+
   /**
    * Extract favicon from page
    */

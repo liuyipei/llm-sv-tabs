@@ -194,8 +194,39 @@ If you see all logs but the element doesn't focus, the issue is likely missing `
 | Cmd/Ctrl+W | Close tab | Menu accelerator → TabManager |
 | Cmd/Ctrl+T | New tab (focus address) | Menu accelerator → IPC |
 | Cmd/Ctrl+D | Bookmark tab | Menu accelerator → IPC → bookmark sync |
+| Esc | Return focus to page content | Renderer handler (fires anywhere unless already handled) → IPC → focus active WebContentsView |
+
+### How the `Esc` Focus Return Works (copy/paste ready)
+
+```ts
+// src/ui/App.svelte (renderer)
+<svelte:window on:keydown={async (event) => {
+  if (event.key !== 'Escape' || event.defaultPrevented) return;
+  event.preventDefault();
+  // blur any control-panel element, then hand off to main
+  await ipc.focusActiveWebContents();
+}} />
+
+// src/ui/lib/ipc-bridge.ts (preload bridge)
+focusActiveWebContents: () => window.electronAPI.focusActiveWebContents(),
+
+// src/main/preload.ts (exposed to renderer)
+focusActiveWebContents: () => ipcRenderer.invoke('focus-active-web-contents'),
+
+// src/main/main.ts (IPC handler)
+ipcMain.handle('focus-active-web-contents', () => tabManager.focusActiveWebContents());
+
+// src/main/tab-manager.ts (focus helper)
+focusActiveWebContents() {
+  this.mainWindow.focus();              // OS/window focus
+  this.mainWindow.webContents.focus();  // UI webContents focus
+  this.activeWebContentsView.webContents.focus(); // page content focus
+}
+```
 
 **Note**: Accelerators fire at the application window level, so they work inside `WebContentsView` without stealing shortcuts when the window is unfocused. Use `globalShortcut` only for truly background behaviors.
+
+Renderer surfaces can explicitly return focus to the browsing context by calling `ipc.focusActiveWebContents()`. Use this when a UI overlay (URL bar, tabs, settings, find bar) wants to relinquish focus after handling a keyboard shortcut like `Esc`.
 
 ---
 
