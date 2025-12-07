@@ -20,6 +20,11 @@ export class OpenRouterProvider extends OpenAICompatibleProvider {
       },
       defaultModel: 'anthropic/claude-3.5-sonnet',
       extraHeaders: OPENROUTER_HEADERS,
+      // Endpoint already includes /api/v1, so avoid double-prefixing the v1 paths
+      paths: {
+        chatCompletions: '/chat/completions',
+        models: '/models',
+      },
     });
   }
 
