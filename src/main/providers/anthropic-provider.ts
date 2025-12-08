@@ -7,6 +7,8 @@ import type { LLMModel, LLMResponse, QueryOptions, MessageContent } from '../../
 
 export class AnthropicProvider extends BaseProvider {
   private static readonly API_BASE = 'https://api.anthropic.com/v1';
+  // Anthropic requires a fixed version header for their API; this is the latest for the messages endpoint.
+  private static readonly API_VERSION = '2023-06-01';
   private static readonly MODELS: LLMModel[] = [
     { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet', provider: 'anthropic', contextWindow: 200000, supportsVision: true },
     { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku', provider: 'anthropic', contextWindow: 200000, supportsVision: false },
@@ -30,7 +32,33 @@ export class AnthropicProvider extends BaseProvider {
   }
 
   async getAvailableModels(): Promise<LLMModel[]> {
-    return AnthropicProvider.MODELS;
+    if (!this.apiKey) {
+      return AnthropicProvider.MODELS;
+    }
+
+    try {
+      const response = await this.makeRequest(`${AnthropicProvider.API_BASE}/models`, {
+        method: 'GET',
+        headers: {
+          'x-api-key': this.apiKey,
+          'anthropic-version': AnthropicProvider.API_VERSION,
+        },
+      });
+
+      const data = await response.json() as { data?: Array<{ id: string }> };
+      const models = (data.data || []).map(({ id }) =>
+        AnthropicProvider.MODELS.find(model => model.id === id) ?? {
+          id,
+          name: id,
+          provider: 'anthropic',
+        }
+      );
+
+      return models.length > 0 ? models : AnthropicProvider.MODELS;
+    } catch (error) {
+      console.error('Failed to fetch Anthropic models:', error);
+      return AnthropicProvider.MODELS;
+    }
   }
 
   async query(
@@ -59,7 +87,7 @@ export class AnthropicProvider extends BaseProvider {
         method: 'POST',
         headers: {
           'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
+          'anthropic-version': AnthropicProvider.API_VERSION,
         },
         body: JSON.stringify({
           model,
@@ -115,7 +143,7 @@ export class AnthropicProvider extends BaseProvider {
         method: 'POST',
         headers: {
           'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
+          'anthropic-version': AnthropicProvider.API_VERSION,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
