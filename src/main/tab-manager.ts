@@ -716,6 +716,17 @@ class TabManager {
     tab.lastViewed = Date.now();
 
     if (tab.view) {
+      // Validate that the view still has webContents attached
+      if (!tab.view.webContents) {
+        console.warn(`Tab ${tabId} has no webContents, skipping activation`);
+        this.tabs.delete(tabId);
+        const remainingTabs = Array.from(this.tabs.keys());
+        if (remainingTabs.length > 0) {
+          return this.setActiveTab(remainingTabs[0]);
+        }
+        return { success: false, error: 'Tab has no webContents' };
+      }
+
       // Check if the view's webContents has been destroyed
       if (tab.view.webContents.isDestroyed()) {
         console.warn(`Tab ${tabId} has a destroyed webContents, skipping activation`);
