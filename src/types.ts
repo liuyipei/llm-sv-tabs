@@ -20,6 +20,10 @@ export interface Tab {
   created?: number;
   metadata?: TabMetadata;
   component?: 'llm-response' | 'note' | 'api-key-instructions';
+  loadError?: {
+    errorCode: number;
+    errorDescription: string;
+  };
 }
 
 export interface TabWithView extends Tab {

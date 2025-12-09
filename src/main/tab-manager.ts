@@ -152,6 +152,37 @@ class TabManager {
       }
     });
 
+    // Handle page load failures (network errors, DNS failures, certificate errors, etc.)
+    view.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      // Only handle main frame failures (not subframes like iframes)
+      if (!isMainFrame) return;
+
+      // Error code -3 is "ABORTED" which happens during normal navigation, ignore it
+      if (errorCode === -3) return;
+
+      console.error(`Tab ${tabId} failed to load: ${errorDescription} (code: ${errorCode}) for URL: ${validatedURL}`);
+
+      // Store the error information
+      tab.loadError = {
+        errorCode,
+        errorDescription,
+      };
+
+      // Update title to indicate failure
+      if (tab.title === 'Loading...') {
+        tab.title = 'Failed to load';
+        this.sendToRenderer('tab-title-updated', { id: tabId, title: tab.title });
+      }
+
+      // Notify renderer about the load error
+      this.sendToRenderer('tab-load-error', {
+        id: tabId,
+        errorCode,
+        errorDescription,
+        url: validatedURL,
+      });
+    });
+
     // Set as active tab (if autoSelect is true)
     if (autoSelect) {
       this.setActiveTab(tabId);
