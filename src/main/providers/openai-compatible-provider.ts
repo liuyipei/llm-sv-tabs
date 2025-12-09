@@ -4,7 +4,7 @@
 
 import { BaseProvider, type ProviderCapabilities } from './base-provider.js';
 import type { LLMModel, LLMResponse, QueryOptions, ProviderType, MessageContent } from '../../types';
-import { convertToOpenAIContent, parseOpenAIStream } from './openai-helpers.js';
+import { buildOpenAIChatBody, buildOpenAIHeaders, parseOpenAIStream } from './openai-helpers.js';
 
 export interface OpenAICompatibleOptions {
   capabilities?: Partial<ProviderCapabilities>;
@@ -58,7 +58,7 @@ export class OpenAICompatibleProvider extends BaseProvider {
     }
 
     try {
-      const headers = this.buildHeaders(this.apiKey);
+      const headers = buildOpenAIHeaders(this.apiKey, this.extraHeaders);
 
       const response = await this.makeRequest(`${this.endpoint}${this.paths.models}`, {
         method: 'GET',
@@ -104,22 +104,14 @@ export class OpenAICompatibleProvider extends BaseProvider {
     const maxTokens = options?.maxTokens ?? 4096;
 
     try {
-      // Convert messages to OpenAI format
-      const openAIMessages = messages.map(msg => ({
-        role: msg.role,
-        content: convertToOpenAIContent(msg.content)
-      }));
-
-      const headers = this.buildHeaders(apiKey);
+      const headers = buildOpenAIHeaders(apiKey, this.extraHeaders);
 
       const response = await this.makeRequest(`${endpoint}${this.paths.chatCompletions}`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({
-          model,
-          messages: openAIMessages,
-          max_tokens: maxTokens,
-        }),
+        body: JSON.stringify(
+          buildOpenAIChatBody(messages, model, maxTokens, 'max_tokens'),
+        ),
       });
 
       const data = await response.json() as any;
@@ -168,24 +160,17 @@ export class OpenAICompatibleProvider extends BaseProvider {
     const maxTokens = options?.maxTokens ?? 4096;
 
     try {
-      // Convert messages to OpenAI format
-      const openAIMessages = messages.map(msg => ({
-        role: msg.role,
-        content: convertToOpenAIContent(msg.content)
-      }));
-
-      const headers = this.buildHeaders(apiKey, true);
+      const headers = buildOpenAIHeaders(apiKey, this.extraHeaders, true);
 
       const response = await fetch(`${endpoint}${this.paths.chatCompletions}`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({
-          model,
-          messages: openAIMessages,
-          max_tokens: maxTokens,
-          stream: true,
-          stream_options: { include_usage: true },
-        }),
+        body: JSON.stringify(
+          buildOpenAIChatBody(messages, model, maxTokens, 'max_tokens', {
+            stream: true,
+            stream_options: { include_usage: true },
+          }),
+        ),
       });
 
       if (!response.ok) {
@@ -221,7 +206,7 @@ export class OpenAICompatibleProvider extends BaseProvider {
     }
 
     try {
-      const headers = this.buildHeaders(this.apiKey);
+      const headers = buildOpenAIHeaders(this.apiKey, this.extraHeaders);
 
       const response = await this.makeRequest(`${this.endpoint}${this.paths.models}`, {
         method: 'GET',
@@ -236,19 +221,5 @@ export class OpenAICompatibleProvider extends BaseProvider {
         error: error instanceof Error ? error.message : 'Failed to connect to endpoint',
       };
     }
-  }
-
-  private buildHeaders(apiKey?: string, includeContentType = false): Record<string, string> {
-    const headers: Record<string, string> = { ...this.extraHeaders };
-
-    if (includeContentType) {
-      headers['Content-Type'] = 'application/json';
-    }
-
-    if (apiKey) {
-      headers['Authorization'] = `Bearer ${apiKey}`;
-    }
-
-    return headers;
   }
 }

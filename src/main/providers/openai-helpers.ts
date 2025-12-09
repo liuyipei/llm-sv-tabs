@@ -1,5 +1,7 @@
 import type { MessageContent } from '../../types';
 
+type TokenLimitField = 'max_tokens' | 'max_completion_tokens';
+
 /**
  * Convert our internal content format to OpenAI-compatible format
  */
@@ -20,6 +22,46 @@ export function convertToOpenAIContent(content: MessageContent): any {
     }
     return block;
   });
+}
+
+export function toOpenAIMessages(messages: Array<{ role: string; content: MessageContent }>) {
+  return messages.map(msg => ({
+    role: msg.role,
+    content: convertToOpenAIContent(msg.content)
+  }));
+}
+
+export function buildOpenAIChatBody(
+  messages: Array<{ role: string; content: MessageContent }>,
+  model: string,
+  maxTokens: number,
+  tokenField: TokenLimitField,
+  extraBody: Record<string, unknown> = {}
+): Record<string, unknown> {
+  return {
+    model,
+    messages: toOpenAIMessages(messages),
+    [tokenField]: maxTokens,
+    ...extraBody,
+  };
+}
+
+export function buildOpenAIHeaders(
+  apiKey?: string,
+  extraHeaders: Record<string, string> = {},
+  includeContentType = false,
+): Record<string, string> {
+  const headers: Record<string, string> = { ...extraHeaders };
+
+  if (includeContentType) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  if (apiKey) {
+    headers['Authorization'] = `Bearer ${apiKey}`;
+  }
+
+  return headers;
 }
 
 /**

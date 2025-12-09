@@ -6,7 +6,10 @@
     endpoint,
     discoveredModels,
     saveDiscoveredModels,
-    getDiscoveredModels
+    getDiscoveredModels,
+    selectedModelByProvider,
+    saveSelectedModelForProvider,
+    getSelectedModelForProvider
   } from '../../stores/config.js';
   import { onMount, getContext } from 'svelte';
   import type { IPCBridgeAPI } from '$lib/ipc-bridge';
@@ -91,6 +94,14 @@
       modelsSource = 'default';
     } finally {
       isLoading = false;
+      // Restore the previously selected model for this provider
+      const previousModel = getSelectedModelForProvider(provider, $selectedModelByProvider);
+      if (previousModel && models.includes(previousModel)) {
+        modelStore.set(previousModel);
+      } else if (models.length > 0 && !$modelStore) {
+        // If no previous selection and no current model, select the first available
+        modelStore.set(models[0]);
+      }
     }
   }
 
@@ -107,7 +118,12 @@
 
   function handleModelChange(event: Event) {
     const target = event.target as HTMLSelectElement;
-    modelStore.set(target.value);
+    const selectedModel = target.value;
+    modelStore.set(selectedModel);
+    // Also save the selection for this provider
+    if (selectedModel) {
+      saveSelectedModelForProvider($providerStore as ProviderType, selectedModel);
+    }
   }
 
   async function handleCopyModel() {

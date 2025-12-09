@@ -4,6 +4,7 @@
 
 import { BaseProvider, type ProviderCapabilities } from './base-provider.js';
 import type { LLMModel, LLMResponse, QueryOptions, MessageContent } from '../../types';
+import { fetchModelsWithFallback, readSSEStream, validateWithApiKey } from './provider-helpers.js';
 
 export class GeminiProvider extends BaseProvider {
   private readonly baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
@@ -47,35 +48,31 @@ export class GeminiProvider extends BaseProvider {
       },
     ];
 
-    if (!this.apiKey) {
-      return fallback;
-    }
+    return fetchModelsWithFallback(
+      this.apiKey,
+      fallback,
+      async () => {
+        const url = `${this.baseUrl}/models?key=${this.apiKey}`;
+        const response = await this.makeRequest(url, { method: 'GET' });
+        const data = await response.json();
 
-    try {
-      const url = `${this.baseUrl}/models?key=${this.apiKey}`;
-      const response = await this.makeRequest(url, { method: 'GET' });
-      const data = await response.json();
+        if (!Array.isArray(data.models)) {
+          return [];
+        }
 
-      if (!Array.isArray(data.models)) {
-        return fallback;
-      }
-
-      const models: LLMModel[] = data.models.map((model: any) => {
-        const id: string = model.name?.split('/').pop() ?? model.name ?? 'unknown-model';
-        return {
-          id,
-          name: model.displayName || id,
-          provider: 'gemini',
-          contextWindow: model.inputTokenLimit || undefined,
-          supportsVision: /flash|pro/i.test(id),
-        } as LLMModel;
-      });
-
-      return models.length ? models : fallback;
-    } catch (error) {
-      console.error('Failed to fetch Gemini models:', error);
-      return fallback;
-    }
+        return data.models.map((model: any) => {
+          const id: string = model.name?.split('/').pop() ?? model.name ?? 'unknown-model';
+          return {
+            id,
+            name: model.displayName || id,
+            provider: 'gemini',
+            contextWindow: model.inputTokenLimit || undefined,
+            supportsVision: /flash|pro/i.test(id),
+          } as LLMModel;
+        });
+      },
+      error => console.error('Failed to fetch Gemini models:', error),
+    );
   }
 
   private convertToString(content: MessageContent): string {
@@ -215,44 +212,22 @@ export class GeminiProvider extends BaseProvider {
         throw new Error(`HTTP ${response.status}: ${error}`);
       }
 
-      const reader = response.body!.getReader();
-      const decoder = new TextDecoder();
       let fullText = '';
-      let buffer = '';
       let tokensIn = 0;
       let tokensOut = 0;
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (!line.trim() || line.startsWith(':')) continue;
-          if (!line.startsWith('data: ')) continue;
-
-          const data = line.slice(6);
-
-          try {
-            const parsed = JSON.parse(data);
-            const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text || '';
-            if (text) {
-              fullText += text;
-              onChunk(text);
-            }
-
-            if (parsed.usageMetadata) {
-              tokensIn = parsed.usageMetadata.promptTokenCount || tokensIn;
-              tokensOut = parsed.usageMetadata.candidatesTokenCount || tokensOut;
-            }
-          } catch (e) {
-            // Skip malformed JSON
-          }
+      await readSSEStream(response, parsed => {
+        const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        if (text) {
+          fullText += text;
+          onChunk(text);
         }
-      }
+
+        if (parsed.usageMetadata) {
+          tokensIn = parsed.usageMetadata.promptTokenCount || tokensIn;
+          tokensOut = parsed.usageMetadata.candidatesTokenCount || tokensOut;
+        }
+      });
 
       return {
         response: fullText,
@@ -270,19 +245,14 @@ export class GeminiProvider extends BaseProvider {
   }
 
   async validate(): Promise<{ valid: boolean; error?: string }> {
-    if (!this.apiKey) {
-      return { valid: false, error: 'API key is required' };
-    }
-
-    try {
-      const url = `${this.baseUrl}/models?key=${this.apiKey}`;
-      await this.makeRequest(url, { method: 'GET' });
-      return { valid: true };
-    } catch (error) {
-      return {
-        valid: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
+    return validateWithApiKey(
+      this.apiKey,
+      async () => {
+        const url = `${this.baseUrl}/models?key=${this.apiKey}`;
+        await this.makeRequest(url, { method: 'GET' });
+      },
+      'API key is required',
+      'Invalid API key',
+    );
   }
 }

@@ -4,7 +4,7 @@
 
 import { BaseProvider, type ProviderCapabilities } from './base-provider.js';
 import type { LLMModel, LLMResponse, QueryOptions, MessageContent } from '../../types';
-import { convertToOpenAIContent, parseOpenAIStream } from './openai-helpers.js';
+import { buildOpenAIChatBody, buildOpenAIHeaders, parseOpenAIStream } from './openai-helpers.js';
 
 export class OpenAIProvider extends BaseProvider {
   private static readonly API_BASE = 'https://api.openai.com/v1';
@@ -71,22 +71,12 @@ export class OpenAIProvider extends BaseProvider {
     const maxTokens = options?.maxTokens ?? 4096;
 
     try {
-      // Convert messages to OpenAI format
-      const openAIMessages = messages.map(msg => ({
-        role: msg.role,
-        content: convertToOpenAIContent(msg.content)
-      }));
-
       const response = await this.makeRequest(`${OpenAIProvider.API_BASE}/chat/completions`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages: openAIMessages,
-          max_completion_tokens: maxTokens,
-        }),
+        headers: buildOpenAIHeaders(apiKey),
+        body: JSON.stringify(
+          buildOpenAIChatBody(messages, model, maxTokens, 'max_completion_tokens'),
+        ),
       });
 
       const data = await response.json() as any;
@@ -127,25 +117,15 @@ export class OpenAIProvider extends BaseProvider {
     const maxTokens = options?.maxTokens ?? 4096;
 
     try {
-      // Convert messages to OpenAI format
-      const openAIMessages = messages.map(msg => ({
-        role: msg.role,
-        content: convertToOpenAIContent(msg.content)
-      }));
-
       const response = await fetch(`${OpenAIProvider.API_BASE}/chat/completions`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model,
-          messages: openAIMessages,
-          max_completion_tokens: maxTokens,
-          stream: true,
-          stream_options: { include_usage: true },
-        }),
+        headers: buildOpenAIHeaders(apiKey, {}, true),
+        body: JSON.stringify(
+          buildOpenAIChatBody(messages, model, maxTokens, 'max_completion_tokens', {
+            stream: true,
+            stream_options: { include_usage: true },
+          }),
+        ),
       });
 
       if (!response.ok) {
