@@ -4,6 +4,7 @@
 
 import { BaseProvider, type ProviderCapabilities } from './base-provider.js';
 import type { LLMModel, LLMResponse, QueryOptions, MessageContent } from '../../types';
+import { fetchModelsWithFallback, readSSEStream, validateWithApiKey } from './provider-helpers.js';
 
 export class AnthropicProvider extends BaseProvider {
   private static readonly API_BASE = 'https://api.anthropic.com/v1';
@@ -32,33 +33,29 @@ export class AnthropicProvider extends BaseProvider {
   }
 
   async getAvailableModels(): Promise<LLMModel[]> {
-    if (!this.apiKey) {
-      return AnthropicProvider.MODELS;
-    }
+    return fetchModelsWithFallback(
+      this.apiKey,
+      AnthropicProvider.MODELS,
+      async () => {
+        const response = await this.makeRequest(`${AnthropicProvider.API_BASE}/models`, {
+          method: 'GET',
+          headers: {
+            'x-api-key': this.apiKey!,
+            'anthropic-version': AnthropicProvider.API_VERSION,
+          },
+        });
 
-    try {
-      const response = await this.makeRequest(`${AnthropicProvider.API_BASE}/models`, {
-        method: 'GET',
-        headers: {
-          'x-api-key': this.apiKey,
-          'anthropic-version': AnthropicProvider.API_VERSION,
-        },
-      });
-
-      const data = await response.json() as { data?: Array<{ id: string }> };
-      const models = (data.data || []).map(({ id }) =>
-        AnthropicProvider.MODELS.find(model => model.id === id) ?? {
-          id,
-          name: id,
-          provider: 'anthropic',
-        }
-      );
-
-      return models.length > 0 ? models : AnthropicProvider.MODELS;
-    } catch (error) {
-      console.error('Failed to fetch Anthropic models:', error);
-      return AnthropicProvider.MODELS;
-    }
+        const data = await response.json() as { data?: Array<{ id: string }> };
+        return (data.data || []).map(({ id }) =>
+          AnthropicProvider.MODELS.find(model => model.id === id) ?? {
+            id,
+            name: id,
+            provider: 'anthropic',
+          }
+        );
+      },
+      error => console.error('Failed to fetch Anthropic models:', error),
+    );
   }
 
   async query(
@@ -160,48 +157,24 @@ export class AnthropicProvider extends BaseProvider {
         throw new Error(`HTTP ${response.status}: ${error}`);
       }
 
-      const reader = response.body!.getReader();
-      const decoder = new TextDecoder();
       let fullText = '';
-      let buffer = '';
       let tokensIn = 0;
       let tokensOut = 0;
       let returnedModel = model;
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (!line.trim() || line.startsWith(':')) continue;
-          if (!line.startsWith('data: ')) continue;
-
-          const data = line.slice(6);
-          if (data === '[DONE]') continue;
-
-          try {
-            const parsed = JSON.parse(data);
-
-            if (parsed.type === 'content_block_delta') {
-              const delta = parsed.delta?.text || '';
-              if (delta) {
-                fullText += delta;
-                onChunk(delta);
-              }
-            } else if (parsed.type === 'message_start') {
-              tokensIn = parsed.message?.usage?.input_tokens || 0;
-            } else if (parsed.type === 'message_delta') {
-              tokensOut = parsed.usage?.output_tokens || 0;
-            }
-          } catch (e) {
-            // Skip malformed JSON
+      await readSSEStream(response, parsed => {
+        if (parsed.type === 'content_block_delta') {
+          const delta = parsed.delta?.text || '';
+          if (delta) {
+            fullText += delta;
+            onChunk(delta);
           }
+        } else if (parsed.type === 'message_start') {
+          tokensIn = parsed.message?.usage?.input_tokens || 0;
+        } else if (parsed.type === 'message_delta') {
+          tokensOut = parsed.usage?.output_tokens || 0;
         }
-      }
+      });
 
       const responseTime = Date.now() - startTime;
 
@@ -222,32 +195,27 @@ export class AnthropicProvider extends BaseProvider {
   }
 
   async validate(): Promise<{ valid: boolean; error?: string }> {
-    if (!this.apiKey) {
-      return { valid: false, error: 'API key is required' };
-    }
+    return validateWithApiKey(
+      this.apiKey,
+      async () => {
+        // Make a minimal request to validate the API key
+        const response = await this.makeRequest(`${AnthropicProvider.API_BASE}/messages`, {
+          method: 'POST',
+          headers: {
+            'x-api-key': this.apiKey!,
+            'anthropic-version': '2023-06-01',
+          },
+          body: JSON.stringify({
+            model: 'claude-3-5-haiku-20241022',
+            messages: [{ role: 'user', content: 'Hi' }],
+            max_tokens: 10,
+          }),
+        });
 
-    try {
-      // Make a minimal request to validate the API key
-      const response = await this.makeRequest(`${AnthropicProvider.API_BASE}/messages`, {
-        method: 'POST',
-        headers: {
-          'x-api-key': this.apiKey,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: 'claude-3-5-haiku-20241022',
-          messages: [{ role: 'user', content: 'Hi' }],
-          max_tokens: 10,
-        }),
-      });
-
-      await response.json();
-      return { valid: true };
-    } catch (error) {
-      return {
-        valid: false,
-        error: error instanceof Error ? error.message : 'Invalid API key',
-      };
-    }
+        await response.json();
+      },
+      'API key is required',
+      'Invalid API key',
+    );
   }
 }
