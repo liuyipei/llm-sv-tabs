@@ -127,8 +127,21 @@
 </script>
 
 <div class="model-quick-switch" bind:this={dropdownRef}>
-  <label class="label">Model:</label>
-  <div class="dropdown-container">
+  <div class="header-row">
+    <span class="label">Model Quick List</span>
+    <button
+      type="button"
+      class="auto-add-btn"
+      onclick={handleAutoAdd}
+      title="Auto-add models from all providers with API keys"
+    >
+      ⚡
+    </button>
+    {#if autoAddMessage}
+      <span class="auto-add-message">{autoAddMessage}</span>
+    {/if}
+  </div>
+  <div class="dropdown-row">
     <button
       type="button"
       class="dropdown-trigger"
@@ -178,39 +191,33 @@
       </div>
     {/if}
   </div>
-  <button
-    type="button"
-    class="auto-add-btn"
-    onclick={handleAutoAdd}
-    title="Auto-add models from all providers with API keys"
-  >
-    ⚡
-  </button>
-  {#if autoAddMessage}
-    <span class="auto-add-message">{autoAddMessage}</span>
-  {/if}
 </div>
 
 <style>
   .model-quick-switch {
     display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0.75rem;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.375rem 0.5rem;
     background-color: #1e1e1e;
     border-bottom: 1px solid #3e3e42;
   }
 
+  .header-row {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
   .label {
-    font-size: 0.875rem;
+    font-size: 0.7rem;
     font-weight: 500;
     color: #9d9d9d;
     white-space: nowrap;
   }
 
-  .dropdown-container {
+  .dropdown-row {
     position: relative;
-    flex: 1;
   }
 
   .dropdown-trigger {
@@ -218,12 +225,12 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.375rem 0.5rem;
+    padding: 0.25rem 0.375rem;
     background-color: #3c3c3c;
     border: 1px solid #3e3e42;
     border-radius: 4px;
     color: #d4d4d4;
-    font-size: 0.875rem;
+    font-size: 0.7rem;
     cursor: pointer;
     transition: border-color 0.2s, background-color 0.2s;
   }
@@ -271,6 +278,7 @@
 
   .selected-text {
     font-family: monospace;
+    font-size: 0.65rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -279,11 +287,12 @@
   .placeholder {
     color: #808080;
     font-style: italic;
+    font-size: 0.65rem;
   }
 
   .arrow {
-    font-size: 0.625rem;
-    margin-left: 0.5rem;
+    font-size: 0.5rem;
+    margin-left: 0.25rem;
     color: #808080;
   }
 
@@ -297,7 +306,7 @@
     border-top: none;
     border-bottom-left-radius: 4px;
     border-bottom-right-radius: 4px;
-    max-height: 200px;
+    max-height: 150px;
     overflow-y: auto;
     z-index: 100;
   }
@@ -318,12 +327,12 @@
 
   .item-content {
     flex: 1;
-    padding: 0.5rem;
+    padding: 0.25rem 0.375rem;
     background: none;
     border: none;
     color: #d4d4d4;
     font-family: monospace;
-    font-size: 0.875rem;
+    font-size: 0.65rem;
     text-align: left;
     cursor: pointer;
     overflow: hidden;
@@ -340,12 +349,12 @@
   }
 
   .remove-btn {
-    padding: 0.5rem 0.75rem;
+    padding: 0.25rem 0.5rem;
     background: none;
     border: none;
     border-left: 1px solid #4a4a4a;
     color: #808080;
-    font-size: 1rem;
+    font-size: 0.75rem;
     cursor: pointer;
     transition: color 0.2s, background-color 0.2s;
   }
@@ -356,12 +365,12 @@
   }
 
   .auto-add-btn {
-    padding: 0.25rem 0.5rem;
+    padding: 0.125rem 0.375rem;
     background-color: #3c3c3c;
     border: 1px solid #3e3e42;
     border-radius: 4px;
     color: #d4d4d4;
-    font-size: 0.875rem;
+    font-size: 0.7rem;
     cursor: pointer;
     transition: all 0.2s;
     flex-shrink: 0;
@@ -374,7 +383,7 @@
   }
 
   .auto-add-message {
-    font-size: 0.7rem;
+    font-size: 0.6rem;
     color: #4ec9b0;
     white-space: nowrap;
   }
