@@ -213,6 +213,29 @@ function setupGlobalShortcuts(): void {
       console.log(`Focus URL bar shortcut registered: ${focusUrlShortcut}`);
     }
 
+    // Register Cmd+. / Ctrl+. for focusing the LLM chat input
+    const focusLLMShortcut = process.platform === 'darwin' ? 'Command+.' : 'Ctrl+.';
+    const focusLLMRegistered = globalShortcut.register(focusLLMShortcut, () => {
+      console.log('Focus LLM input shortcut triggered:', focusLLMShortcut);
+      const windows = BrowserWindow.getAllWindows();
+      if (windows.length > 0) {
+        const mainWindow = windows[0];
+        mainWindow.show();
+        mainWindow.focus();
+        mainWindow.webContents.focus();
+
+        setTimeout(() => {
+          mainWindow.webContents.send('focus-llm-input');
+        }, 10);
+      }
+    });
+
+    if (!focusLLMRegistered) {
+      console.error('Failed to register focus LLM shortcut:', focusLLMShortcut);
+    } else {
+      console.log(`Focus LLM shortcut registered: ${focusLLMShortcut}`);
+    }
+
     // Register platform-specific screenshot shortcut
     const shortcut = process.platform === 'darwin' ? 'CommandOrControl+Alt+S' : 'Ctrl+Alt+S';
 
