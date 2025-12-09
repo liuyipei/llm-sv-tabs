@@ -1,15 +1,12 @@
-import { WebContentsView, BrowserWindow, Menu, MenuItem } from 'electron';
-import type { Tab, TabData, TabMetadata, TabType } from '../types';
+import { WebContentsView, BrowserWindow } from 'electron';
+import type { TabData, TabMetadata, TabType, TabWithView } from '../types';
 import { SessionManager } from './services/session-manager.js';
 import { createNoteHTML } from './templates/note-template.js';
-import { createRawMessageViewerHTML } from './templates/raw-message-template.js';
 import { createDebugInfoHTML } from './templates/debug-info-template.js';
-import { generateLLMTabIdentifiers } from './utils/tab-id-generator.js';
-
-interface TabWithView extends Tab {
-  view?: WebContentsView;  // Optional for Svelte-rendered tabs
-  component?: 'llm-response' | 'note' | 'api-key-instructions';  // For Svelte-rendered tabs
-}
+import { LLMTabService } from './tab-manager/llm-tab-service.js';
+import { FindInPageService } from './tab-manager/find-in-page-service.js';
+import { NavigationService } from './tab-manager/navigation-service.js';
+import { createConfiguredView } from './tab-manager/web-contents-view-factory.js';
 
 class TabManager {
   private mainWindow: BrowserWindow;
@@ -23,9 +20,10 @@ class TabManager {
   private readonly SEARCH_BAR_HEIGHT = 45; // Height of the search bar when visible
   private lastMetadataUpdate: Map<string, number>; // Track last metadata update time per tab
   private readonly METADATA_UPDATE_THROTTLE_MS = 500; // Send metadata updates at most every 500ms
-  private currentFindRequestId: number = 0; // Track find-in-page request IDs
   private isSearchBarVisible: boolean = false; // Track search bar visibility
-  private lastSearchText: Map<string, string> = new Map(); // Track last search text per tab
+  private llmTabs: LLMTabService;
+  private findInPageService: FindInPageService;
+  private navigation: NavigationService;
 
   constructor(mainWindow: BrowserWindow) {
     this.mainWindow = mainWindow;
@@ -35,6 +33,24 @@ class TabManager {
     this.tabCounter = 0;
     this.sessionManager = new SessionManager();
     this.lastMetadataUpdate = new Map();
+
+    this.llmTabs = new LLMTabService({
+      tabs: this.tabs,
+      createTabId: () => this.createTabId(),
+      getTabData: (tabId) => this.getTabData(tabId),
+      sendToRenderer: (channel, payload) => this.sendToRenderer(channel, payload),
+      saveSession: () => this.saveSession(),
+      setActiveTab: (tabId) => this.setActiveTab(tabId),
+      lastMetadataUpdate: this.lastMetadataUpdate,
+      openUrl: (url, autoSelect) => this.openUrl(url, autoSelect),
+    });
+
+    this.findInPageService = new FindInPageService({
+      tabs: this.tabs,
+      sendToRenderer: (channel, payload) => this.sendToRenderer(channel, payload),
+    });
+
+    this.navigation = new NavigationService({ tabs: this.tabs });
 
     // Handle window resize to update WebContentsView bounds
     this.mainWindow.on('resize', () => this.updateWebContentsViewBounds());
@@ -91,94 +107,14 @@ class TabManager {
     return `tab-${++this.tabCounter}`;
   }
 
-  private createConfiguredView(tabId: string): WebContentsView {
-    const view = new WebContentsView({
-      webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true,
-      },
-    });
-
-    this.setupContextMenu(view, tabId);
-    this.setupWindowOpenHandler(view);
-
-    return view;
-  }
-
-  /**
-   * Set up context menu for a WebContentsView to handle right-clicks on links
-   */
-  private setupContextMenu(view: WebContentsView, _tabId: string): void {
-    view.webContents.on('context-menu', (_event, params) => {
-      const { linkURL, x, y } = params;
-
-      // Only show our custom menu if right-clicking on a link
-      if (!linkURL) return;
-
-      const menu = new Menu();
-
-      // Open link in new tab
-      menu.append(new MenuItem({
-        label: 'Open link in new tab',
-        click: () => {
-          this.openUrl(linkURL);
-        }
-      }));
-
-      // Save link as
-      menu.append(new MenuItem({
-        label: 'Save link as...',
-        click: async () => {
-          try {
-            await view.webContents.downloadURL(linkURL);
-          } catch (error) {
-            console.error('Failed to download:', error);
-          }
-        }
-      }));
-
-      // Separator
-      menu.append(new MenuItem({ type: 'separator' }));
-
-      // Inspect element
-      menu.append(new MenuItem({
-        label: 'Inspect',
-        click: () => {
-          view.webContents.inspectElement(x, y);
-          if (!view.webContents.isDevToolsOpened()) {
-            view.webContents.openDevTools();
-          }
-        }
-      }));
-
-      menu.popup();
-    });
-  }
-
-  /**
-   * Set up window open handler to intercept control-click, cmd-click, and middle-click on links
-   * This converts new window requests into new tabs
-   */
-  private setupWindowOpenHandler(view: WebContentsView): void {
-    view.webContents.setWindowOpenHandler((details) => {
-      // Only intercept explicit tab requests (e.g. ctrl/cmd click or middle-click)
-      if (details.disposition === 'foreground-tab' || details.disposition === 'background-tab') {
-        // Open the URL in a new tab instead of a new window
-        this.openUrl(details.url);
-
-        // Deny the window from opening
-        return { action: 'deny' };
-      }
-
-      // Allow other window.open uses (e.g. OAuth popups) to proceed normally
-      return { action: 'allow' };
-    });
+  private createView(): WebContentsView {
+    return createConfiguredView((url) => this.openUrl(url));
   }
 
   openUrl(url: string, autoSelect: boolean = true): { tabId: string; tab: TabData } {
     const tabId = this.createTabId();
 
-    const view = this.createConfiguredView(tabId);
+    const view = this.createView();
 
     const tab: TabWithView = {
       id: tabId,
@@ -233,7 +169,7 @@ class TabManager {
   openNoteTab(noteId: number, title: string, content: string, fileType: 'text' | 'pdf' | 'image' = 'text', autoSelect: boolean = true): { tabId: string; tab: TabData } {
     const tabId = this.createTabId();
 
-    const view = this.createConfiguredView(tabId);
+    const view = this.createView();
 
     const tab: TabWithView = {
       id: tabId,
@@ -278,50 +214,7 @@ class TabManager {
   }
 
   openLLMResponseTab(query: string, response?: string, error?: string, autoSelect: boolean = true): { tabId: string; tab: TabData } {
-    const tabId = this.createTabId();
-
-    const timestamp = Date.now();
-    const isLoading = !response && !error;
-
-    // Generate persistent identifiers for this LLM conversation
-    const identifiers = generateLLMTabIdentifiers(query, timestamp);
-
-    // No BrowserView for LLM responses - use Svelte component instead
-    const tab: TabWithView = {
-      id: tabId,
-      title: error ? 'Error' : (isLoading ? 'Loading...' : 'LLM Response'),
-      url: `llm-response://${timestamp}`,
-      type: 'notes' as TabType,
-      component: 'llm-response',  // Render using Svelte component
-      created: timestamp,
-      lastViewed: timestamp,
-      metadata: {
-        isLLMResponse: true,
-        query: query,
-        response: response,
-        error: error,
-        isStreaming: isLoading,
-        // Persistent identifiers
-        persistentId: identifiers.persistentId,
-        shortId: identifiers.shortId,
-        slug: identifiers.slug,
-      },
-    };
-
-    this.tabs.set(tabId, tab);
-
-    // Set as active tab (if autoSelect is true)
-    if (autoSelect) {
-      this.setActiveTab(tabId);
-    }
-
-    // Notify renderer
-    this.sendToRenderer('tab-created', { tab: this.getTabData(tabId) });
-
-    // Save session after tab change
-    this.saveSession();
-
-    return { tabId, tab: this.getTabData(tabId)! };
+    return this.llmTabs.openLLMResponseTab(query, response, error, autoSelect);
   }
 
   openApiKeyInstructionsTab(autoSelect: boolean = true): { tabId: string; tab: TabData } {
@@ -359,15 +252,7 @@ class TabManager {
    * Update metadata on an in-progress LLM tab without ending streaming
    */
   updateLLMMetadata(tabId: string, metadata: Partial<TabMetadata>): { success: boolean; error?: string } {
-    const tab = this.tabs.get(tabId);
-    if (!tab?.metadata) {
-      return { success: false, error: 'Tab not found or missing metadata' };
-    }
-
-    Object.assign(tab.metadata, metadata);
-    this.sendToRenderer('tab-updated', { tab: this.getTabData(tabId) });
-
-    return { success: true };
+    return this.llmTabs.updateLLMMetadata(tabId, metadata);
   }
 
   /**
@@ -375,108 +260,18 @@ class TabManager {
    * upstream handlers failed to send a final update.
    */
   markLLMStreamingComplete(tabId: string): void {
-    const tab = this.tabs.get(tabId);
-    if (!tab) return;
-
-    if (!tab.metadata) {
-      tab.metadata = {};
-    }
-
-    tab.metadata.isStreaming = false;
-
-    // Clear throttle tracking so future streams can update immediately
-    this.lastMetadataUpdate.delete(tabId);
-
-    this.sendToRenderer('tab-updated', { tab: this.getTabData(tabId) });
+    this.llmTabs.markLLMStreamingComplete(tabId);
   }
 
   /**
    * Reset an existing LLM tab so it can be reused for a new streaming request
    */
   prepareLLMTabForStreaming(tabId: string, query: string): { success: boolean; error?: string } {
-    const tab = this.tabs.get(tabId);
-    if (!tab || !tab.metadata?.isLLMResponse) {
-      return { success: false, error: 'Tab not found or not an LLM response tab' };
-    }
-
-    // Reset metadata for the new request
-    tab.metadata.response = '';
-    tab.metadata.error = undefined;
-    tab.metadata.isStreaming = true;
-    tab.metadata.query = query;
-    tab.metadata.tokensIn = undefined;
-    tab.metadata.tokensOut = undefined;
-    tab.metadata.model = undefined;
-    tab.metadata.fullQuery = undefined;
-    tab.metadata.contextTabs = undefined;
-    tab.metadata.selectedTabIds = undefined;
-
-    // Update tab title to reflect loading state
-    tab.title = 'Loading...';
-
-    // Notify renderer of updates
-    this.sendToRenderer('tab-title-updated', { id: tabId, title: tab.title });
-    this.sendToRenderer('tab-updated', { tab: this.getTabData(tabId) });
-
-    // Clear throttling to allow immediate updates for the new stream
-    this.lastMetadataUpdate.delete(tabId);
-
-    // Save session state
-    this.saveSession();
-
-    return { success: true };
+    return this.llmTabs.prepareLLMTabForStreaming(tabId, query);
   }
 
   updateLLMResponseTab(tabId: string, response: string, metadata?: any): { success: boolean; error?: string } {
-    const tab = this.tabs.get(tabId);
-    if (!tab) return { success: false, error: 'Tab not found' };
-
-    // Update tab metadata
-    if (tab.metadata) {
-      tab.metadata.response = response;
-      tab.metadata.isStreaming = false;
-      if (metadata) {
-        Object.assign(tab.metadata, metadata);
-      }
-    }
-
-    // Update tab title with model and tokens
-    if (metadata?.error) {
-      tab.title = 'Error';
-    } else {
-      const modelName = metadata?.model || '';
-      // Extract just the model name (last part after final /)
-      const shortModelName = modelName.includes('/')
-        ? modelName.split('/').pop() || modelName
-        : modelName;
-      const tokensIn = metadata?.tokensIn || 0;
-      const tokensOut = metadata?.tokensOut || 0;
-
-      if (shortModelName && tokensIn > 0 && tokensOut > 0) {
-        tab.title = `Response ${shortModelName} up: ${tokensIn.toLocaleString()} down: ${tokensOut.toLocaleString()}`;
-      } else if (shortModelName) {
-        tab.title = `Response ${shortModelName}`;
-      } else {
-        tab.title = 'LLM Response';
-      }
-    }
-
-    // For Svelte component tabs, no need to reload HTML
-    // The streaming component will handle the rendering
-
-    // Notify renderer of title update
-    this.sendToRenderer('tab-title-updated', { id: tabId, title: tab.title });
-
-    // Notify renderer of metadata update (important for Svelte components)
-    this.sendToRenderer('tab-updated', { tab: this.getTabData(tabId) });
-
-    // Clear throttle tracking now that streaming is complete
-    this.lastMetadataUpdate.delete(tabId);
-
-    // Save session
-    this.saveSession();
-
-    return { success: true };
+    return this.llmTabs.updateLLMResponseTab(tabId, response, metadata);
   }
 
   updateTabTitle(tabId: string, title: string): { success: boolean; error?: string } {
@@ -496,45 +291,7 @@ class TabManager {
   }
 
   openRawMessageViewer(tabId: string, autoSelect: boolean = true): { success: boolean; error?: string } {
-    const tab = this.tabs.get(tabId);
-    if (!tab) return { success: false, error: 'Tab not found' };
-    if (!tab.metadata?.isLLMResponse) return { success: false, error: 'Not an LLM response tab' };
-
-    const rawViewId = this.createTabId();
-    const view = this.createConfiguredView(rawViewId);
-
-    const timestamp = Date.now();
-    const rawTab: TabWithView = {
-      id: rawViewId,
-      title: 'Raw Message View',
-      url: `raw-message://${timestamp}`,
-      type: 'notes' as TabType,
-      view: view,
-      created: timestamp,
-      lastViewed: timestamp,
-    };
-
-    this.tabs.set(rawViewId, rawTab);
-
-    // Create HTML for raw message viewer
-    const htmlContent = createRawMessageViewerHTML(tab.metadata);
-
-    // Load HTML content using data URI
-    const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent);
-    view.webContents.loadURL(dataUrl);
-
-    // Set as active tab (if autoSelect is true)
-    if (autoSelect) {
-      this.setActiveTab(rawViewId);
-    }
-
-    // Notify renderer
-    this.sendToRenderer('tab-created', { tab: this.getTabData(rawViewId) });
-
-    // Save session
-    this.saveSession();
-
-    return { success: true };
+    return this.llmTabs.openRawMessageViewer(tabId, autoSelect);
   }
 
   openDebugInfoWindow(tabId: string): { success: boolean; error?: string } {
@@ -567,74 +324,21 @@ class TabManager {
    * Navigate back in the tab's history
    */
   goBack(tabId: string): { success: boolean; error?: string } {
-    const tab = this.tabs.get(tabId);
-    if (!tab) return { success: false, error: 'Tab not found' };
-    if (!tab.view || !tab.view.webContents) return { success: false, error: 'Tab has no web contents' };
-    if (tab.view.webContents.isDestroyed()) return { success: false, error: 'Tab webContents has been destroyed' };
-
-    try {
-      if (tab.view.webContents.navigationHistory.canGoBack()) {
-        tab.view.webContents.navigationHistory.goBack();
-        return { success: true };
-      }
-      return { success: false, error: 'Cannot go back' };
-    } catch (error) {
-      if (error instanceof Error && error.message.includes('destroyed')) {
-        return { success: false, error: 'Tab webContents was destroyed' };
-      }
-      throw error;
-    }
+    return this.navigation.goBack(tabId);
   }
 
   /**
    * Navigate forward in the tab's history
    */
   goForward(tabId: string): { success: boolean; error?: string } {
-    const tab = this.tabs.get(tabId);
-    if (!tab) return { success: false, error: 'Tab not found' };
-    if (!tab.view || !tab.view.webContents) return { success: false, error: 'Tab has no web contents' };
-    if (tab.view.webContents.isDestroyed()) return { success: false, error: 'Tab webContents has been destroyed' };
-
-    try {
-      if (tab.view.webContents.navigationHistory.canGoForward()) {
-        tab.view.webContents.navigationHistory.goForward();
-        return { success: true };
-      }
-      return { success: false, error: 'Cannot go forward' };
-    } catch (error) {
-      if (error instanceof Error && error.message.includes('destroyed')) {
-        return { success: false, error: 'Tab webContents was destroyed' };
-      }
-      throw error;
-    }
+    return this.navigation.goForward(tabId);
   }
 
   /**
    * Get navigation state for a tab (whether it can go back/forward)
    */
   getNavigationState(tabId: string): { success: boolean; canGoBack?: boolean; canGoForward?: boolean; error?: string } {
-    const tab = this.tabs.get(tabId);
-    if (!tab) return { success: false, error: 'Tab not found' };
-    if (!tab.view || !tab.view.webContents) {
-      // For Svelte component tabs, navigation is not supported
-      return { success: true, canGoBack: false, canGoForward: false };
-    }
-    if (tab.view.webContents.isDestroyed()) {
-      return { success: true, canGoBack: false, canGoForward: false };
-    }
-
-    try {
-      return {
-        success: true,
-        canGoBack: tab.view.webContents.navigationHistory.canGoBack(),
-        canGoForward: tab.view.webContents.navigationHistory.canGoForward(),
-      };
-    } catch (error) {
-      if (error instanceof Error && error.message.includes('destroyed')) {
-        return { success: true, canGoBack: false, canGoForward: false };
-      }
-      throw error;
-    }
+    return this.navigation.getNavigationState(tabId);
   }
 
   /**
@@ -895,38 +599,15 @@ class TabManager {
   }
 
   reloadTab(tabId: string): { success: boolean; error?: string } {
-    const tab = this.tabs.get(tabId);
-    if (!tab) return { success: false, error: 'Tab not found' };
-
-    if (tab.view && tab.view.webContents) {
-      if (tab.view.webContents.isDestroyed()) {
-        return { success: false, error: 'Tab webContents has been destroyed' };
-      }
-
-      try {
-        tab.view.webContents.reload();
-        return { success: true };
-      } catch (error) {
-        if (error instanceof Error && error.message.includes('destroyed')) {
-          return { success: false, error: 'Tab webContents was destroyed' };
-        }
-        throw error;
-      }
-    }
-
-    return { success: false, error: 'Tab view not available' };
+    return this.navigation.reloadTab(tabId);
   }
 
   copyTabUrl(tabId: string): { success: boolean; url?: string; error?: string } {
-    const tab = this.tabs.get(tabId);
-    if (!tab) return { success: false, error: 'Tab not found' };
-
-    return { success: true, url: tab.url };
+    return this.navigation.copyTabUrl(tabId);
   }
 
   getTabView(tabId: string): WebContentsView | null {
-    const tab = this.tabs.get(tabId);
-    return tab?.view ?? null;
+    return this.navigation.getTabView(tabId);
   }
 
   private sendToRenderer(channel: string, data: any): void {
@@ -1025,146 +706,28 @@ class TabManager {
    * Find text in the active tab's page
    */
   findInPage(tabId: string, text: string): { success: boolean; requestId?: number; error?: string } {
-    const tab = this.tabs.get(tabId);
-    if (!tab) return { success: false, error: 'Tab not found' };
-    if (!tab.view || !tab.view.webContents) return { success: false, error: 'Tab has no web contents' };
-    if (tab.view.webContents.isDestroyed()) return { success: false, error: 'Tab webContents has been destroyed' };
-
-    if (!text.trim()) {
-      this.stopFindInPage(tabId);
-      return { success: true };
-    }
-
-    // Store the search text for findNext/findPrevious
-    this.lastSearchText.set(tabId, text);
-
-    // Increment request ID to track this search
-    this.currentFindRequestId++;
-    const requestId = this.currentFindRequestId;
-
-    try {
-      // Set up the found-in-page listener
-      tab.view.webContents.once('found-in-page', (_event, result) => {
-        // Only send if this is still the current request
-        if (requestId === this.currentFindRequestId) {
-          this.sendToRenderer('found-in-page', {
-            activeMatchOrdinal: result.activeMatchOrdinal,
-            matches: result.matches,
-            requestId: requestId,
-          });
-        }
-      });
-
-      // Start the search
-      tab.view.webContents.findInPage(text, {
-        forward: true,
-        findNext: false,
-      });
-
-      return { success: true, requestId };
-    } catch (error) {
-      if (error instanceof Error && error.message.includes('destroyed')) {
-        return { success: false, error: 'Tab webContents was destroyed' };
-      }
-      throw error;
-    }
+    return this.findInPageService.findInPage(tabId, text);
   }
 
   /**
    * Find next occurrence in the page
    */
   findNext(tabId: string): { success: boolean; error?: string } {
-    const tab = this.tabs.get(tabId);
-    if (!tab) return { success: false, error: 'Tab not found' };
-    if (!tab.view || !tab.view.webContents) return { success: false, error: 'Tab has no web contents' };
-    if (tab.view.webContents.isDestroyed()) return { success: false, error: 'Tab webContents has been destroyed' };
-
-    const searchText = this.lastSearchText.get(tabId);
-    if (!searchText) return { success: false, error: 'No active search' };
-
-    try {
-      // Set up the found-in-page listener
-      tab.view.webContents.once('found-in-page', (_event, result) => {
-        this.sendToRenderer('found-in-page', {
-          activeMatchOrdinal: result.activeMatchOrdinal,
-          matches: result.matches,
-        });
-      });
-
-      // Find next using the stored search text
-      tab.view.webContents.findInPage(searchText, {
-        forward: true,
-        findNext: true,
-      });
-
-      return { success: true };
-    } catch (error) {
-      if (error instanceof Error && error.message.includes('destroyed')) {
-        return { success: false, error: 'Tab webContents was destroyed' };
-      }
-      throw error;
-    }
+    return this.findInPageService.findNext(tabId);
   }
 
   /**
    * Find previous occurrence in the page
    */
   findPrevious(tabId: string): { success: boolean; error?: string } {
-    const tab = this.tabs.get(tabId);
-    if (!tab) return { success: false, error: 'Tab not found' };
-    if (!tab.view || !tab.view.webContents) return { success: false, error: 'Tab has no web contents' };
-    if (tab.view.webContents.isDestroyed()) return { success: false, error: 'Tab webContents has been destroyed' };
-
-    const searchText = this.lastSearchText.get(tabId);
-    if (!searchText) return { success: false, error: 'No active search' };
-
-    try {
-      // Set up the found-in-page listener
-      tab.view.webContents.once('found-in-page', (_event, result) => {
-        this.sendToRenderer('found-in-page', {
-          activeMatchOrdinal: result.activeMatchOrdinal,
-          matches: result.matches,
-        });
-      });
-
-      // Find previous using the stored search text
-      tab.view.webContents.findInPage(searchText, {
-        forward: false,
-        findNext: true,
-      });
-
-      return { success: true };
-    } catch (error) {
-      if (error instanceof Error && error.message.includes('destroyed')) {
-        return { success: false, error: 'Tab webContents was destroyed' };
-      }
-      throw error;
-    }
+    return this.findInPageService.findPrevious(tabId);
   }
 
   /**
    * Stop finding and clear highlights
    */
   stopFindInPage(tabId: string): { success: boolean; error?: string } {
-    const tab = this.tabs.get(tabId);
-    if (!tab) return { success: false, error: 'Tab not found' };
-    if (!tab.view || !tab.view.webContents) return { success: true }; // Not an error, just nothing to do
-    if (tab.view.webContents.isDestroyed()) return { success: true }; // Not an error, just nothing to do
-
-    try {
-      tab.view.webContents.stopFindInPage('clearSelection');
-      this.lastSearchText.delete(tabId); // Clear stored search text
-      this.currentFindRequestId++; // Invalidate any pending requests
-      return { success: true };
-    } catch (error) {
-      if (error instanceof Error && error.message.includes('destroyed')) {
-        // Clear stored search text even if webContents is destroyed
-        this.lastSearchText.delete(tabId);
-        this.currentFindRequestId++;
-        return { success: true }; // Not an error, just nothing to do
-      }
-      throw error;
-    }
+    return this.findInPageService.stopFindInPage(tabId);
   }
 }
 
