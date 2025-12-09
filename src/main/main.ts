@@ -334,10 +334,8 @@ function setupGlobalShortcuts(): void {
 
     const nextTabRegistered = globalShortcut.register(nextTabShortcut, () => {
       console.log('Next tab shortcut triggered:', nextTabShortcut);
-      const tabManager = getTabManager();
-      if (tabManager) {
-        tabManager.nextTab();
-      }
+      // Send event to renderer to handle navigation using sorted tab order
+      mainWindow?.webContents.send('navigate-next-tab');
     });
 
     if (!nextTabRegistered) {
@@ -348,10 +346,8 @@ function setupGlobalShortcuts(): void {
 
     const previousTabRegistered = globalShortcut.register(previousTabShortcut, () => {
       console.log('Previous tab shortcut triggered:', previousTabShortcut);
-      const tabManager = getTabManager();
-      if (tabManager) {
-        tabManager.previousTab();
-      }
+      // Send event to renderer to handle navigation using sorted tab order
+      mainWindow?.webContents.send('navigate-previous-tab');
     });
 
     if (!previousTabRegistered) {
@@ -364,18 +360,14 @@ function setupGlobalShortcuts(): void {
     if (process.platform === 'darwin') {
       const macNextTab = globalShortcut.register('Command+Alt+Right', () => {
         console.log('Next tab shortcut triggered: Command+Alt+Right');
-        const tabManager = getTabManager();
-        if (tabManager) {
-          tabManager.nextTab();
-        }
+        // Send event to renderer to handle navigation using sorted tab order
+        mainWindow?.webContents.send('navigate-next-tab');
       });
 
       const macPreviousTab = globalShortcut.register('Command+Alt+Left', () => {
         console.log('Previous tab shortcut triggered: Command+Alt+Left');
-        const tabManager = getTabManager();
-        if (tabManager) {
-          tabManager.previousTab();
-        }
+        // Send event to renderer to handle navigation using sorted tab order
+        mainWindow?.webContents.send('navigate-previous-tab');
       });
 
       if (!macNextTab) {

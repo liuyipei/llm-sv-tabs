@@ -163,6 +163,14 @@ const electronAPI = {
     ipcRenderer.on('focus-llm-input', () => callback());
   },
 
+  onNavigateNextTab: (callback: () => void): void => {
+    ipcRenderer.on('navigate-next-tab', () => callback());
+  },
+
+  onNavigatePreviousTab: (callback: () => void): void => {
+    ipcRenderer.on('navigate-previous-tab', () => callback());
+  },
+
   onFoundInPage: (callback: (data: { activeMatchOrdinal: number; matches: number }) => void): void => {
     ipcRenderer.on('found-in-page', (_event, data) => callback(data));
   },
