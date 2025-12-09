@@ -1,3 +1,5 @@
+import type { WebContentsView } from 'electron';
+
 /**
  * Core type definitions for llm-sv-tabs
  */
@@ -18,6 +20,10 @@ export interface Tab {
   created?: number;
   metadata?: TabMetadata;
   component?: 'llm-response' | 'note' | 'api-key-instructions';
+}
+
+export interface TabWithView extends Tab {
+  view?: WebContentsView; // Optional for Svelte-rendered tabs
 }
 
 // Info about a context tab used in an LLM query (persisted for reference)
