@@ -54,6 +54,8 @@ export const endpoint = createPersistedStore<string>('endpoint', '');
 // Model history stores
 // Stores discovered models for each provider
 export const discoveredModels = createPersistedStore<Record<string, LLMModel[]>>('discoveredModels', {});
+// Stores the last selected model for each provider
+export const selectedModelByProvider = createPersistedStore<Record<string, string>>('selectedModelByProvider', {});
 // Stores models that have been used, with timestamp
 export const modelUsageHistory = createPersistedStore<Array<{
   model: string;
@@ -107,4 +109,17 @@ export function recordModelUsage(modelName: string, providerName: ProviderType):
 // Get recently used models
 export function getRecentModels(history: Array<{ model: string; provider: ProviderType; timestamp: number }>, count = 10): Array<{ model: string; provider: ProviderType; timestamp: number }> {
   return history.slice(0, count);
+}
+
+// Save selected model for a provider
+export function saveSelectedModelForProvider(providerName: ProviderType, modelName: string): void {
+  selectedModelByProvider.update((models) => ({
+    ...models,
+    [providerName]: modelName,
+  }));
+}
+
+// Get selected model for a provider
+export function getSelectedModelForProvider(providerName: ProviderType, allModels: Record<string, string>): string | undefined {
+  return allModels[providerName];
 }
