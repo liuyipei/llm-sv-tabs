@@ -275,4 +275,4 @@
   {/if}
 </div>
 
-<style src="./message-stream/MessageStream.css"></style>
+<style src="./message-stream/MessageStream.css" global></style>
