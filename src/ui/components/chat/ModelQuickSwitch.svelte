@@ -4,12 +4,37 @@
     selectedQuickSwitchIndex,
     removeQuickSwitchModel,
     formatQuickSwitchModel,
+    addQuickSwitchModel,
+    apiKeys,
+    discoveredModels,
     type QuickSwitchModel
   } from '../../stores/config.js';
   import { showModelSelectionWarning } from '../../stores/ui.js';
+  import type { ProviderType } from '../../../types';
+
+  // Default models for each provider (fallback when no discovered models)
+  const defaultModels: Record<ProviderType, string[]> = {
+    openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'],
+    anthropic: ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229'],
+    gemini: ['gemini-2.0-flash-exp', 'gemini-1.5-pro', 'gemini-1.5-flash'],
+    xai: ['grok-2-latest', 'grok-2-vision-latest'],
+    fireworks: ['accounts/fireworks/models/llama-v3p3-70b-instruct'],
+    ollama: ['llama3.2', 'mistral', 'codellama'],
+    lmstudio: ['local-model'],
+    vllm: ['default'],
+    'local-openai-compatible': ['default'],
+    openrouter: ['anthropic/claude-3.5-sonnet', 'openai/gpt-4o'],
+    minimax: ['abab6.5-chat'],
+  };
+
+  // Providers that require API keys
+  const providersRequiringApiKey: ProviderType[] = [
+    'openai', 'anthropic', 'gemini', 'xai', 'openrouter', 'fireworks', 'minimax'
+  ];
 
   let isOpen = $state(false);
   let dropdownRef: HTMLDivElement;
+  let autoAddMessage = $state<string | null>(null);
   const isWarning = $derived($showModelSelectionWarning);
 
   const models = $derived($quickSwitchModels);
@@ -59,6 +84,46 @@
       document.removeEventListener('keydown', handleKeydown);
     };
   });
+
+  function handleAutoAdd() {
+    const keys = $apiKeys;
+    const discovered = $discoveredModels;
+    let addedCount = 0;
+
+    // For each provider that has an API key
+    for (const provider of providersRequiringApiKey) {
+      if (keys[provider]) {
+        // Get the first model: prefer discovered, fall back to defaults
+        const providerDiscovered = discovered[provider];
+        let modelToAdd: string | null = null;
+
+        if (providerDiscovered && providerDiscovered.length > 0) {
+          modelToAdd = providerDiscovered[0].id;
+        } else if (defaultModels[provider] && defaultModels[provider].length > 0) {
+          modelToAdd = defaultModels[provider][0];
+        }
+
+        if (modelToAdd) {
+          const result = addQuickSwitchModel(provider, modelToAdd);
+          if (result.added || result.movedToTop) {
+            addedCount++;
+          }
+        }
+      }
+    }
+
+    if (addedCount > 0) {
+      // Select the first model
+      selectedQuickSwitchIndex.set(0);
+      autoAddMessage = `Added ${addedCount} model${addedCount > 1 ? 's' : ''}`;
+    } else {
+      autoAddMessage = 'No API keys configured';
+    }
+
+    setTimeout(() => {
+      autoAddMessage = null;
+    }, 2000);
+  }
 </script>
 
 <div class="model-quick-switch" bind:this={dropdownRef}>
@@ -113,6 +178,17 @@
       </div>
     {/if}
   </div>
+  <button
+    type="button"
+    class="auto-add-btn"
+    onclick={handleAutoAdd}
+    title="Auto-add models from all providers with API keys"
+  >
+    ⚡
+  </button>
+  {#if autoAddMessage}
+    <span class="auto-add-message">{autoAddMessage}</span>
+  {/if}
 </div>
 
 <style>
@@ -277,5 +353,29 @@
   .remove-btn:hover {
     color: #f48771;
     background-color: rgba(244, 135, 113, 0.15);
+  }
+
+  .auto-add-btn {
+    padding: 0.25rem 0.5rem;
+    background-color: #3c3c3c;
+    border: 1px solid #3e3e42;
+    border-radius: 4px;
+    color: #d4d4d4;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+
+  .auto-add-btn:hover {
+    background-color: #454545;
+    border-color: #007acc;
+    color: #ffd700;
+  }
+
+  .auto-add-message {
+    font-size: 0.7rem;
+    color: #4ec9b0;
+    white-space: nowrap;
   }
 </style>
