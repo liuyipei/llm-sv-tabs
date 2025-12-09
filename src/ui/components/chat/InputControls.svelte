@@ -1,7 +1,18 @@
 <script lang="ts">
   import { getContext, onMount } from 'svelte';
-  import { queryInput, isLoading } from '$stores/ui';
-  import { provider, model, apiKeys, endpoint, maxTokens, systemPrompt, recordModelUsage } from '$stores/config';
+  import { queryInput, isLoading, activeSidebarView, showModelSelectionWarning } from '$stores/ui';
+  import {
+    provider,
+    model,
+    apiKeys,
+    endpoint,
+    maxTokens,
+    systemPrompt,
+    recordModelUsage,
+    quickSwitchModels,
+    selectedQuickSwitchIndex,
+    getSelectedQuickSwitchModel
+  } from '$stores/config';
   import { selectedTabs } from '$stores/tabs';
   import type { IPCBridgeAPI } from '$lib/ipc-bridge';
   import type { QueryOptions, LLMResponse } from '../../../types';
@@ -11,9 +22,33 @@
 
   // Reference to the query input element
   let queryInputElement: HTMLTextAreaElement;
+  let showNoModelWarning = $state(false);
+
+  // Derive the selected quick-switch model
+  const selectedModel = $derived(
+    getSelectedQuickSwitchModel($quickSwitchModels, $selectedQuickSwitchIndex)
+  );
+  const hasNoModels = $derived($quickSwitchModels.length === 0);
 
   async function handleQuerySubmit(): Promise<void> {
     if (!$queryInput.trim()) return;
+
+    // Check if a model is selected from the quick-switch list
+    if (!selectedModel) {
+      showNoModelWarning = true;
+      showModelSelectionWarning.set(true);
+      // Switch to settings view and open API key instructions
+      activeSidebarView.set('settings');
+      if (ipc) {
+        await ipc.openUrl('api-keys://instructions');
+      }
+      // Hide warning after a few seconds
+      setTimeout(() => {
+        showNoModelWarning = false;
+        showModelSelectionWarning.set(false);
+      }, 5000);
+      return;
+    }
 
     const query = $queryInput.trim();
     $queryInput = '';
@@ -26,11 +61,11 @@
       const tabId = 'data' in tabResult && tabResult.data ? tabResult.data.tabId : ('tabId' in tabResult ? tabResult.tabId : undefined);
 
       try {
-        // Build query options from config stores
+        // Build query options using the selected quick-switch model
         const options: QueryOptions = {
-          provider: $provider,
-          model: $model || undefined,
-          apiKey: $apiKeys[$provider] || undefined,
+          provider: selectedModel.provider,
+          model: selectedModel.model,
+          apiKey: $apiKeys[selectedModel.provider] || undefined,
           endpoint: $endpoint || undefined,
           maxTokens: $maxTokens,
           systemPrompt: $systemPrompt || undefined,
@@ -42,7 +77,7 @@
 
         // Record model usage if we got a valid response
         if (response.model && !response.error) {
-          recordModelUsage(response.model, $provider);
+          recordModelUsage(response.model, selectedModel.provider);
         }
 
         // Update the tab with the response
@@ -110,6 +145,15 @@
 </script>
 
 <div class="input-controls">
+  {#if showNoModelWarning}
+    <div class="no-model-warning">
+      {#if hasNoModels}
+        No models added. Go to LLM Configuration, select a provider and model, then click "Add to Quick List".
+      {:else}
+        Please select a model from the dropdown above.
+      {/if}
+    </div>
+  {/if}
   <div class="query-input-container">
     <textarea
       bind:this={queryInputElement}
@@ -191,5 +235,16 @@
     background-color: #3e3e42;
     color: #808080;
     cursor: not-allowed;
+  }
+
+  .no-model-warning {
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    background-color: rgba(244, 135, 113, 0.15);
+    border: 1px solid rgba(244, 135, 113, 0.5);
+    border-radius: 4px;
+    color: #f48771;
+    font-size: 0.875rem;
+    line-height: 1.4;
   }
 </style>

@@ -9,7 +9,9 @@
     getDiscoveredModels,
     selectedModelByProvider,
     saveSelectedModelForProvider,
-    getSelectedModelForProvider
+    getSelectedModelForProvider,
+    addQuickSwitchModel,
+    selectedQuickSwitchIndex
   } from '../../stores/config.js';
   import { onMount, getContext } from 'svelte';
   import type { IPCBridgeAPI } from '$lib/ipc-bridge';
@@ -23,6 +25,7 @@
   let error = $state<string | null>(null);
   let copySuccess = $state(false);
   let modelsSource = $state<'cached' | 'api' | 'default'>('default');
+  let addMessage = $state<string | null>(null);
 
   let filteredModels = $derived(
     searchQuery
@@ -140,6 +143,30 @@
       console.error('Failed to copy model name:', err);
     }
   }
+
+  function handleAddToQuickList() {
+    const modelName = $modelStore;
+    const providerName = $providerStore as ProviderType;
+    if (!modelName) return;
+
+    const result = addQuickSwitchModel(providerName, modelName);
+
+    if (result.movedToTop) {
+      addMessage = 'Moved to top of list';
+      // Select the model (now at index 0)
+      selectedQuickSwitchIndex.set(0);
+    } else if (result.added) {
+      addMessage = 'Added to quick list';
+      // Select the newly added model (at index 0)
+      selectedQuickSwitchIndex.set(0);
+    } else {
+      addMessage = 'Already at top';
+    }
+
+    setTimeout(() => {
+      addMessage = null;
+    }, 2000);
+  }
 </script>
 
 <div class="model-selector">
@@ -203,6 +230,19 @@
 
     {#if filteredModels.length === 0 && searchQuery}
       <div class="no-results">No models found</div>
+    {/if}
+
+    <button
+      onclick={handleAddToQuickList}
+      class="add-to-quick-list-btn"
+      disabled={!$modelStore}
+      title="Add current provider and model to the quick switch list"
+    >
+      + Add to Quick List
+    </button>
+
+    {#if addMessage}
+      <div class="add-message">{addMessage}</div>
     {/if}
   {/if}
 </div>
@@ -327,5 +367,39 @@
   .no-results {
     color: var(--text-secondary, #666);
     font-style: italic;
+  }
+
+  .add-to-quick-list-btn {
+    margin-top: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--primary-color, #0066cc);
+    border-radius: 4px;
+    background: var(--primary-color, #0066cc);
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .add-to-quick-list-btn:hover:not(:disabled) {
+    background: var(--primary-color-dark, #005a9e);
+    border-color: var(--primary-color-dark, #005a9e);
+  }
+
+  .add-to-quick-list-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .add-message {
+    margin-top: 0.375rem;
+    padding: 0.375rem 0.5rem;
+    font-size: 0.75rem;
+    color: #4ec9b0;
+    background: rgba(78, 201, 176, 0.1);
+    border: 1px solid rgba(78, 201, 176, 0.3);
+    border-radius: 4px;
+    text-align: center;
   }
 </style>
