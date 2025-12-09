@@ -1,5 +1,5 @@
 import { createRawMessageViewerHTML } from '../templates/raw-message-template.js';
-import type { TabData, TabMetadata, TabWithView } from '../types.js';
+import type { TabData, TabMetadata, TabWithView } from '../../types';
 import type { WebContentsView } from 'electron';
 import { createConfiguredView } from './web-contents-view-factory.js';
 import { generateLLMTabIdentifiers } from '../utils/tab-id-generator.js';

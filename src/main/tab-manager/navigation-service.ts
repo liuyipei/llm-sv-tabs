@@ -1,5 +1,5 @@
 import type { WebContents } from 'electron';
-import type { TabWithView } from '../types.js';
+import type { TabWithView } from '../../types';
 
 interface NavigationServiceDeps {
   tabs: Map<string, TabWithView>;
@@ -93,7 +93,9 @@ export class NavigationService {
     return tab?.view ?? null;
   }
 
-  private getNavigableTab(tabId: string): { success: boolean; webContents?: WebContents; error?: string } {
+  private getNavigableTab(tabId: string):
+    | { success: true; webContents: WebContents }
+    | { success: false; error: string } {
     const tab = this.tabs.get(tabId);
     if (!tab) return { success: false, error: 'Tab not found' };
     if (!tab.view || !tab.view.webContents) return { success: false, error: 'Tab has no web contents' };

@@ -46,7 +46,7 @@ export class AnthropicProvider extends BaseProvider {
       });
 
       const data = await response.json() as { data?: Array<{ id: string }> };
-      const models = (data.data || []).map(({ id }) =>
+      const models: LLMModel[] = (data.data || []).map(({ id }) =>
         AnthropicProvider.MODELS.find(model => model.id === id) ?? {
           id,
           name: id,

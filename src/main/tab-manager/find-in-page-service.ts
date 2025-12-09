@@ -1,5 +1,5 @@
 import type { WebContents } from 'electron';
-import type { TabWithView } from '../types.js';
+import type { TabWithView } from '../../types';
 
 interface FindInPageDeps {
   tabs: Map<string, TabWithView>;
@@ -20,6 +20,8 @@ export class FindInPageService {
   findInPage(tabId: string, text: string): { success: boolean; requestId?: number; error?: string } {
     const result = this.getSearchableTab(tabId);
     if (!result.success) return result;
+    const webContents = result.webContents;
+    if (!webContents) return { success: false, error: 'Tab has no web contents' };
 
     if (!text.trim()) {
       return this.stopFindInPage(tabId);
@@ -30,7 +32,7 @@ export class FindInPageService {
     const requestId = this.currentFindRequestId;
 
     try {
-      result.webContents.once('found-in-page', (_event, foundResult) => {
+      webContents.once('found-in-page', (_event, foundResult) => {
         if (requestId === this.currentFindRequestId) {
           this.sendToRenderer('found-in-page', {
             activeMatchOrdinal: foundResult.activeMatchOrdinal,
@@ -40,7 +42,7 @@ export class FindInPageService {
         }
       });
 
-      result.webContents.findInPage(text, {
+      webContents.findInPage(text, {
         forward: true,
         findNext: false,
       });
@@ -57,19 +59,21 @@ export class FindInPageService {
   findNext(tabId: string): { success: boolean; error?: string } {
     const result = this.getSearchableTab(tabId);
     if (!result.success) return result;
+    const webContents = result.webContents;
+    if (!webContents) return { success: false, error: 'Tab has no web contents' };
 
     const searchText = this.lastSearchText.get(tabId);
     if (!searchText) return { success: false, error: 'No active search' };
 
     try {
-      result.webContents.once('found-in-page', (_event, foundResult) => {
+      webContents.once('found-in-page', (_event, foundResult) => {
         this.sendToRenderer('found-in-page', {
           activeMatchOrdinal: foundResult.activeMatchOrdinal,
           matches: foundResult.matches,
         });
       });
 
-      result.webContents.findInPage(searchText, {
+      webContents.findInPage(searchText, {
         forward: true,
         findNext: true,
       });
@@ -86,19 +90,21 @@ export class FindInPageService {
   findPrevious(tabId: string): { success: boolean; error?: string } {
     const result = this.getSearchableTab(tabId);
     if (!result.success) return result;
+    const webContents = result.webContents;
+    if (!webContents) return { success: false, error: 'Tab has no web contents' };
 
     const searchText = this.lastSearchText.get(tabId);
     if (!searchText) return { success: false, error: 'No active search' };
 
     try {
-      result.webContents.once('found-in-page', (_event, foundResult) => {
+      webContents.once('found-in-page', (_event, foundResult) => {
         this.sendToRenderer('found-in-page', {
           activeMatchOrdinal: foundResult.activeMatchOrdinal,
           matches: foundResult.matches,
         });
       });
 
-      result.webContents.findInPage(searchText, {
+      webContents.findInPage(searchText, {
         forward: false,
         findNext: true,
       });
@@ -115,6 +121,7 @@ export class FindInPageService {
   stopFindInPage(tabId: string): { success: boolean; error?: string } {
     const result = this.getSearchableTab(tabId, true);
     if (!result.success) return { success: true };
+    if (!result.webContents) return { success: true };
 
     try {
       result.webContents.stopFindInPage('clearSelection');
@@ -131,11 +138,9 @@ export class FindInPageService {
     }
   }
 
-  private getSearchableTab(tabId: string, allowMissingView: boolean = false): {
-    success: boolean;
-    webContents?: WebContents;
-    error?: string;
-  } {
+  private getSearchableTab(tabId: string, allowMissingView: boolean = false):
+    | { success: true; webContents?: WebContents }
+    | { success: false; error: string } {
     const tab = this.tabs.get(tabId);
     if (!tab) return { success: false, error: 'Tab not found' };
     if (!tab.view || !tab.view.webContents) {
