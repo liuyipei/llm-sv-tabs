@@ -209,7 +209,7 @@
           <option value="">Select a model</option>
           {#each filteredModels as model}
             <option value={model} title={model}>
-              {truncateModelName(model, 35)}
+              {truncateModelName(model, 40)}
             </option>
           {/each}
         </select>
@@ -316,7 +316,8 @@
     border-radius: 4px;
     background: var(--input-bg, white);
     color: var(--text-primary, #333);
-    font-size: 0.8rem;
+    font-family: monospace;
+    font-size: 0.75rem;
     transition: border-color 0.2s;
   }
 
@@ -340,12 +341,12 @@
   }
 
   .search-input {
-    font-size: 0.75rem;
     max-width: 100%;
     min-width: 0;
   }
 
   .search-input::placeholder {
+    font-family: monospace;
     font-size: 0.7rem;
   }
 

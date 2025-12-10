@@ -154,7 +154,7 @@
       title={isEmpty ? 'No models added. Add models from LLM Configuration.' : 'Select a model'}
     >
       {#if selectedModel}
-        <span class="selected-text" title={formatQuickSwitchModel(selectedModel)}>{formatQuickSwitchModelTruncated(selectedModel, 25)}</span>
+        <span class="selected-text" title={formatQuickSwitchModel(selectedModel)}>{formatQuickSwitchModelTruncated(selectedModel, 40)}</span>
       {:else if isEmpty}
         <span class="placeholder">No models added</span>
       {:else}
@@ -178,7 +178,7 @@
               onclick={() => handleSelect(index)}
               title={formatQuickSwitchModel(model)}
             >
-              {formatQuickSwitchModelTruncated(model, 30)}
+              {formatQuickSwitchModelTruncated(model, 40)}
             </button>
             <button
               type="button"
