@@ -24,6 +24,7 @@ export interface IPCBridgeAPI {
   updateTabTitle(tabId: string, title: string): Promise<IPCResponse | { success: boolean }>;
   copyTabUrl(tabId: string): Promise<IPCResponse<{ url?: string }> | { success: boolean; url?: string }>;
   openNoteTab(noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image'): Promise<IPCResponse<{ tabId: string; tab: TabData }> | { tabId: string; tab: Tab }>;
+  updateNoteContent(tabId: string, content: string): Promise<IPCResponse | { success: boolean }>;
   openLLMResponseTab(query: string, response?: string, error?: string): Promise<IPCResponse<{ tabId: string; tab: TabData }> | { tabId: string; tab: Tab }>;
   updateLLMResponseTab(tabId: string, response: string, metadata?: any): Promise<IPCResponse | { success: boolean }>;
   updateLLMMetadata(tabId: string, metadata: any): Promise<IPCResponse | { success: boolean }>;
@@ -119,6 +120,7 @@ export function initializeIPC(): IPCBridgeAPI {
     updateTabTitle: (tabId: string, title: string) => window.electronAPI.updateTabTitle(tabId, title),
     copyTabUrl: (tabId: string) => window.electronAPI.copyTabUrl(tabId),
     openNoteTab: (noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image') => window.electronAPI.openNoteTab(noteId, title, content, fileType),
+    updateNoteContent: (tabId: string, content: string) => window.electronAPI.updateNoteContent(tabId, content),
     openLLMResponseTab: (query: string, response?: string, error?: string) => window.electronAPI.openLLMResponseTab(query, response, error),
     updateLLMResponseTab: (tabId: string, response: string, metadata?: any) => window.electronAPI.updateLLMResponseTab(tabId, response, metadata),
     updateLLMMetadata: (tabId: string, metadata: any) => window.electronAPI.updateLLMMetadata(tabId, metadata),
@@ -257,17 +259,31 @@ function createMockAPI(): IPCBridgeAPI {
     },
     openNoteTab: async (noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image') => {
       console.log('Mock: openNoteTab', noteId, title, content, fileType);
+      const url = fileType === 'text'
+        ? (content.trim().substring(0, 30) + (content.length > 30 ? '...' : '')) || 'note://empty'
+        : `note://${noteId}`;
       const tab: Tab = {
         id: `mock-note-${noteId}`,
         title: title,
-        url: `note://${noteId}`,
+        url: url,
         type: 'notes',
+        component: fileType === 'text' ? 'note' : undefined,
         created: Date.now(),
         lastViewed: Date.now(),
+        metadata: {
+          fileType: fileType,
+          noteContent: fileType === 'text' ? content : undefined,
+        },
       };
       addTab(tab);
       activeTabId.set(tab.id);
       return { tabId: tab.id, tab };
+    },
+    updateNoteContent: async (tabId: string, content: string) => {
+      console.log('Mock: updateNoteContent', tabId, content);
+      const url = content.trim().substring(0, 30) + (content.length > 30 ? '...' : '') || 'note://empty';
+      updateTab(tabId, { url, metadata: { noteContent: content } });
+      return { success: true };
     },
     openLLMResponseTab: async (query: string, response?: string, error?: string) => {
       console.log('Mock: openLLMResponseTab', query, response, error);

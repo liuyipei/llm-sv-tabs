@@ -68,6 +68,9 @@ const electronAPI = {
   openNoteTab: (noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image'): Promise<IPCResponse<{ tabId: string; tab: TabData }>> =>
     ipcRenderer.invoke('open-note-tab', noteId, title, content, fileType),
 
+  updateNoteContent: (tabId: string, content: string): Promise<IPCResponse> =>
+    ipcRenderer.invoke('update-note-content', tabId, content),
+
   // LLM Response tabs
   openLLMResponseTab: (query: string, response?: string, error?: string): Promise<IPCResponse<{ tabId: string; tab: TabData }>> =>
     ipcRenderer.invoke('open-llm-response-tab', query, response, error),

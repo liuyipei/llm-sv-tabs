@@ -200,18 +200,27 @@ class TabManager {
   openNoteTab(noteId: number, title: string, content: string, fileType: 'text' | 'pdf' | 'image' = 'text', autoSelect: boolean = true): { tabId: string; tab: TabData } {
     const tabId = this.createTabId();
 
-    const view = this.createView();
+    // For text notes, use Svelte component (editable); for images/PDFs, use WebContentsView
+    const useWebContentsView = fileType !== 'text';
+
+    // Generate URL: for text notes, show preview of content; otherwise use note:// protocol
+    const noteUrl = fileType === 'text'
+      ? this.generateNoteUrl(content)
+      : `note://${noteId}`;
 
     const tab: TabWithView = {
       id: tabId,
       title: title,
-      url: `note://${noteId}`,
+      url: noteUrl,
       type: 'notes' as TabType,
-      view: view,
+      view: useWebContentsView ? this.createView() : undefined,
+      component: fileType === 'text' ? 'note' : undefined,
       created: Date.now(),
       lastViewed: Date.now(),
       metadata: {
         fileType: fileType,
+        // For text notes, store content in metadata for editing
+        noteContent: fileType === 'text' ? content : undefined,
         // For image tabs, store the data URL
         imageData: fileType === 'image' ? content : undefined,
         // Extract MIME type from data URL if it's an image
@@ -223,12 +232,12 @@ class TabManager {
 
     this.tabs.set(tabId, tab);
 
-    // Create HTML content based on file type
-    const htmlContent = createNoteHTML(title, content, fileType);
-
-    // Load HTML content using data URI
-    const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent);
-    view.webContents.loadURL(dataUrl);
+    // For images/PDFs, create HTML content and load in WebContentsView
+    if (useWebContentsView && tab.view) {
+      const htmlContent = createNoteHTML(title, content, fileType);
+      const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent);
+      tab.view.webContents.loadURL(dataUrl);
+    }
 
     // Set as active tab (if autoSelect is true)
     if (autoSelect) {
@@ -242,6 +251,40 @@ class TabManager {
     this.saveSession();
 
     return { tabId, tab: this.getTabData(tabId)! };
+  }
+
+  /**
+   * Generate URL for note tab based on content preview
+   */
+  private generateNoteUrl(content: string): string {
+    if (!content || content.trim().length === 0) {
+      return 'note://empty';
+    }
+    // Get first 30 characters of content, trimmed and cleaned
+    const preview = content.trim().substring(0, 30).replace(/\s+/g, ' ');
+    return preview + (content.length > 30 ? '...' : '');
+  }
+
+  /**
+   * Update note content and URL
+   */
+  updateNoteContent(tabId: string, content: string): { success: boolean; error?: string } {
+    const tab = this.tabs.get(tabId);
+    if (!tab) return { success: false, error: 'Tab not found' };
+    if (tab.metadata?.fileType !== 'text') return { success: false, error: 'Not a text note tab' };
+
+    // Update content in metadata
+    if (tab.metadata) {
+      tab.metadata.noteContent = content;
+    }
+
+    // Update URL based on content preview
+    tab.url = this.generateNoteUrl(content);
+
+    // Notify renderer of URL update
+    this.sendToRenderer('tab-url-updated', { id: tabId, url: tab.url });
+
+    return { success: true };
   }
 
   openLLMResponseTab(query: string, response?: string, error?: string, autoSelect: boolean = true): { tabId: string; tab: TabData } {

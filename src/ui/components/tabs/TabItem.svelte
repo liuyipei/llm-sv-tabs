@@ -19,6 +19,8 @@
   const isActive = $derived(tab.id === $activeTabId);
   const isSelected = $derived($selectedTabs.has(tab.id));
   const isLLMResponse = $derived(tab.metadata?.isLLMResponse === true);
+  const isNoteTab = $derived(tab.component === 'note');
+  const isEditableTitle = $derived(isLLMResponse || isNoteTab);
 
   function handleClick(): void {
     if (ipc) {
@@ -131,7 +133,7 @@
   }
 
   function handleTitleDoubleClick(event: MouseEvent): void {
-    if (!isLLMResponse) return; // Only allow editing LLM response tab titles
+    if (!isEditableTitle) return; // Only allow editing LLM response and note tab titles
     event.stopPropagation();
     isEditing = true;
     editingTitle = tab.title || '';
@@ -202,10 +204,10 @@
       {:else}
         <div
           class="tab-title"
-          class:editable={isLLMResponse}
-          title={isLLMResponse ? `${tab.title} (double-click to edit)` : tab.title}
+          class:editable={isEditableTitle}
+          title={isEditableTitle ? `${tab.title} (double-click to edit)` : tab.title}
           ondblclick={handleTitleDoubleClick}
-          role={isLLMResponse ? 'button' : undefined}
+          role={isEditableTitle ? 'button' : undefined}
         >
           {tab.title || 'Untitled'}
         </div>
@@ -222,7 +224,7 @@
       <button class="refresh-btn debug-info-btn" onclick={handleDebugInfoClick} title="Debug info (opens in new window)">
         🐛
       </button>
-    {:else}
+    {:else if !isNoteTab}
       <button class="refresh-btn" onclick={handleRefreshClick} title="Reload tab (Ctrl+R)">
         ↻
       </button>

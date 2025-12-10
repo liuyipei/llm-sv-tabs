@@ -134,6 +134,10 @@ export function registerIpcHandlers(context: MainProcessContext): void {
       handleSafely(() => ({ success: true, data: get.tabManager().openNoteTab(noteId, title, content, fileType) }))
   );
 
+  ipcMain.handle('update-note-content', async (_event, tabId: string, content: string) =>
+    handleSafely(() => get.tabManager().updateNoteContent(tabId, content))
+  );
+
   ipcMain.handle('open-llm-response-tab', async (_event, query: string, response?: string, error?: string) =>
     handleSafely(() => ({ success: true, data: get.tabManager().openLLMResponseTab(query, response, error) }))
   );

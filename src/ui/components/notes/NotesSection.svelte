@@ -18,7 +18,6 @@
 
   const ipc = getContext<IPCBridgeAPI>('ipc');
   let notes = writable<Note[]>([]);
-  let editingNote: Note | null = $state(null);
   let isDragging = $state(false);
 
   // Upload state
@@ -46,36 +45,30 @@
 
   // ========== Note Management ==========
 
-  function createNewNote(): void {
-    const newNote: Note = {
-      id: Date.now(),
-      title: 'New Note',
-      body: '',
-      selected: false,
-    };
-    notes.update(n => [...n, newNote]);
-    editingNote = newNote;
+  function formatCurrentTime(): string {
+    return new Date().toLocaleString('en-US', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    }).replace(/\//g, '-').replace(',', '');
   }
 
-  async function saveNote(): Promise<void> {
-    if (!editingNote || !ipc) return;
+  async function createNewNote(): Promise<void> {
+    if (!ipc) return;
 
-    notes.update(n => n.map(item =>
-      item.id === editingNote!.id ? { ...editingNote! } : item
-    ));
+    const noteId = Date.now();
+    const title = formatCurrentTime();
+    const content = '';
 
     try {
-      await ipc.openNoteTab(
-        editingNote.id,
-        editingNote.title,
-        editingNote.body,
-        editingNote.fileType || 'text'
-      );
+      await ipc.openNoteTab(noteId, title, content, 'text');
     } catch (error) {
-      console.error('Failed to create tab for note:', error);
+      console.error('Failed to create note tab:', error);
     }
-
-    editingNote = null;
   }
 
   // ========== File Upload Handling ==========
@@ -238,39 +231,18 @@
     </label>
   </div>
 
-  {#if editingNote}
-    <div class="note-editor">
-      <input
-        type="text"
-        bind:value={editingNote.title}
-        class="note-title-input"
-        placeholder="Note title..."
-      />
-      <textarea
-        bind:value={editingNote.body}
-        class="note-body-input"
-        placeholder="Note content..."
-        rows="10"
-      ></textarea>
-      <div class="editor-actions">
-        <button onclick={saveNote} class="save-btn">Save</button>
-        <button onclick={() => editingNote = null} class="cancel-btn">Cancel</button>
-      </div>
-    </div>
-  {:else}
-    <div
-      class="drop-zone"
-      class:dragging={isDragging}
-      ondragover={handleDragOver}
-      ondragleave={handleDragLeave}
-      ondrop={handleDrop}
-      role="region"
-      aria-label="File drop zone for uploading files"
-    >
-      <p class="drop-zone-text">Drag and drop files here or use the buttons above</p>
-      <p class="drop-zone-hint">Support for multiple files - each will open in a new tab</p>
-    </div>
-  {/if}
+  <div
+    class="drop-zone"
+    class:dragging={isDragging}
+    ondragover={handleDragOver}
+    ondragleave={handleDragLeave}
+    ondrop={handleDrop}
+    role="region"
+    aria-label="File drop zone for uploading files"
+  >
+    <p class="drop-zone-text">Drag and drop files here or use the buttons above</p>
+    <p class="drop-zone-hint">Support for multiple files - each will open in a new tab</p>
+  </div>
 
   {#if uploadProgress}
     <UploadProgress
@@ -383,80 +355,5 @@
     color: #808080;
     font-size: 12px;
     margin: 0;
-  }
-
-  .note-editor {
-    display: flex;
-    flex-direction: column;
-    padding: 15px;
-    gap: 10px;
-    overflow-y: auto;
-  }
-
-  .note-title-input {
-    background-color: #3c3c3c;
-    color: #d4d4d4;
-    border: 1px solid #3e3e42;
-    border-radius: 4px;
-    padding: 10px;
-    font-family: inherit;
-    font-size: 16px;
-    font-weight: 500;
-  }
-
-  .note-title-input:focus {
-    outline: none;
-    border-color: #007acc;
-  }
-
-  .note-body-input {
-    background-color: #3c3c3c;
-    color: #d4d4d4;
-    border: 1px solid #3e3e42;
-    border-radius: 4px;
-    padding: 10px;
-    font-family: 'Courier New', monospace;
-    font-size: 14px;
-    resize: vertical;
-    min-height: 200px;
-  }
-
-  .note-body-input:focus {
-    outline: none;
-    border-color: #007acc;
-  }
-
-  .editor-actions {
-    display: flex;
-    gap: 10px;
-  }
-
-  .save-btn, .cancel-btn {
-    flex: 1;
-    border: none;
-    border-radius: 4px;
-    padding: 10px 20px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.2s;
-  }
-
-  .save-btn {
-    background-color: #007acc;
-    color: white;
-  }
-
-  .save-btn:hover {
-    background-color: #005a9e;
-  }
-
-  .cancel-btn {
-    background-color: #3e3e42;
-    color: #d4d4d4;
-  }
-
-  .cancel-btn:hover {
-    background-color: #4e4e52;
   }
 </style>
