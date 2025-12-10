@@ -151,6 +151,40 @@
     }
   }
 
+  async function navigateToNextTab(): Promise<void> {
+    if (!ipc) return;
+    const tabs = $sortedTabs;
+    if (tabs.length === 0) return;
+
+    const currentTabId = $activeTabId;
+    if (!currentTabId) {
+      // No active tab, activate the first one
+      await ipc.setActiveTab(tabs[0].id);
+      return;
+    }
+
+    const currentIndex = tabs.findIndex((tab) => tab.id === currentTabId);
+    const nextIndex = (currentIndex + 1) % tabs.length;
+    await ipc.setActiveTab(tabs[nextIndex].id);
+  }
+
+  async function navigateToPreviousTab(): Promise<void> {
+    if (!ipc) return;
+    const tabs = $sortedTabs;
+    if (tabs.length === 0) return;
+
+    const currentTabId = $activeTabId;
+    if (!currentTabId) {
+      // No active tab, activate the last one
+      await ipc.setActiveTab(tabs[tabs.length - 1].id);
+      return;
+    }
+
+    const currentIndex = tabs.findIndex((tab) => tab.id === currentTabId);
+    const previousIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+    await ipc.setActiveTab(tabs[previousIndex].id);
+  }
+
   function handleGlobalKeydown(event: KeyboardEvent): void {
     const isCtrlOrMeta = event.ctrlKey || event.metaKey;
 
@@ -260,6 +294,19 @@
         window.electronAPI.onBookmarkAdded((bookmark) => {
           console.log('Bookmark added via IPC:', bookmark);
           addBookmarkToStore(bookmark);
+        });
+      }
+
+      // Set up IPC listeners for tab navigation using sorted order
+      if (window.electronAPI.onNavigateNextTab) {
+        window.electronAPI.onNavigateNextTab(() => {
+          navigateToNextTab();
+        });
+      }
+
+      if (window.electronAPI.onNavigatePreviousTab) {
+        window.electronAPI.onNavigatePreviousTab(() => {
+          navigateToPreviousTab();
         });
       }
     }
