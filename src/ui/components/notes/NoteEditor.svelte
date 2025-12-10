@@ -11,34 +11,52 @@
   const tab = $derived($activeTabs.get(tabId));
 
   // Local state for editing
+  let title = $state('');
   let content = $state('');
   let isInitialized = $state(false);
-  let saveTimeout: ReturnType<typeof setTimeout> | null = null;
+  let contentSaveTimeout: ReturnType<typeof setTimeout> | null = null;
+  let titleSaveTimeout: ReturnType<typeof setTimeout> | null = null;
   let textareaElement: HTMLTextAreaElement | null = $state(null);
 
-  // Initialize content from tab metadata
+  // Initialize content and title from tab metadata
   $effect(() => {
     if (tab && !isInitialized) {
+      title = tab.title || '';
       content = tab.metadata?.noteContent || '';
       isInitialized = true;
     }
   });
 
-  // Auto-save with debounce when content changes
+  // Auto-save content with debounce
   function handleContentChange(): void {
     if (!ipc || !tabId) return;
 
-    // Clear existing timeout
-    if (saveTimeout) {
-      clearTimeout(saveTimeout);
+    if (contentSaveTimeout) {
+      clearTimeout(contentSaveTimeout);
     }
 
-    // Debounce save to avoid too many IPC calls
-    saveTimeout = setTimeout(async () => {
+    contentSaveTimeout = setTimeout(async () => {
       try {
         await ipc.updateNoteContent(tabId, content);
       } catch (error) {
         console.error('Failed to save note content:', error);
+      }
+    }, 300);
+  }
+
+  // Auto-save title with debounce
+  function handleTitleChange(): void {
+    if (!ipc || !tabId) return;
+
+    if (titleSaveTimeout) {
+      clearTimeout(titleSaveTimeout);
+    }
+
+    titleSaveTimeout = setTimeout(async () => {
+      try {
+        await ipc.updateTabTitle(tabId, title);
+      } catch (error) {
+        console.error('Failed to save note title:', error);
       }
     }, 300);
   }
@@ -49,10 +67,13 @@
       textareaElement.focus();
     }
 
-    // Cleanup timeout on unmount
+    // Cleanup timeouts on unmount
     return () => {
-      if (saveTimeout) {
-        clearTimeout(saveTimeout);
+      if (contentSaveTimeout) {
+        clearTimeout(contentSaveTimeout);
+      }
+      if (titleSaveTimeout) {
+        clearTimeout(titleSaveTimeout);
       }
     };
   });
@@ -60,8 +81,14 @@
 
 <div class="note-editor">
   <div class="note-header">
-    <h1 class="note-title">{tab?.title || 'Untitled Note'}</h1>
-    <p class="note-hint">Edit your note below. Changes are saved automatically.</p>
+    <input
+      type="text"
+      bind:value={title}
+      oninput={handleTitleChange}
+      class="note-title-input"
+      placeholder="Note title..."
+    />
+    <p class="note-hint">Changes are saved automatically.</p>
   </div>
   <div class="note-content">
     <textarea
@@ -92,11 +119,30 @@
     box-sizing: border-box;
   }
 
-  .note-title {
+  .note-title-input {
+    width: 100%;
     font-size: 24px;
     font-weight: 600;
     color: #ffffff;
+    background-color: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 0 0 8px 0;
     margin: 0 0 10px 0;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .note-title-input:hover {
+    border-bottom-color: #3e3e42;
+  }
+
+  .note-title-input:focus {
+    border-bottom-color: #007acc;
+  }
+
+  .note-title-input::placeholder {
+    color: #606060;
   }
 
   .note-hint {
