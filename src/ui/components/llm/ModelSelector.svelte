@@ -11,7 +11,8 @@
     saveSelectedModelForProvider,
     getSelectedModelForProvider,
     addQuickSwitchModel,
-    selectedQuickSwitchIndex
+    selectedQuickSwitchIndex,
+    truncateModelName
   } from '../../stores/config.js';
   import { onMount, getContext } from 'svelte';
   import type { IPCBridgeAPI } from '$lib/ipc-bridge';
@@ -203,11 +204,12 @@
           value={$modelStore || ''}
           onchange={handleModelChange}
           class="model-select"
+          title={$modelStore || 'Select a model'}
         >
           <option value="">Select a model</option>
           {#each filteredModels as model}
-            <option value={model}>
-              {model}
+            <option value={model} title={model}>
+              {truncateModelName(model, 35)}
             </option>
           {/each}
         </select>
@@ -245,6 +247,8 @@
     display: flex;
     flex-direction: column;
     gap: 0.125rem;
+    max-width: 100%;
+    overflow: hidden;
   }
 
   .model-header {
@@ -292,13 +296,17 @@
     display: flex;
     gap: 0.25rem;
     align-items: stretch;
+    max-width: 100%;
+    overflow: hidden;
   }
 
   .model-inputs {
     flex: 1;
+    min-width: 0; /* Allow flex child to shrink below content size */
     display: flex;
     flex-direction: column;
     gap: 0.125rem;
+    overflow: hidden;
   }
 
   .search-input,
@@ -321,6 +329,10 @@
 
   .model-select {
     cursor: pointer;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .model-select:hover {
@@ -329,6 +341,8 @@
 
   .search-input {
     font-size: 0.75rem;
+    max-width: 100%;
+    min-width: 0;
   }
 
   .search-input::placeholder {

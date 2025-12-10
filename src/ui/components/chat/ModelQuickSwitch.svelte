@@ -4,6 +4,7 @@
     selectedQuickSwitchIndex,
     removeQuickSwitchModel,
     formatQuickSwitchModel,
+    formatQuickSwitchModelTruncated,
     addQuickSwitchModel,
     apiKeys,
     discoveredModels,
@@ -153,7 +154,7 @@
       title={isEmpty ? 'No models added. Add models from LLM Configuration.' : 'Select a model'}
     >
       {#if selectedModel}
-        <span class="selected-text">{formatQuickSwitchModel(selectedModel)}</span>
+        <span class="selected-text" title={formatQuickSwitchModel(selectedModel)}>{formatQuickSwitchModelTruncated(selectedModel, 25)}</span>
       {:else if isEmpty}
         <span class="placeholder">No models added</span>
       {:else}
@@ -175,8 +176,9 @@
               type="button"
               class="item-content"
               onclick={() => handleSelect(index)}
+              title={formatQuickSwitchModel(model)}
             >
-              {formatQuickSwitchModel(model)}
+              {formatQuickSwitchModelTruncated(model, 30)}
             </button>
             <button
               type="button"
