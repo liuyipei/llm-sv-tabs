@@ -4,6 +4,7 @@
     selectedQuickSwitchIndex,
     removeQuickSwitchModel,
     formatQuickSwitchModel,
+    formatQuickSwitchModelTruncated,
     addQuickSwitchModel,
     apiKeys,
     discoveredModels,
@@ -153,7 +154,7 @@
       title={isEmpty ? 'No models added. Add models from LLM Configuration.' : 'Select a model'}
     >
       {#if selectedModel}
-        <span class="selected-text">{formatQuickSwitchModel(selectedModel)}</span>
+        <span class="selected-text" title={formatQuickSwitchModel(selectedModel)}>{formatQuickSwitchModelTruncated(selectedModel, 40)}</span>
       {:else if isEmpty}
         <span class="placeholder">No models added</span>
       {:else}
@@ -175,8 +176,9 @@
               type="button"
               class="item-content"
               onclick={() => handleSelect(index)}
+              title={formatQuickSwitchModel(model)}
             >
-              {formatQuickSwitchModel(model)}
+              {formatQuickSwitchModelTruncated(model, 40)}
             </button>
             <button
               type="button"
@@ -278,7 +280,7 @@
 
   .selected-text {
     font-family: monospace;
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -287,7 +289,7 @@
   .placeholder {
     color: #808080;
     font-style: italic;
-    font-size: 0.65rem;
+    font-size: 0.6rem;
   }
 
   .arrow {
@@ -332,7 +334,7 @@
     border: none;
     color: #d4d4d4;
     font-family: monospace;
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     text-align: left;
     cursor: pointer;
     overflow: hidden;

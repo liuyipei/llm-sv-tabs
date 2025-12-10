@@ -193,7 +193,32 @@ export function getSelectedQuickSwitchModel(
   return models[index];
 }
 
+// Truncate a long model name to show prefix...suffix
+// e.g., "accounts/fireworks/models/llama-v3p3-70b-instruct" → "accounts/...70b-instruct"
+export function truncateModelName(name: string, maxLength: number = 40): string {
+  if (name.length <= maxLength) {
+    return name;
+  }
+
+  // Reserve space for the ellipsis (3 chars)
+  const available = maxLength - 3;
+  // Show more of the suffix (end) since that's usually the unique part
+  const prefixLen = Math.floor(available * 0.35);
+  const suffixLen = available - prefixLen;
+
+  const prefix = name.slice(0, prefixLen);
+  const suffix = name.slice(-suffixLen);
+
+  return `${prefix}...${suffix}`;
+}
+
 // Format a quick-switch model for display
 export function formatQuickSwitchModel(item: QuickSwitchModel): string {
   return `${item.provider}:${item.model}`;
+}
+
+// Format a quick-switch model for display with truncation
+export function formatQuickSwitchModelTruncated(item: QuickSwitchModel, maxModelLen: number = 40): string {
+  const truncatedModel = truncateModelName(item.model, maxModelLen);
+  return `${item.provider}:${truncatedModel}`;
 }
