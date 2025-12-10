@@ -67,6 +67,7 @@ export interface TabMetadata {
   fileType?: 'text' | 'pdf' | 'image';
   mimeType?: string;
   imageData?: string; // base64 data URL for images
+  noteContent?: string; // For editable text notes
 }
 
 export interface TabData {

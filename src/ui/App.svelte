@@ -11,6 +11,7 @@
   import ResizableDivider from '$components/ResizableDivider.svelte';
   import MessageStream from '$components/chat/MessageStream.svelte';
   import ApiKeyInstructionsView from '$components/llm/ApiKeyInstructionsView.svelte';
+  import NoteEditor from '$components/notes/NoteEditor.svelte';
   import { activeSidebarView, sidebarTabsHeightPercent } from '$stores/ui';
   import { activeTabId, activeTabs, sortedTabs } from '$stores/tabs';
   import { addBookmark as addBookmarkToStore } from '$stores/bookmarks';
@@ -24,6 +25,7 @@
   $: activeTab = $activeTabId ? $activeTabs.get($activeTabId) : null;
   $: showSvelteContent = activeTab?.component === 'llm-response';
   $: showApiKeyInstructions = activeTab?.component === 'api-key-instructions';
+  $: showNoteEditor = activeTab?.component === 'note';
 
   // Initialize IPC and make it available to all child components
   const ipc: IPCBridgeAPI = initializeIPC();
@@ -385,6 +387,8 @@
       <div class="browser-view">
         {#if showApiKeyInstructions && activeTab}
           <ApiKeyInstructionsView />
+        {:else if showNoteEditor && activeTab}
+          <NoteEditor tabId={activeTab.id} />
         {:else if showSvelteContent && activeTab}
           <MessageStream tabId={activeTab.id} />
         {:else}
