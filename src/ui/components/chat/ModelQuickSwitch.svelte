@@ -280,7 +280,7 @@
 
   .selected-text {
     font-family: monospace;
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -289,7 +289,7 @@
   .placeholder {
     color: #808080;
     font-style: italic;
-    font-size: 0.65rem;
+    font-size: 0.6rem;
   }
 
   .arrow {
@@ -334,7 +334,7 @@
     border: none;
     color: #d4d4d4;
     font-family: monospace;
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     text-align: left;
     cursor: pointer;
     overflow: hidden;

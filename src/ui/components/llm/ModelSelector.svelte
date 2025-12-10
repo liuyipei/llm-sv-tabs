@@ -317,7 +317,7 @@
     background: var(--input-bg, white);
     color: var(--text-primary, #333);
     font-family: monospace;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     transition: border-color 0.2s;
   }
 
@@ -347,7 +347,7 @@
 
   .search-input::placeholder {
     font-family: monospace;
-    font-size: 0.7rem;
+    font-size: 0.65rem;
   }
 
   .add-btn {

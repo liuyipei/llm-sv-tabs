@@ -57,7 +57,8 @@
     border-radius: 4px;
     background: var(--input-bg, white);
     color: var(--text-primary, #333);
-    font-size: 0.8rem;
+    font-family: monospace;
+    font-size: 0.75rem;
     cursor: pointer;
     transition: border-color 0.2s;
   }
