@@ -108,7 +108,149 @@ class TabManager {
   }
 
   private createView(): WebContentsView {
-    return createConfiguredView((url) => this.openUrl(url));
+    const view = createConfiguredView((url) => this.openUrl(url));
+    this.setupViewKeyboardShortcuts(view);
+    return view;
+  }
+
+  /**
+   * Set up keyboard shortcut handlers for a WebContentsView.
+   * These handlers intercept keyboard events before they reach the page,
+   * allowing shortcuts to work when the browser content is focused.
+   */
+  private setupViewKeyboardShortcuts(view: WebContentsView): void {
+    const isMac = process.platform === 'darwin';
+
+    view.webContents.on('before-input-event', (event, input) => {
+      // Only handle keyDown events
+      if (input.type !== 'keyDown') return;
+
+      const ctrl = isMac ? input.meta : input.control;
+      const key = input.key.toLowerCase();
+
+      // Ctrl/Cmd+W: Close active tab
+      if (ctrl && key === 'w') {
+        event.preventDefault();
+        const activeTabId = this.getActiveTabs().activeTabId;
+        if (activeTabId) {
+          this.closeTab(activeTabId);
+        }
+        return;
+      }
+
+      // Ctrl/Cmd+T: New tab (focus URL bar)
+      if (ctrl && key === 't') {
+        event.preventDefault();
+        this.sendFocusEvent('focus-url-bar');
+        return;
+      }
+
+      // Ctrl/Cmd+R: Reload current tab
+      if (ctrl && key === 'r') {
+        event.preventDefault();
+        const activeTabId = this.getActiveTabs().activeTabId;
+        if (activeTabId) {
+          this.reloadTab(activeTabId);
+        }
+        return;
+      }
+
+      // Ctrl/Cmd+L: Focus URL bar
+      if (ctrl && key === 'l') {
+        event.preventDefault();
+        this.sendFocusEvent('focus-url-bar');
+        return;
+      }
+
+      // Ctrl/Cmd+F: Find in page
+      if (ctrl && key === 'f') {
+        event.preventDefault();
+        this.sendFocusEvent('focus-search-bar');
+        return;
+      }
+
+      // Ctrl/Cmd+.: Focus LLM input
+      if (ctrl && key === '.') {
+        event.preventDefault();
+        this.sendFocusEvent('focus-llm-input');
+        return;
+      }
+
+      // Ctrl/Cmd+D: Bookmark current tab
+      if (ctrl && key === 'd') {
+        event.preventDefault();
+        this.sendFocusEvent('bookmark-tab');
+        return;
+      }
+
+      // Ctrl/Cmd+Alt+S: Screenshot
+      if (ctrl && input.alt && key === 's') {
+        event.preventDefault();
+        this.mainWindow.webContents.send('trigger-screenshot');
+        return;
+      }
+
+      // Alt+Left or Cmd+[: Go back
+      if ((input.alt && key === 'arrowleft') || (isMac && input.meta && key === '[')) {
+        event.preventDefault();
+        const activeTabId = this.getActiveTabs().activeTabId;
+        if (activeTabId) {
+          this.goBack(activeTabId);
+        }
+        return;
+      }
+
+      // Alt+Right or Cmd+]: Go forward
+      if ((input.alt && key === 'arrowright') || (isMac && input.meta && key === ']')) {
+        event.preventDefault();
+        const activeTabId = this.getActiveTabs().activeTabId;
+        if (activeTabId) {
+          this.goForward(activeTabId);
+        }
+        return;
+      }
+
+      // Ctrl+Tab: Next tab
+      if (input.control && key === 'tab' && !input.shift) {
+        event.preventDefault();
+        this.mainWindow.webContents.send('navigate-next-tab');
+        return;
+      }
+
+      // Ctrl+Shift+Tab: Previous tab
+      if (input.control && key === 'tab' && input.shift) {
+        event.preventDefault();
+        this.mainWindow.webContents.send('navigate-previous-tab');
+        return;
+      }
+
+      // Mac: Cmd+Alt+Right: Next tab
+      if (isMac && input.meta && input.alt && key === 'arrowright') {
+        event.preventDefault();
+        this.mainWindow.webContents.send('navigate-next-tab');
+        return;
+      }
+
+      // Mac: Cmd+Alt+Left: Previous tab
+      if (isMac && input.meta && input.alt && key === 'arrowleft') {
+        event.preventDefault();
+        this.mainWindow.webContents.send('navigate-previous-tab');
+        return;
+      }
+    });
+  }
+
+  /**
+   * Helper to send focus events to the renderer with proper focus chain.
+   * Focuses the OS window and UI webContents before sending the IPC event.
+   */
+  private sendFocusEvent(eventName: string): void {
+    this.mainWindow.show();
+    this.mainWindow.focus();
+    this.mainWindow.webContents.focus();
+    setTimeout(() => {
+      this.mainWindow.webContents.send(eventName);
+    }, 10);
   }
 
   openUrl(url: string, autoSelect: boolean = true): { tabId: string; tab: TabData } {

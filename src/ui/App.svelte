@@ -290,12 +290,6 @@
         });
       }
 
-      if (window.electronAPI.onBookmarkAdded) {
-        window.electronAPI.onBookmarkAdded((bookmark) => {
-          console.log('Bookmark added via IPC:', bookmark);
-          addBookmarkToStore(bookmark);
-        });
-      }
 
       // Set up IPC listeners for tab navigation using sorted order
       if (window.electronAPI.onNavigateNextTab) {
@@ -307,6 +301,20 @@
       if (window.electronAPI.onNavigatePreviousTab) {
         window.electronAPI.onNavigatePreviousTab(() => {
           navigateToPreviousTab();
+        });
+      }
+
+      // Handle bookmark shortcut from browser view
+      if (window.electronAPI.onBookmarkTab) {
+        window.electronAPI.onBookmarkTab(() => {
+          bookmarkActiveTab();
+        });
+      }
+
+      // Handle screenshot shortcut from browser view
+      if (window.electronAPI.onTriggerScreenshot) {
+        window.electronAPI.onTriggerScreenshot(() => {
+          ipc.triggerScreenshot();
         });
       }
     }
