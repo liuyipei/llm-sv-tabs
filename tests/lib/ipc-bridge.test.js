@@ -76,6 +76,8 @@ describe('IPC Bridge', () => {
         onTabTitleUpdated: vi.fn(),
         onTabUrlUpdated: vi.fn(),
         onActiveTabChanged: vi.fn(),
+        onTabLoadError: vi.fn(),
+        onTabFaviconUpdated: vi.fn(),
       };
 
       window.electronAPI = mockElectronAPI;
@@ -172,6 +174,8 @@ describe('IPC Bridge', () => {
         onTabTitleUpdated: vi.fn((callback) => { eventHandlers.tabTitleUpdated = callback; }),
         onTabUrlUpdated: vi.fn((callback) => { eventHandlers.tabUrlUpdated = callback; }),
         onActiveTabChanged: vi.fn((callback) => { eventHandlers.activeTabChanged = callback; }),
+        onTabLoadError: vi.fn((callback) => { eventHandlers.tabLoadError = callback; }),
+        onTabFaviconUpdated: vi.fn((callback) => { eventHandlers.tabFaviconUpdated = callback; }),
       };
 
       window.electronAPI = mockElectronAPI;

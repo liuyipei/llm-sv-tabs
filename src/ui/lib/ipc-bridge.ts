@@ -85,6 +85,22 @@ export function initializeIPC(): IPCBridgeAPI {
     activeTabId.set(data.id);
   });
 
+  // Handle tab load errors
+  window.electronAPI.onTabLoadError((data) => {
+    console.error(`Tab ${data.id} failed to load: ${data.errorDescription} (code: ${data.errorCode})`);
+    updateTab(data.id, {
+      loadError: {
+        errorCode: data.errorCode,
+        errorDescription: data.errorDescription,
+      },
+    });
+  });
+
+  // Handle favicon updates
+  window.electronAPI.onTabFaviconUpdated((data) => {
+    updateTab(data.id, { favicon: data.favicon });
+  });
+
   // Load initial tabs
   loadInitialTabs();
 

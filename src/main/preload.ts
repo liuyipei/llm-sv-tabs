@@ -176,6 +176,14 @@ const electronAPI = {
     // Return unsubscribe function
     return () => ipcRenderer.removeListener('llm-stream-chunk', handler);
   },
+
+  onTabLoadError: (callback: (data: { id: string; errorCode: number; errorDescription: string; url: string }) => void): void => {
+    ipcRenderer.on('tab-load-error', (_event, data) => callback(data));
+  },
+
+  onTabFaviconUpdated: (callback: (data: { id: string; favicon: string }) => void): void => {
+    ipcRenderer.on('tab-favicon-updated', (_event, data) => callback(data));
+  },
 };
 
 // Diagnostic: log every tab-updated payload to trace streaming completion signals
