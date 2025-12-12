@@ -19,23 +19,34 @@ export interface ShortcutAction {
   closeActiveTab: () => void;
   bookmarkActiveTab: () => void;
   toggleSearchBar: () => void;
+  reloadActiveTab: () => void;
+  triggerScreenshot: () => void;
+  goBack: () => void;
+  goForward: () => void;
+  nextTab: () => void;
+  previousTab: () => void;
 }
 
 /**
  * Keyboard shortcuts configuration
  * Following Chrome/browser conventions with LLM-specific additions
  *
- * Note: Some shortcuts (Ctrl+W, Ctrl+T, Ctrl+R, Ctrl+F, Ctrl+L) are handled as
- * global shortcuts in the main process to intercept them before Electron's
- * default behavior (e.g., Ctrl+W closing the window).
- *
- * These are kept here for reference and for the renderer-side fallback.
+ * These shortcuts are handled by the renderer when the UI panel is focused.
+ * When the browser content (WebContentsView) is focused, shortcuts are handled
+ * by before-input-event handlers in tab-manager.ts.
  */
 export const shortcuts: ShortcutConfig[] = [
+  // Focus shortcuts
   {
     key: 'l',
     ctrl: true,
     description: 'Focus URL input (address bar)',
+    action: 'focusUrlInput',
+  },
+  {
+    key: 't',
+    ctrl: true,
+    description: 'New tab (focus URL bar)',
     action: 'focusUrlInput',
   },
   {
@@ -44,6 +55,7 @@ export const shortcuts: ShortcutConfig[] = [
     description: 'Focus LLM query input',
     action: 'focusLLMInput',
   },
+  // Tab management
   {
     key: 'w',
     ctrl: true,
@@ -57,10 +69,51 @@ export const shortcuts: ShortcutConfig[] = [
     action: 'bookmarkActiveTab',
   },
   {
+    key: 'r',
+    ctrl: true,
+    description: 'Reload current tab',
+    action: 'reloadActiveTab',
+  },
+  {
     key: 'f',
     ctrl: true,
     description: 'Find in page',
     action: 'toggleSearchBar',
+  },
+  // Screenshot
+  {
+    key: 's',
+    ctrl: true,
+    alt: true,
+    description: 'Capture screenshot',
+    action: 'triggerScreenshot',
+  },
+  // Navigation
+  {
+    key: 'ArrowLeft',
+    alt: true,
+    description: 'Go back',
+    action: 'goBack',
+  },
+  {
+    key: 'ArrowRight',
+    alt: true,
+    description: 'Go forward',
+    action: 'goForward',
+  },
+  // Tab switching
+  {
+    key: 'Tab',
+    ctrl: true,
+    description: 'Next tab',
+    action: 'nextTab',
+  },
+  {
+    key: 'Tab',
+    ctrl: true,
+    shift: true,
+    description: 'Previous tab',
+    action: 'previousTab',
   },
 ];
 

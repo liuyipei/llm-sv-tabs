@@ -143,11 +143,23 @@ export function initKeyboardShortcuts(actions: ShortcutAction): () => void {
 
 ```typescript
 export const shortcuts: ShortcutConfig[] = [
+  // Focus shortcuts
   { key: 'l', ctrl: true, description: 'Focus URL input', action: 'focusUrlInput' },
+  { key: 't', ctrl: true, description: 'New tab (focus URL bar)', action: 'focusUrlInput' },
   { key: '.', ctrl: true, description: 'Focus LLM input', action: 'focusLLMInput' },
+  // Tab management
   { key: 'w', ctrl: true, description: 'Close active tab', action: 'closeActiveTab' },
   { key: 'd', ctrl: true, description: 'Bookmark current tab', action: 'bookmarkActiveTab' },
+  { key: 'r', ctrl: true, description: 'Reload current tab', action: 'reloadActiveTab' },
   { key: 'f', ctrl: true, description: 'Find in page', action: 'toggleSearchBar' },
+  // Screenshot
+  { key: 's', ctrl: true, alt: true, description: 'Capture screenshot', action: 'triggerScreenshot' },
+  // Navigation
+  { key: 'ArrowLeft', alt: true, description: 'Go back', action: 'goBack' },
+  { key: 'ArrowRight', alt: true, description: 'Go forward', action: 'goForward' },
+  // Tab switching
+  { key: 'Tab', ctrl: true, description: 'Next tab', action: 'nextTab' },
+  { key: 'Tab', ctrl: true, shift: true, description: 'Previous tab', action: 'previousTab' },
 ];
 ```
 
@@ -237,24 +249,26 @@ console.log('6. Focus completed');
 
 ## Current Shortcuts
 
+All shortcuts are handled in both locations for complete coverage:
+
 | Shortcut | Action | Browser View Handler | Renderer Handler |
 |----------|--------|---------------------|------------------|
 | Cmd/Ctrl+L | Focus URL bar | `before-input-event` → IPC | `keyboard-shortcuts.ts` |
-| Cmd/Ctrl+F | Focus search bar | `before-input-event` → IPC | `keyboard-shortcuts.ts` |
+| Cmd/Ctrl+T | New tab (focus URL) | `before-input-event` → IPC | `keyboard-shortcuts.ts` |
 | Cmd/Ctrl+. | Focus LLM input | `before-input-event` → IPC | `keyboard-shortcuts.ts` |
-| Cmd/Ctrl+D | Bookmark tab | `before-input-event` → IPC | `keyboard-shortcuts.ts` |
 | Cmd/Ctrl+W | Close tab | `before-input-event` → TabManager | `keyboard-shortcuts.ts` |
-| Cmd/Ctrl+T | New tab | `before-input-event` → IPC | (not in renderer) |
-| Cmd/Ctrl+R | Reload tab | `before-input-event` → TabManager | (not in renderer) |
-| Cmd/Ctrl+Alt+S | Screenshot | `before-input-event` → IPC | (not in renderer) |
-| Alt+Left | Go back | `before-input-event` → TabManager | (not in renderer) |
-| Alt+Right | Go forward | `before-input-event` → TabManager | (not in renderer) |
-| Cmd+[ | Go back (Mac) | `before-input-event` → TabManager | (not in renderer) |
-| Cmd+] | Go forward (Mac) | `before-input-event` → TabManager | (not in renderer) |
-| Ctrl+Tab | Next tab | `before-input-event` → IPC | (not in renderer) |
-| Ctrl+Shift+Tab | Previous tab | `before-input-event` → IPC | (not in renderer) |
-| Cmd+Alt+Right | Next tab (Mac) | `before-input-event` → IPC | (not in renderer) |
-| Cmd+Alt+Left | Previous tab (Mac) | `before-input-event` → IPC | (not in renderer) |
+| Cmd/Ctrl+D | Bookmark tab | `before-input-event` → IPC | `keyboard-shortcuts.ts` |
+| Cmd/Ctrl+R | Reload tab | `before-input-event` → TabManager | `keyboard-shortcuts.ts` |
+| Cmd/Ctrl+F | Focus search bar | `before-input-event` → IPC | `keyboard-shortcuts.ts` |
+| Cmd/Ctrl+Alt+S | Screenshot | `before-input-event` → IPC | `keyboard-shortcuts.ts` |
+| Alt+Left | Go back | `before-input-event` → TabManager | `keyboard-shortcuts.ts` |
+| Alt+Right | Go forward | `before-input-event` → TabManager | `keyboard-shortcuts.ts` |
+| Ctrl+Tab | Next tab | `before-input-event` → IPC | `keyboard-shortcuts.ts` |
+| Ctrl+Shift+Tab | Previous tab | `before-input-event` → IPC | `keyboard-shortcuts.ts` |
+| Cmd+[ | Go back (Mac) | `before-input-event` → TabManager | (Mac-specific) |
+| Cmd+] | Go forward (Mac) | `before-input-event` → TabManager | (Mac-specific) |
+| Cmd+Alt+Right | Next tab (Mac) | `before-input-event` → IPC | (Mac-specific) |
+| Cmd+Alt+Left | Previous tab (Mac) | `before-input-event` → IPC | (Mac-specific) |
 | Esc | Return focus to page | (not needed) | `App.svelte` → IPC |
 
 ### How the `Esc` Focus Return Works
