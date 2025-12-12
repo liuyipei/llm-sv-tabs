@@ -46,18 +46,29 @@ You'll receive a `.pfx` or `.p12` file with a password.
 
 ## Local Development Builds
 
+### Installing Dependencies
+
+**Important:** See `.claude/BUILD-INSTRUCTIONS.md` for environment-specific installation notes.
+
+```bash
+# Standard installation (full Electron binary)
+npm install
+
+# Restricted environments (Claude Code, sandboxed CI/CD)
+npm install --ignore-scripts
+```
+
+**Note:** The `--ignore-scripts` flag skips Electron binary download. This is fine for building the app code (`npm run build`, `npm test`), but you'll need the full Electron binary to create installers with `npm run dist:*`.
+
 ### Building without Code Signing
 
 For testing locally without certificates:
 
 ```bash
-# Install dependencies (first time only)
-npm install
-
-# Build all code
+# Build all code (works with or without Electron binary)
 npm run build
 
-# Build unsigned installers (will show warnings)
+# Build unsigned installers (requires full Electron installation)
 npm run dist:mac    # macOS
 npm run dist:win    # Windows
 npm run dist        # Current platform
