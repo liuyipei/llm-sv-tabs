@@ -598,6 +598,8 @@ class TabManager {
       type: tab.type,
       component: tab.component,
       metadata: tab.metadata,
+      created: tab.created,
+      lastViewed: tab.lastViewed,
     };
   }
 
@@ -722,16 +724,29 @@ class TabManager {
 
   /**
    * Save current session to disk
+   * Persists webpages, notes, and LLM response tabs. Excludes:
+   * - upload tabs (contain binary data that should be re-uploaded)
+   * - api-key-instructions (ephemeral help tab)
+   * - raw-message viewer tabs (can be reopened from the source LLM tab)
    */
   private saveSession(): void {
     const tabs = Array.from(this.tabs.values())
       .map((tab) => this.getTabData(tab.id)!)
-      .filter((tab) => tab.type !== 'notes' && tab.type !== 'upload'); // Don't persist note tabs
+      .filter((tab) => {
+        // Exclude upload tabs (binary data)
+        if (tab.type === 'upload') return false;
+        // Exclude ephemeral helper tabs
+        if (tab.component === 'api-key-instructions') return false;
+        // Exclude raw message viewer (can be reopened from source tab)
+        if (tab.url?.startsWith('raw-message://')) return false;
+        return true;
+      });
     this.sessionManager.saveSession(tabs, this.activeTabId);
   }
 
   /**
    * Restore session from disk
+   * Handles different tab types: webpages, notes, and LLM responses
    */
   restoreSession(): boolean {
     const session = this.sessionManager.loadSession();
@@ -750,11 +765,9 @@ class TabManager {
 
     // Restore each tab without auto-selecting
     for (const tabData of session.tabs) {
-      const { tabId } = this.openUrl(tabData.url, false); // Don't auto-select during restoration
-      restoredTabIds.push(tabId);
-      const tab = this.tabs.get(tabId);
-      if (tab && tabData.title !== 'Loading...') {
-        tab.title = tabData.title;
+      const tabId = this.restoreTab(tabData);
+      if (tabId) {
+        restoredTabIds.push(tabId);
       }
     }
 
@@ -767,6 +780,101 @@ class TabManager {
     }
 
     return true;
+  }
+
+  /**
+   * Restore a single tab based on its type and component
+   */
+  private restoreTab(tabData: TabData): string | null {
+    // LLM Response tabs
+    if (tabData.component === 'llm-response' && tabData.metadata?.isLLMResponse) {
+      return this.restoreLLMResponseTab(tabData);
+    }
+
+    // Text note tabs
+    if (tabData.component === 'note' && tabData.type === 'notes') {
+      return this.restoreNoteTab(tabData);
+    }
+
+    // Regular webpage tabs
+    if (tabData.type === 'webpage') {
+      const { tabId } = this.openUrl(tabData.url, false);
+      const tab = this.tabs.get(tabId);
+      if (tab && tabData.title !== 'Loading...') {
+        tab.title = tabData.title;
+      }
+      return tabId;
+    }
+
+    // Unknown tab type - skip
+    console.warn(`Skipping unknown tab type during restore: ${tabData.type}/${tabData.component}`);
+    return null;
+  }
+
+  /**
+   * Restore an LLM response tab with its full metadata
+   */
+  private restoreLLMResponseTab(tabData: TabData): string {
+    const tabId = this.createTabId();
+    const metadata = tabData.metadata || {};
+
+    const tab: TabWithView = {
+      id: tabId,
+      title: tabData.title,
+      url: tabData.url,
+      type: 'notes' as TabType,
+      component: 'llm-response',
+      created: tabData.created || Date.now(),
+      lastViewed: tabData.lastViewed || Date.now(),
+      metadata: {
+        isLLMResponse: true,
+        query: metadata.query,
+        fullQuery: metadata.fullQuery,
+        response: metadata.response,
+        error: metadata.error,
+        tokensIn: metadata.tokensIn,
+        tokensOut: metadata.tokensOut,
+        model: metadata.model,
+        selectedTabIds: metadata.selectedTabIds,
+        contextTabs: metadata.contextTabs,
+        isStreaming: false, // Never restore as streaming
+        persistentId: metadata.persistentId,
+        shortId: metadata.shortId,
+        slug: metadata.slug,
+      },
+    };
+
+    this.tabs.set(tabId, tab);
+    this.sendToRenderer('tab-created', { tab: this.getTabData(tabId) });
+
+    return tabId;
+  }
+
+  /**
+   * Restore a text note tab with its content
+   */
+  private restoreNoteTab(tabData: TabData): string {
+    const tabId = this.createTabId();
+    const metadata = tabData.metadata || {};
+
+    const tab: TabWithView = {
+      id: tabId,
+      title: tabData.title,
+      url: tabData.url,
+      type: 'notes' as TabType,
+      component: 'note',
+      created: tabData.created || Date.now(),
+      lastViewed: tabData.lastViewed || Date.now(),
+      metadata: {
+        fileType: 'text',
+        noteContent: metadata.noteContent || '',
+      },
+    };
+
+    this.tabs.set(tabId, tab);
+    this.sendToRenderer('tab-created', { tab: this.getTabData(tabId) });
+
+    return tabId;
   }
 
   /**

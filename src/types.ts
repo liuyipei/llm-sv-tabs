@@ -77,6 +77,8 @@ export interface TabData {
   type: TabType;
   component?: 'llm-response' | 'note' | 'api-key-instructions';
   metadata?: TabMetadata;
+  created?: number;
+  lastViewed?: number;
 }
 
 export type SortMode = 'time' | 'url' | 'title' | 'manual';
