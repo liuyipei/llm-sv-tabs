@@ -1,0 +1,77 @@
+name: Build and Release - Windows
+
+on:
+  push:
+    tags:
+      - 'v*'  # Triggers on version tags like v1.0.0
+  workflow_dispatch:  # Allows manual trigger
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build application
+        run: npm run build
+
+      - name: Decode code signing certificate
+        if: ${{ secrets.WINDOWS_CERTIFICATE }}
+        shell: powershell
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE }}
+        run: |
+          $certificateBytes = [Convert]::FromBase64String($env:CERTIFICATE_BASE64)
+          $certificatePath = Join-Path -Path $env:RUNNER_TEMP -ChildPath "certificate.pfx"
+          [IO.File]::WriteAllBytes($certificatePath, $certificateBytes)
+          echo "WIN_CSC_LINK=$certificatePath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Build and sign Windows app
+        env:
+          # Code signing - WIN_CSC_LINK set in previous step
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          # GitHub token for publishing
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run dist:win
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release
+          path: |
+            release/*.exe
+          retention-days: 7
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            release/*.exe
+          draft: true
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cleanup certificate
+        if: always()
+        shell: powershell
+        run: |
+          $certificatePath = Join-Path -Path $env:RUNNER_TEMP -ChildPath "certificate.pfx"
+          if (Test-Path $certificatePath) {
+            Remove-Item -Path $certificatePath -Force
+          }
