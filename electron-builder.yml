@@ -1,0 +1,85 @@
+appId: com.llmbrowser.app
+productName: LLM Browser
+copyright: Copyright © 2024
+
+# Directories
+directories:
+  output: release
+  buildResources: build
+
+# Files to include
+files:
+  - dist/**/*
+  - dist-main/**/*
+  - package.json
+  - node_modules/**/*
+
+# macOS Configuration
+mac:
+  category: public.app-category.productivity
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+    - target: zip
+      arch: [x64, arm64]
+  icon: build/icon.icns
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  # Code signing identity will be picked up from CSC_LINK env var
+  # Notarization will use APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID
+
+# Notarization hook
+afterSign: scripts/notarize.js
+
+dmg:
+  sign: false  # DMG itself doesn't need signing, only the app inside
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+
+# Windows Configuration
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.ico
+  publisherName: LLM Browser
+  # Code signing will use WIN_CSC_LINK, WIN_CSC_KEY_PASSWORD env vars
+  signingHashAlgorithms: [sha256]
+  # Timestamp server for code signing
+  rfc3161TimeStampServer: http://timestamp.sectigo.com
+  timeStampServer: http://timestamp.sectigo.com
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+
+# Linux Configuration (optional, for completeness)
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Office
+  icon: build/icons
+
+# Publishing configuration (for auto-updates via GitHub Releases)
+publish:
+  provider: github
+  owner: liuyipei
+  repo: llm-sv-tabs
+  releaseType: release
+
+# Compression
+compression: maximum
+
+# Electron version (should match your package.json)
+electronVersion: 39.2.2

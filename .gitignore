@@ -27,7 +27,29 @@ dist-ssr
 # Build output
 dist/
 dist-main/
-build/
+
+# Release builds
+release/
+*.dmg
+*.exe
+*.AppImage
+*.deb
+*.rpm
+*.snap
+
+# Code signing certificates (NEVER commit these!)
+build/*.p12
+build/*.pfx
+build/*.cer
+build/*.crt
+build/*.key
+*.p12
+*.pfx
+
+# Icon files (add your own, don't commit temporary ones)
+build/icon.icns
+build/icon.ico
+build/icons/
 
 # Environment variables
 .env
