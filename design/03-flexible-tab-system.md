@@ -692,51 +692,52 @@ for (const tabId of options.selectedTabIds) {
 
 ### Session Storage
 
-Only webpage tabs are persisted (notes/uploads are ephemeral):
+Webpages, notes, and LLM response tabs are persisted. Only uploads and ephemeral helper tabs are excluded:
 
 ```typescript
-// session-manager.ts
-async saveSession(): Promise<void> {
-  const webpageTabs = Array.from(tabManager.getAllTabs())
-    .filter(tab => tab.type === 'webpage')
-    .map(tab => ({
-      title: tab.title,
-      url: tab.url,
-      favicon: tab.favicon,
-    }));
+// tab-manager.ts saveSession()
+const tabs = Array.from(this.tabs.values())
+  .map((tab) => this.getTabData(tab.id)!)
+  .filter((tab) => {
+    // Exclude upload tabs (binary data)
+    if (tab.type === 'upload') return false;
+    // Exclude ephemeral helper tabs
+    if (tab.component === 'api-key-instructions') return false;
+    // Exclude raw message viewer (can be reopened from source tab)
+    if (tab.url?.startsWith('raw-message://')) return false;
+    return true;
+  });
 
-  const session = {
-    tabs: webpageTabs,
-    activeTabIndex: webpageTabs.findIndex(t => t.url === activeTab.url),
-  };
-
-  await fs.writeFile(
-    path.join(app.getPath('userData'), 'session.json'),
-    JSON.stringify(session, null, 2)
-  );
-}
+this.sessionManager.saveSession(tabs, this.activeTabId);
 ```
 
 ### Restoration
 
+Tabs are restored based on their type and component:
+
 ```typescript
-async restoreSession(): Promise<void> {
-  const sessionPath = path.join(app.getPath('userData'), 'session.json');
-
-  if (fs.existsSync(sessionPath)) {
-    const session = JSON.parse(await fs.readFile(sessionPath, 'utf-8'));
-
-    for (const tab of session.tabs) {
-      await tabManager.openUrl(tab.url);
-    }
-
-    if (session.activeTabIndex >= 0) {
-      const tabs = tabManager.getAllTabs();
-      await tabManager.setActiveTab(tabs[session.activeTabIndex].id);
-    }
+private restoreTab(tabData: TabData): string | null {
+  // LLM Response tabs - restore with full metadata
+  if (tabData.component === 'llm-response' && tabData.metadata?.isLLMResponse) {
+    return this.restoreLLMResponseTab(tabData);
   }
+
+  // Text note tabs - restore with content
+  if (tabData.component === 'note' && tabData.type === 'notes') {
+    return this.restoreNoteTab(tabData);
+  }
+
+  // Regular webpage tabs - reload from URL
+  if (tabData.type === 'webpage') {
+    const { tabId } = this.openUrl(tabData.url, false);
+    return tabId;
+  }
+
+  return null;
 }
 ```
+
+**For complete persistence details, see:** [Session Persistence Design Document](./10-session-persistence.md)
 
 ## Future Extensions
 

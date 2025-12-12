@@ -6,6 +6,7 @@ import { createDebugInfoHTML } from './templates/debug-info-template.js';
 import { LLMTabService } from './tab-manager/llm-tab-service.js';
 import { FindInPageService } from './tab-manager/find-in-page-service.js';
 import { NavigationService } from './tab-manager/navigation-service.js';
+import { SessionPersistenceService } from './tab-manager/session-persistence-service.js';
 import { createConfiguredView } from './tab-manager/web-contents-view-factory.js';
 
 class TabManager {
@@ -24,6 +25,7 @@ class TabManager {
   private llmTabs: LLMTabService;
   private findInPageService: FindInPageService;
   private navigation: NavigationService;
+  private sessionPersistence: SessionPersistenceService;
 
   constructor(mainWindow: BrowserWindow) {
     this.mainWindow = mainWindow;
@@ -51,6 +53,14 @@ class TabManager {
     });
 
     this.navigation = new NavigationService({ tabs: this.tabs });
+
+    this.sessionPersistence = new SessionPersistenceService({
+      tabs: this.tabs,
+      createTabId: () => this.createTabId(),
+      getTabData: (tabId) => this.getTabData(tabId),
+      sendToRenderer: (channel, payload) => this.sendToRenderer(channel, payload),
+      openUrl: (url, autoSelect) => this.openUrl(url, autoSelect),
+    });
 
     // Handle window resize to update WebContentsView bounds
     this.mainWindow.on('resize', () => this.updateWebContentsViewBounds());
@@ -740,6 +750,8 @@ class TabManager {
       type: tab.type,
       component: tab.component,
       metadata: tab.metadata,
+      created: tab.created,
+      lastViewed: tab.lastViewed,
     };
   }
 
@@ -866,9 +878,7 @@ class TabManager {
    * Save current session to disk
    */
   private saveSession(): void {
-    const tabs = Array.from(this.tabs.values())
-      .map((tab) => this.getTabData(tab.id)!)
-      .filter((tab) => tab.type !== 'notes' && tab.type !== 'upload'); // Don't persist note tabs
+    const tabs = this.sessionPersistence.getTabsForPersistence();
     this.sessionManager.saveSession(tabs, this.activeTabId);
   }
 
@@ -892,11 +902,9 @@ class TabManager {
 
     // Restore each tab without auto-selecting
     for (const tabData of session.tabs) {
-      const { tabId } = this.openUrl(tabData.url, false); // Don't auto-select during restoration
-      restoredTabIds.push(tabId);
-      const tab = this.tabs.get(tabId);
-      if (tab && tabData.title !== 'Loading...') {
-        tab.title = tabData.title;
+      const tabId = this.sessionPersistence.restoreTab(tabData);
+      if (tabId) {
+        restoredTabIds.push(tabId);
       }
     }
 
