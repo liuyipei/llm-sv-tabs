@@ -11,6 +11,7 @@ import type {
   TabTitleUpdatedEvent,
   TabUrlUpdatedEvent,
   ActiveTabChangedEvent,
+  NavigationStateUpdatedEvent,
   ExtractedContent,
   ProviderType,
   LLMModel,
@@ -152,6 +153,10 @@ const electronAPI = {
 
   onActiveTabChanged: (callback: (data: ActiveTabChangedEvent) => void): void => {
     ipcRenderer.on('active-tab-changed', (_event, data) => callback(data));
+  },
+
+  onNavigationStateUpdated: (callback: (data: NavigationStateUpdatedEvent) => void): void => {
+    ipcRenderer.on('navigation-state-updated', (_event, data) => callback(data));
   },
 
   onFocusUrlBar: (callback: () => void): void => {

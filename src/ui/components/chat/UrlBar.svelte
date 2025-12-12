@@ -120,17 +120,14 @@
       });
     }
 
-    // Poll navigation state periodically to catch any missed updates
-    const intervalId = setInterval(() => {
-      if ($activeTabId && ipc) {
-        updateNavigationState($activeTabId);
-      }
-    }, 500);
-
-    // Cleanup interval on unmount
-    return () => {
-      clearInterval(intervalId);
-    };
+    if (ipc && ipc.onNavigationStateUpdated) {
+      ipc.onNavigationStateUpdated((state) => {
+        if (state.id === $activeTabId) {
+          canGoBack = state.canGoBack;
+          canGoForward = state.canGoForward;
+        }
+      });
+    }
   });
 </script>
 

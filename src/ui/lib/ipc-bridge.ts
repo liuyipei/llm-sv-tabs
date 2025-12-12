@@ -43,6 +43,9 @@ export interface IPCBridgeAPI {
   setSearchBarVisible(visible: boolean): Promise<IPCResponse | { success: boolean }>;
   focusActiveWebContents(): Promise<IPCResponse | { success: boolean; error?: string }>;
   onLLMChunk?(callback: (payload: { tabId: string; chunk: string }) => void): () => void;
+  onNavigationStateUpdated(
+    callback: (payload: { id: string; canGoBack: boolean; canGoForward: boolean }) => void,
+  ): void;
 }
 
 /**
@@ -85,6 +88,17 @@ export function initializeIPC(): IPCBridgeAPI {
   window.electronAPI.onActiveTabChanged((data) => {
     activeTabId.set(data.id);
   });
+
+  if (typeof window.electronAPI.onNavigationStateUpdated === 'function') {
+    window.electronAPI.onNavigationStateUpdated((data) => {
+      const tab = get(activeTabs).get(data.id);
+      if (tab) {
+        updateTab(tab.id, {
+          metadata: { ...tab.metadata, canGoBack: data.canGoBack, canGoForward: data.canGoForward },
+        });
+      }
+    });
+  }
 
   // Handle tab load errors
   window.electronAPI.onTabLoadError((data) => {
@@ -138,6 +152,7 @@ export function initializeIPC(): IPCBridgeAPI {
     stopFindInPage: (tabId: string) => window.electronAPI.stopFindInPage(tabId),
     setSearchBarVisible: (visible: boolean) => window.electronAPI.setSearchBarVisible(visible),
     focusActiveWebContents: () => window.electronAPI.focusActiveWebContents(),
+    onNavigationStateUpdated: (callback) => window.electronAPI.onNavigationStateUpdated(callback),
   };
 }
 
@@ -371,6 +386,10 @@ function createMockAPI(): IPCBridgeAPI {
     focusActiveWebContents: async () => {
       console.log('Mock: focusActiveWebContents');
       return { success: true };
+    },
+    onNavigationStateUpdated: (callback) => {
+      console.log('Mock: onNavigationStateUpdated');
+      callback({ id: 'mock', canGoBack: false, canGoForward: false });
     },
   };
 }

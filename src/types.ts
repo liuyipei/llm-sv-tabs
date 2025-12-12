@@ -68,6 +68,10 @@ export interface TabMetadata {
   mimeType?: string;
   imageData?: string; // base64 data URL for images
   noteContent?: string; // For editable text notes
+
+  // Navigation state cache for renderer
+  canGoBack?: boolean;
+  canGoForward?: boolean;
 }
 
 export interface TabData {
@@ -262,6 +266,12 @@ export interface TabUrlUpdatedEvent {
   url: string;
 }
 
+export interface NavigationStateUpdatedEvent {
+  id: string;
+  canGoBack: boolean;
+  canGoForward: boolean;
+}
+
 export interface ActiveTabChangedEvent {
   id: string;
 }
@@ -337,6 +347,7 @@ export interface IPCBridge {
   onTabTitleUpdated(callback: (event: TabTitleUpdatedEvent) => void): void;
   onTabUrlUpdated(callback: (event: TabUrlUpdatedEvent) => void): void;
   onActiveTabChanged(callback: (event: ActiveTabChangedEvent) => void): void;
+  onNavigationStateUpdated(callback: (event: NavigationStateUpdatedEvent) => void): void;
 }
 
 // ============================================================================

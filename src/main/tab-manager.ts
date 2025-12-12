@@ -66,11 +66,11 @@ class TabManager {
     this.mainWindow.on('resize', () => this.updateWebContentsViewBounds());
 
     // Save session periodically (every 30 seconds)
-    setInterval(() => this.saveSession(), 30000);
+    setInterval(() => void this.saveSession(), 30000);
 
     // Save session before app quits
     this.mainWindow.on('close', () => {
-      this.saveSession();
+      void void this.saveSession();
     });
   }
 
@@ -293,6 +293,11 @@ class TabManager {
     view.webContents.on('did-navigate', (_event, url) => {
       tab.url = url;
       this.sendToRenderer('tab-url-updated', { id: tabId, url });
+      this.sendNavigationState(tabId);
+    });
+
+    view.webContents.on('did-navigate-in-page', () => {
+      this.sendNavigationState(tabId);
     });
 
     // Extract favicon when page finishes loading
@@ -302,6 +307,8 @@ class TabManager {
         tab.favicon = favicon;
         this.sendToRenderer('tab-favicon-updated', { id: tabId, favicon });
       }
+
+      this.sendNavigationState(tabId);
     });
 
     // Handle page load failures (network errors, DNS failures, certificate errors, etc.)
@@ -335,6 +342,8 @@ class TabManager {
       });
     });
 
+    this.sendNavigationState(tabId);
+
     // Set as active tab (if autoSelect is true)
     if (autoSelect) {
       this.setActiveTab(tabId);
@@ -344,7 +353,7 @@ class TabManager {
     this.sendToRenderer('tab-created', { tab: this.getTabData(tabId) });
 
     // Save session after tab change
-    this.saveSession();
+    void this.saveSession();
 
     return { tabId, tab: this.getTabData(tabId)! };
   }
@@ -400,7 +409,7 @@ class TabManager {
     this.sendToRenderer('tab-created', { tab: this.getTabData(tabId) });
 
     // Save session after tab change
-    this.saveSession();
+    void this.saveSession();
 
     return { tabId, tab: this.getTabData(tabId)! };
   }
@@ -469,7 +478,7 @@ class TabManager {
     this.sendToRenderer('tab-created', { tab: this.getTabData(tabId) });
 
     // Save session after tab change
-    this.saveSession();
+    void this.saveSession();
 
     return { tabId, tab: this.getTabData(tabId)! };
   }
@@ -511,7 +520,7 @@ class TabManager {
     this.sendToRenderer('tab-title-updated', { id: tabId, title: tab.title });
 
     // Save session
-    this.saveSession();
+    void this.saveSession();
 
     return { success: true };
   }
@@ -626,7 +635,7 @@ class TabManager {
     this.sendToRenderer('tab-closed', { id: tabId });
 
     // Save session after tab change
-    this.saveSession();
+    void this.saveSession();
 
     return { success: true };
   }
@@ -707,6 +716,8 @@ class TabManager {
 
     // Notify renderer
     this.sendToRenderer('active-tab-changed', { id: tabId });
+
+    this.sendNavigationState(tabId);
 
     return { success: true };
   }
@@ -877,16 +888,20 @@ class TabManager {
   /**
    * Save current session to disk
    */
-  private saveSession(): void {
+  private async saveSession(): Promise<void> {
     const tabs = this.sessionPersistence.getTabsForPersistence();
-    this.sessionManager.saveSession(tabs, this.activeTabId);
+    try {
+      await this.sessionManager.saveSession(tabs, this.activeTabId);
+    } catch (error) {
+      console.error('Failed to persist session', error);
+    }
   }
 
   /**
    * Restore session from disk
    */
-  restoreSession(): boolean {
-    const session = this.sessionManager.loadSession();
+  async restoreSession(): Promise<boolean> {
+    const session = await this.sessionManager.loadSession();
     if (!session || session.tabs.length === 0) {
       return false;
     }
@@ -922,8 +937,26 @@ class TabManager {
   /**
    * Clear saved session
    */
-  clearSession(): void {
-    this.sessionManager.clearSession();
+  async clearSession(): Promise<void> {
+    await this.sessionManager.clearSession();
+  }
+
+  private sendNavigationState(tabId: string): void {
+    const state = this.navigation.getNavigationState(tabId);
+    if (!state.success) {
+      this.sendToRenderer('navigation-state-updated', {
+        id: tabId,
+        canGoBack: false,
+        canGoForward: false,
+      });
+      return;
+    }
+
+    this.sendToRenderer('navigation-state-updated', {
+      id: tabId,
+      canGoBack: state.canGoBack ?? false,
+      canGoForward: state.canGoForward ?? false,
+    });
   }
 
   /**
