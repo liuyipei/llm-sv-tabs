@@ -174,6 +174,14 @@ const electronAPI = {
     ipcRenderer.on('navigate-previous-tab', () => callback());
   },
 
+  onBookmarkTab: (callback: () => void): void => {
+    ipcRenderer.on('bookmark-tab', () => callback());
+  },
+
+  onTriggerScreenshot: (callback: () => void): void => {
+    ipcRenderer.on('trigger-screenshot', () => callback());
+  },
+
   onFoundInPage: (callback: (data: { activeMatchOrdinal: number; matches: number }) => void): void => {
     ipcRenderer.on('found-in-page', (_event, data) => callback(data));
   },

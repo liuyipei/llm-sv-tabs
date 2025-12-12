@@ -187,6 +187,49 @@
     await ipc.setActiveTab(tabs[previousIndex].id);
   }
 
+  async function reloadActiveTab(): Promise<void> {
+    const currentActiveTabId = $activeTabId;
+    if (currentActiveTabId && ipc) {
+      try {
+        await ipc.reloadTab(currentActiveTabId);
+      } catch (error) {
+        console.error('Failed to reload active tab:', error);
+      }
+    }
+  }
+
+  async function triggerScreenshot(): Promise<void> {
+    if (ipc) {
+      try {
+        await ipc.triggerScreenshot();
+      } catch (error) {
+        console.error('Failed to trigger screenshot:', error);
+      }
+    }
+  }
+
+  async function goBack(): Promise<void> {
+    const currentActiveTabId = $activeTabId;
+    if (currentActiveTabId && ipc) {
+      try {
+        await ipc.goBack(currentActiveTabId);
+      } catch (error) {
+        console.error('Failed to go back:', error);
+      }
+    }
+  }
+
+  async function goForward(): Promise<void> {
+    const currentActiveTabId = $activeTabId;
+    if (currentActiveTabId && ipc) {
+      try {
+        await ipc.goForward(currentActiveTabId);
+      } catch (error) {
+        console.error('Failed to go forward:', error);
+      }
+    }
+  }
+
   function handleGlobalKeydown(event: KeyboardEvent): void {
     const isCtrlOrMeta = event.ctrlKey || event.metaKey;
 
@@ -273,6 +316,12 @@
       closeActiveTab,
       bookmarkActiveTab,
       toggleSearchBar,
+      reloadActiveTab,
+      triggerScreenshot,
+      goBack,
+      goForward,
+      nextTab: navigateToNextTab,
+      previousTab: navigateToPreviousTab,
     });
 
     // Set up IPC listener for focus-url-bar event (triggered by global shortcut)
@@ -292,12 +341,6 @@
         });
       }
 
-      if (window.electronAPI.onBookmarkAdded) {
-        window.electronAPI.onBookmarkAdded((bookmark) => {
-          console.log('Bookmark added via IPC:', bookmark);
-          addBookmarkToStore(bookmark);
-        });
-      }
 
       // Set up IPC listeners for tab navigation using sorted order
       if (window.electronAPI.onNavigateNextTab) {
@@ -309,6 +352,20 @@
       if (window.electronAPI.onNavigatePreviousTab) {
         window.electronAPI.onNavigatePreviousTab(() => {
           navigateToPreviousTab();
+        });
+      }
+
+      // Handle bookmark shortcut from browser view
+      if (window.electronAPI.onBookmarkTab) {
+        window.electronAPI.onBookmarkTab(() => {
+          bookmarkActiveTab();
+        });
+      }
+
+      // Handle screenshot shortcut from browser view
+      if (window.electronAPI.onTriggerScreenshot) {
+        window.electronAPI.onTriggerScreenshot(() => {
+          ipc.triggerScreenshot();
         });
       }
     }
