@@ -20,7 +20,7 @@ const appContext: MainProcessContext = {
 };
 let sessionSecurityConfigured = false;
 
-function createWindow(): void {
+async function createWindow(): Promise<void> {
   const preloadPath = join(__dirname, 'preload.js');
 
   mainWindow = new BrowserWindow({
@@ -53,7 +53,7 @@ function createWindow(): void {
   appContext.screenshotService = new ScreenshotService(mainWindow);
 
   // Restore session or open default homepage
-  const sessionRestored = appContext.tabManager.restoreSession();
+  const sessionRestored = await appContext.tabManager.restoreSession();
   if (!sessionRestored) {
     // No saved session, open default homepage
     appContext.tabManager.openUrl('https://www.google.com');
@@ -135,7 +135,7 @@ function setupGlobalShortcuts(): void {
 // configureSessionSecurity sets a Chrome-like user agent so browsing appears as a real browser.
 app.commandLine.appendSwitch('disable-features', 'UserAgentClientHint');
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Setup shutdown handlers first to catch early termination
   shutdownManager.setup();
 
@@ -144,7 +144,7 @@ app.whenReady().then(() => {
     sessionSecurityConfigured = true;
   }
 
-  createWindow();
+  await createWindow();
 
   // Set up IPC handlers once (not per-window, as ipcMain.handle registers globally)
   registerIpcHandlers(appContext);
@@ -154,7 +154,7 @@ app.whenReady().then(() => {
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+      void createWindow();
     }
   });
 });

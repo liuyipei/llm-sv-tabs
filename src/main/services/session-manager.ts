@@ -4,7 +4,8 @@
 
 import { app } from 'electron';
 import { join } from 'path';
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { existsSync } from 'fs';
+import { mkdir, readFile, writeFile } from 'fs/promises';
 import type { TabData } from '../../types';
 
 interface SessionData {
@@ -24,11 +25,11 @@ export class SessionManager {
   /**
    * Save current session to disk
    */
-  saveSession(tabs: TabData[], activeTabId: string | null): void {
+  async saveSession(tabs: TabData[], activeTabId: string | null): Promise<void> {
     try {
       const userDataPath = app.getPath('userData');
       if (!existsSync(userDataPath)) {
-        mkdirSync(userDataPath, { recursive: true });
+        await mkdir(userDataPath, { recursive: true });
       }
 
       const sessionData: SessionData = {
@@ -37,7 +38,7 @@ export class SessionManager {
         lastSaved: Date.now(),
       };
 
-      writeFileSync(this.sessionPath, JSON.stringify(sessionData, null, 2), 'utf-8');
+      await writeFile(this.sessionPath, JSON.stringify(sessionData, null, 2), 'utf-8');
       console.log(`Session saved: ${tabs.length} tabs`);
     } catch (error) {
       console.error('Failed to save session:', error);
@@ -47,14 +48,14 @@ export class SessionManager {
   /**
    * Load session from disk
    */
-  loadSession(): SessionData | null {
+  async loadSession(): Promise<SessionData | null> {
     try {
       if (!existsSync(this.sessionPath)) {
         console.log('No saved session found');
         return null;
       }
 
-      const data = readFileSync(this.sessionPath, 'utf-8');
+      const data = await readFile(this.sessionPath, 'utf-8');
       const sessionData = JSON.parse(data) as SessionData;
 
       console.log(`Session loaded: ${sessionData.tabs.length} tabs`);
@@ -68,10 +69,10 @@ export class SessionManager {
   /**
    * Clear saved session
    */
-  clearSession(): void {
+  async clearSession(): Promise<void> {
     try {
       if (existsSync(this.sessionPath)) {
-        writeFileSync(this.sessionPath, JSON.stringify({ tabs: [], activeTabId: null, lastSaved: Date.now() }), 'utf-8');
+        await writeFile(this.sessionPath, JSON.stringify({ tabs: [], activeTabId: null, lastSaved: Date.now() }), 'utf-8');
         console.log('Session cleared');
       }
     } catch (error) {

@@ -17,8 +17,13 @@ export class NavigationService {
     if (!result.success) return result;
 
     try {
-      if (result.webContents.navigationHistory.canGoBack()) {
-        result.webContents.navigationHistory.goBack();
+      const navigationHistory = (result.webContents as any).navigationHistory;
+      if (!navigationHistory || typeof navigationHistory.goBack !== 'function' || typeof navigationHistory.canGoBack !== 'function') {
+        return { success: false, error: 'Navigation history not available' };
+      }
+
+      if (navigationHistory.canGoBack()) {
+        navigationHistory.goBack();
         return { success: true };
       }
       return { success: false, error: 'Cannot go back' };
@@ -35,8 +40,13 @@ export class NavigationService {
     if (!result.success) return result;
 
     try {
-      if (result.webContents.navigationHistory.canGoForward()) {
-        result.webContents.navigationHistory.goForward();
+      const navigationHistory = (result.webContents as any).navigationHistory;
+      if (!navigationHistory || typeof navigationHistory.goForward !== 'function' || typeof navigationHistory.canGoForward !== 'function') {
+        return { success: false, error: 'Navigation history not available' };
+      }
+
+      if (navigationHistory.canGoForward()) {
+        navigationHistory.goForward();
         return { success: true };
       }
       return { success: false, error: 'Cannot go forward' };
@@ -53,10 +63,17 @@ export class NavigationService {
     if (!result.success) return result;
 
     try {
+      const navigationHistory = (result.webContents as any).navigationHistory;
+      if (!navigationHistory ||
+        typeof navigationHistory.canGoBack !== 'function' ||
+        typeof navigationHistory.canGoForward !== 'function') {
+        return { success: true, canGoBack: false, canGoForward: false };
+      }
+
       return {
         success: true,
-        canGoBack: result.webContents.navigationHistory.canGoBack(),
-        canGoForward: result.webContents.navigationHistory.canGoForward(),
+        canGoBack: navigationHistory.canGoBack(),
+        canGoForward: navigationHistory.canGoForward(),
       };
     } catch (error) {
       if (error instanceof Error && error.message.includes('destroyed')) {
