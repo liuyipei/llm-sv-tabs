@@ -1,3 +1,5 @@
+import { readFileSync, existsSync } from 'fs';
+import { basename, extname } from 'path';
 import type { TabData, TabType, TabWithView } from '../../types';
 
 interface SessionPersistenceServiceDeps {
@@ -6,33 +8,56 @@ interface SessionPersistenceServiceDeps {
   getTabData: (tabId: string) => TabData | null;
   sendToRenderer: (channel: string, payload: any) => void;
   openUrl: (url: string, autoSelect: boolean) => { tabId: string; tab: TabData };
+  createView: () => any; // WebContentsView factory
+  createNoteHTML: (title: string, content: string, fileType: string) => string;
 }
 
 /**
  * Service for session persistence - filtering tabs for save and restoring different tab types.
  *
- * Persists: webpages, notes, LLM response tabs
- * Excludes: uploads (binary), api-key-instructions (ephemeral), raw-message viewer (reopenable)
+ * Persists: webpages, notes, LLM response tabs, file tabs (with filePath for reload)
+ * Excludes: uploads without filePath (binary data only), api-key-instructions (ephemeral), raw-message viewer (reopenable)
  */
 export class SessionPersistenceService {
   constructor(private readonly deps: SessionPersistenceServiceDeps) {}
 
   /**
    * Filter tabs to get only those that should be persisted.
-   * Excludes upload tabs, ephemeral helper tabs, and raw message viewers.
+   * Excludes upload tabs without file paths, ephemeral helper tabs, and raw message viewers.
    */
   getTabsForPersistence(): TabData[] {
     return Array.from(this.deps.tabs.values())
       .map((tab) => this.deps.getTabData(tab.id)!)
-      .filter((tab) => this.isPersistable(tab));
+      .filter((tab) => this.isPersistable(tab))
+      .map((tab) => this.prepareTabForPersistence(tab));
+  }
+
+  /**
+   * Prepare a tab for persistence by stripping large binary data.
+   * File tabs with filePath don't need the actual content stored - we'll reload from disk.
+   */
+  private prepareTabForPersistence(tab: TabData): TabData {
+    // If this is a file tab with a path, strip the binary content to save space
+    if (tab.metadata?.filePath && tab.metadata?.fileType) {
+      const { imageData, noteContent, ...restMetadata } = tab.metadata;
+      // Keep noteContent for text files since they're small, strip imageData for images/PDFs
+      return {
+        ...tab,
+        metadata: {
+          ...restMetadata,
+          noteContent: tab.metadata.fileType === 'text' ? noteContent : undefined,
+        },
+      };
+    }
+    return tab;
   }
 
   /**
    * Check if a tab should be persisted to session storage.
    */
   private isPersistable(tab: TabData): boolean {
-    // Exclude upload tabs (binary data)
-    if (tab.type === 'upload') return false;
+    // Exclude upload tabs without file path (binary data that can't be reloaded)
+    if (tab.type === 'upload' && !tab.metadata?.filePath) return false;
     // Exclude ephemeral helper tabs
     if (tab.component === 'api-key-instructions') return false;
     // Exclude raw message viewer (can be reopened from source tab)
@@ -50,7 +75,12 @@ export class SessionPersistenceService {
       return this.restoreLLMResponseTab(tabData);
     }
 
-    // Text note tabs
+    // File tabs with a file path (images, PDFs, text files from uploads)
+    if (tabData.metadata?.filePath && tabData.metadata?.fileType) {
+      return this.restoreFileTab(tabData);
+    }
+
+    // Text note tabs (manually created notes without file path)
     if (tabData.component === 'note' && tabData.type === 'notes') {
       return this.restoreNoteTab(tabData);
     }
@@ -141,5 +171,249 @@ export class SessionPersistenceService {
     this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) });
 
     return tabId;
+  }
+
+  /**
+   * Restore a file tab by reloading from the original file path.
+   * If the file no longer exists, creates a tab with an error state.
+   */
+  private restoreFileTab(tabData: TabData): string {
+    const tabId = this.deps.createTabId();
+    const metadata = tabData.metadata || {};
+    const filePath = metadata.filePath!;
+    const fileType = metadata.fileType as 'text' | 'pdf' | 'image';
+    const title = tabData.title || basename(filePath);
+
+    // Check if file exists
+    if (!existsSync(filePath)) {
+      // File no longer exists - create tab with error state
+      console.warn(`File no longer exists: ${filePath}`);
+      return this.createErrorFileTab(tabId, tabData, `File not found: ${filePath}`);
+    }
+
+    try {
+      // Read the file based on type
+      let content: string;
+      let mimeType: string | undefined;
+
+      if (fileType === 'text') {
+        // Read text file
+        content = readFileSync(filePath, 'utf-8');
+
+        const tab: TabWithView = {
+          id: tabId,
+          title,
+          url: content.trim().substring(0, 30) + (content.length > 30 ? '...' : '') || 'note://empty',
+          type: 'notes' as TabType,
+          component: 'note',
+          created: tabData.created || Date.now(),
+          lastViewed: tabData.lastViewed || Date.now(),
+          metadata: {
+            fileType: 'text',
+            noteContent: content,
+            filePath,
+          },
+        };
+
+        this.deps.tabs.set(tabId, tab);
+        this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) });
+        return tabId;
+      } else {
+        // Read binary file (image or PDF) as base64
+        const buffer = readFileSync(filePath);
+        mimeType = this.getMimeType(filePath, fileType);
+        content = `data:${mimeType};base64,${buffer.toString('base64')}`;
+
+        const tab: TabWithView = {
+          id: tabId,
+          title,
+          url: `note://${Date.now()}`,
+          type: 'notes' as TabType,
+          view: this.deps.createView(),
+          created: tabData.created || Date.now(),
+          lastViewed: tabData.lastViewed || Date.now(),
+          metadata: {
+            fileType,
+            imageData: fileType === 'image' ? content : undefined,
+            mimeType,
+            filePath,
+          },
+        };
+
+        this.deps.tabs.set(tabId, tab);
+
+        // Load HTML content into WebContentsView
+        if (tab.view) {
+          const htmlContent = this.deps.createNoteHTML(title, content, fileType);
+          const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent);
+          tab.view.webContents.loadURL(dataUrl);
+        }
+
+        this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) });
+        return tabId;
+      }
+    } catch (error) {
+      // Error reading file - create tab with error state
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`Failed to read file ${filePath}:`, errorMessage);
+      return this.createErrorFileTab(tabId, tabData, `Failed to read file: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Create a tab with an error state when file cannot be loaded.
+   */
+  private createErrorFileTab(tabId: string, tabData: TabData, errorMessage: string): string {
+    const metadata = tabData.metadata || {};
+    const fileType = metadata.fileType as 'text' | 'pdf' | 'image';
+
+    if (fileType === 'text') {
+      // For text files, show error in the note content
+      const tab: TabWithView = {
+        id: tabId,
+        title: tabData.title,
+        url: 'File Error',
+        type: 'notes' as TabType,
+        component: 'note',
+        created: tabData.created || Date.now(),
+        lastViewed: tabData.lastViewed || Date.now(),
+        metadata: {
+          fileType: 'text',
+          noteContent: '',
+          filePath: metadata.filePath,
+          fileLoadError: errorMessage,
+        },
+      };
+
+      this.deps.tabs.set(tabId, tab);
+      this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) });
+    } else {
+      // For images/PDFs, create a view with error message
+      const tab: TabWithView = {
+        id: tabId,
+        title: tabData.title,
+        url: `note://error`,
+        type: 'notes' as TabType,
+        view: this.deps.createView(),
+        created: tabData.created || Date.now(),
+        lastViewed: tabData.lastViewed || Date.now(),
+        metadata: {
+          fileType,
+          filePath: metadata.filePath,
+          fileLoadError: errorMessage,
+        },
+      };
+
+      this.deps.tabs.set(tabId, tab);
+
+      // Load error HTML into WebContentsView
+      if (tab.view) {
+        const errorHtml = this.createErrorHTML(tabData.title, errorMessage, metadata.filePath!);
+        const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(errorHtml);
+        tab.view.webContents.loadURL(dataUrl);
+      }
+
+      this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) });
+    }
+
+    return tabId;
+  }
+
+  /**
+   * Create HTML content for error display.
+   */
+  private createErrorHTML(title: string, errorMessage: string, filePath: string): string {
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>${title}</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #1e1e1e;
+      color: #cccccc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    .error-container {
+      text-align: center;
+      max-width: 500px;
+    }
+    .error-icon {
+      font-size: 48px;
+      margin-bottom: 20px;
+    }
+    .error-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      color: #f48771;
+    }
+    .error-message {
+      font-size: 14px;
+      color: #999;
+      margin-bottom: 15px;
+    }
+    .file-path {
+      font-size: 12px;
+      color: #666;
+      word-break: break-all;
+      background: #2d2d2d;
+      padding: 8px 12px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="error-container">
+    <div class="error-icon">&#128463;</div>
+    <div class="error-title">File Not Available</div>
+    <div class="error-message">${this.escapeHtml(errorMessage)}</div>
+    <div class="file-path">${this.escapeHtml(filePath)}</div>
+  </div>
+</body>
+</html>`;
+  }
+
+  /**
+   * Escape HTML special characters.
+   */
+  private escapeHtml(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  /**
+   * Get MIME type based on file extension.
+   */
+  private getMimeType(filePath: string, fileType: 'image' | 'pdf'): string {
+    const ext = extname(filePath).toLowerCase();
+
+    if (fileType === 'pdf') {
+      return 'application/pdf';
+    }
+
+    const mimeTypes: Record<string, string> = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+      '.bmp': 'image/bmp',
+      '.svg': 'image/svg+xml',
+      '.ico': 'image/x-icon',
+    };
+
+    return mimeTypes[ext] || 'application/octet-stream';
   }
 }

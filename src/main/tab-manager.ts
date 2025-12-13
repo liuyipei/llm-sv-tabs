@@ -60,6 +60,8 @@ class TabManager {
       getTabData: (tabId) => this.getTabData(tabId),
       sendToRenderer: (channel, payload) => this.sendToRenderer(channel, payload),
       openUrl: (url, autoSelect) => this.openUrl(url, autoSelect),
+      createView: () => this.createView(),
+      createNoteHTML: (title, content, fileType) => createNoteHTML(title, content, fileType as 'text' | 'pdf' | 'image'),
     });
 
     // Handle window resize to update WebContentsView bounds
@@ -358,7 +360,7 @@ class TabManager {
     return { tabId, tab: this.getTabData(tabId)! };
   }
 
-  openNoteTab(noteId: number, title: string, content: string, fileType: 'text' | 'pdf' | 'image' = 'text', autoSelect: boolean = true): { tabId: string; tab: TabData } {
+  openNoteTab(noteId: number, title: string, content: string, fileType: 'text' | 'pdf' | 'image' = 'text', autoSelect: boolean = true, filePath?: string): { tabId: string; tab: TabData } {
     const tabId = this.createTabId();
 
     // For text notes, use Svelte component (editable); for images/PDFs, use WebContentsView
@@ -388,6 +390,8 @@ class TabManager {
         mimeType: fileType === 'image' && content.startsWith('data:')
           ? content.split(';')[0].split(':')[1]
           : undefined,
+        // Store original file path for session persistence
+        filePath: filePath,
       },
     };
 
@@ -799,6 +803,11 @@ class TabManager {
     const tab = this.tabs.get(tabId);
     if (!tab || !tab.view || !tab.view.webContents) return null;
     if (tab.view.webContents.isDestroyed()) return null;
+
+    // Skip favicon extraction for non-HTTP URLs (note://, data:, etc.)
+    if (!tab.url.startsWith('http://') && !tab.url.startsWith('https://')) {
+      return null;
+    }
 
     try {
       const result = await tab.view.webContents.executeJavaScript(`

@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import type {
   IPCResponse,
   TabData,
@@ -66,8 +66,8 @@ const electronAPI = {
     ipcRenderer.invoke('copy-tab-url', tabId),
 
   // Note tabs
-  openNoteTab: (noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image'): Promise<IPCResponse<{ tabId: string; tab: TabData }>> =>
-    ipcRenderer.invoke('open-note-tab', noteId, title, content, fileType),
+  openNoteTab: (noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image', filePath?: string): Promise<IPCResponse<{ tabId: string; tab: TabData }>> =>
+    ipcRenderer.invoke('open-note-tab', noteId, title, content, fileType, filePath),
 
   updateNoteContent: (tabId: string, content: string): Promise<IPCResponse> =>
     ipcRenderer.invoke('update-note-content', tabId, content),
@@ -207,6 +207,11 @@ const electronAPI = {
 
   onTabFaviconUpdated: (callback: (data: { id: string; favicon: string }) => void): void => {
     ipcRenderer.on('tab-favicon-updated', (_event, data) => callback(data));
+  },
+
+  // File utilities
+  getPathForFile: (file: File): string => {
+    return webUtils.getPathForFile(file);
   },
 };
 

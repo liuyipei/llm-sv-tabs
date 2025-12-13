@@ -68,6 +68,8 @@ export interface TabMetadata {
   mimeType?: string;
   imageData?: string; // base64 data URL for images
   noteContent?: string; // For editable text notes
+  filePath?: string; // Original file path for uploaded files (persisted for reload)
+  fileLoadError?: string; // Error message when file could not be reloaded
 
   // Navigation state cache for renderer
   canGoBack?: boolean;

@@ -23,7 +23,7 @@ export interface IPCBridgeAPI {
   previousTab(): Promise<IPCResponse<{ tabId: string }> | { success: boolean; tabId?: string }>;
   updateTabTitle(tabId: string, title: string): Promise<IPCResponse | { success: boolean }>;
   copyTabUrl(tabId: string): Promise<IPCResponse<{ url?: string }> | { success: boolean; url?: string }>;
-  openNoteTab(noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image'): Promise<IPCResponse<{ tabId: string; tab: TabData }> | { tabId: string; tab: Tab }>;
+  openNoteTab(noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image', filePath?: string): Promise<IPCResponse<{ tabId: string; tab: TabData }> | { tabId: string; tab: Tab }>;
   updateNoteContent(tabId: string, content: string): Promise<IPCResponse | { success: boolean }>;
   openLLMResponseTab(query: string, response?: string, error?: string): Promise<IPCResponse<{ tabId: string; tab: TabData }> | { tabId: string; tab: Tab }>;
   updateLLMResponseTab(tabId: string, response: string, metadata?: any): Promise<IPCResponse | { success: boolean }>;
@@ -46,6 +46,7 @@ export interface IPCBridgeAPI {
   onNavigationStateUpdated(
     callback: (payload: { id: string; canGoBack: boolean; canGoForward: boolean }) => void,
   ): void;
+  getPathForFile?(file: File): string;
 }
 
 /**
@@ -133,7 +134,7 @@ export function initializeIPC(): IPCBridgeAPI {
     previousTab: () => window.electronAPI.previousTab(),
     updateTabTitle: (tabId: string, title: string) => window.electronAPI.updateTabTitle(tabId, title),
     copyTabUrl: (tabId: string) => window.electronAPI.copyTabUrl(tabId),
-    openNoteTab: (noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image') => window.electronAPI.openNoteTab(noteId, title, content, fileType),
+    openNoteTab: (noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image', filePath?: string) => window.electronAPI.openNoteTab(noteId, title, content, fileType, filePath),
     updateNoteContent: (tabId: string, content: string) => window.electronAPI.updateNoteContent(tabId, content),
     openLLMResponseTab: (query: string, response?: string, error?: string) => window.electronAPI.openLLMResponseTab(query, response, error),
     updateLLMResponseTab: (tabId: string, response: string, metadata?: any) => window.electronAPI.updateLLMResponseTab(tabId, response, metadata),
@@ -153,6 +154,7 @@ export function initializeIPC(): IPCBridgeAPI {
     setSearchBarVisible: (visible: boolean) => window.electronAPI.setSearchBarVisible(visible),
     focusActiveWebContents: () => window.electronAPI.focusActiveWebContents(),
     onNavigationStateUpdated: (callback) => window.electronAPI.onNavigationStateUpdated(callback),
+    getPathForFile: (file: File) => window.electronAPI.getPathForFile(file),
   };
 }
 
@@ -272,8 +274,8 @@ function createMockAPI(): IPCBridgeAPI {
       const tab = tabs.get(tabId);
       return { success: true, url: tab?.url };
     },
-    openNoteTab: async (noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image') => {
-      console.log('Mock: openNoteTab', noteId, title, content, fileType);
+    openNoteTab: async (noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image', filePath?: string) => {
+      console.log('Mock: openNoteTab', noteId, title, content, fileType, filePath);
       const url = fileType === 'text'
         ? (content.trim().substring(0, 30) + (content.length > 30 ? '...' : '')) || 'note://empty'
         : `note://${noteId}`;
@@ -288,6 +290,7 @@ function createMockAPI(): IPCBridgeAPI {
         metadata: {
           fileType: fileType,
           noteContent: fileType === 'text' ? content : undefined,
+          filePath: filePath,
         },
       };
       addTab(tab);
@@ -390,6 +393,10 @@ function createMockAPI(): IPCBridgeAPI {
     onNavigationStateUpdated: (callback) => {
       console.log('Mock: onNavigationStateUpdated');
       callback({ id: 'mock', canGoBack: false, canGoForward: false });
+    },
+    getPathForFile: (file: File) => {
+      console.log('Mock: getPathForFile', file.name);
+      return ''; // Mock returns empty path
     },
   };
 }
