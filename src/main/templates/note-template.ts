@@ -74,9 +74,10 @@ export function createNoteHTML(title: string, content: string, fileType: 'text' 
   <title>${escapeHtml(title)}</title>
   <style>
     ${baseStyles}
+    body { padding: 0; overflow: hidden; }
     .pdf-container {
       width: 100%;
-      height: calc(100vh - 120px);
+      height: 100vh;
       display: flex;
       justify-content: center;
     }
@@ -89,7 +90,6 @@ export function createNoteHTML(title: string, content: string, fileType: 'text' 
   </style>
 </head>
 <body>
-  <h1>${escapeHtml(title)}</h1>
   <div class="pdf-container">
     <embed src="${content}" type="application/pdf" />
   </div>
