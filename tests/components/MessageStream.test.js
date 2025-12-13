@@ -247,4 +247,41 @@ describe('MessageStream - Conversation Persistence', () => {
       // but demonstrates the streaming pattern
     });
   });
+
+  describe('Error handling', () => {
+    it('should render provider errors and persist them across remounts', () => {
+      const tab = {
+        id: testTabId,
+        title: 'LLM Error',
+        url: 'llm-response://error',
+        type: 'notes',
+        component: 'llm-response',
+        metadata: {
+          isLLMResponse: true,
+          query: testQuery,
+          response: '',
+          error: 'Provider timeout',
+          isStreaming: false,
+        },
+      };
+
+      activeTabs.set(new Map([[testTabId, tab]]));
+
+      const { getByText, unmount } = render(MessageStream, {
+        props: { tabId: testTabId },
+      });
+
+      expect(getByText('Provider timeout')).toBeTruthy();
+
+      // Unmount/remount to ensure the error state survives navigation
+      unmount();
+
+      const { getByText: getByText2 } = render(MessageStream, {
+        props: { tabId: testTabId },
+      });
+
+      expect(getByText2('Provider timeout')).toBeTruthy();
+      expect(getByText2((content, element) => element?.textContent === 'Error:')).toBeTruthy();
+    });
+  });
 });

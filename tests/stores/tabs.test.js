@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { get } from 'svelte/store';
 import {
   activeTabs,
@@ -13,6 +13,7 @@ import {
   removeTab,
   updateTabTitle,
   updateTabUrl,
+  updateTab,
   toggleTabSelection,
   clearSelection,
 } from '../../src/ui/stores/tabs.js';
@@ -182,6 +183,70 @@ describe('tabs store', () => {
       sortDirection.set('desc');
       sorted = get(sortedTabs);
       expect(sorted[0].title).toBe('Zebra');
+    });
+  });
+
+  describe('persistence and streaming guards', () => {
+    it('should restore persisted tabs after a reset', () => {
+      const tab1 = {
+        id: 'tab-1',
+        title: 'Persisted One',
+        url: 'https://one.test',
+        type: 'webpage',
+        metadata: { response: 'first response', created: 100 },
+      };
+
+      const tab2 = {
+        id: 'tab-2',
+        title: 'Persisted Two',
+        url: 'https://two.test',
+        type: 'webpage',
+        metadata: { response: 'second response', created: 200 },
+      };
+
+      addTab(tab1);
+      addTab(tab2);
+
+      const snapshot = new Map(get(activeTabs));
+
+      // Simulate an app restart/reset and rehydrate from persisted state
+      activeTabs.set(new Map());
+      activeTabId.set(null);
+      selectedTabs.set(new Set());
+
+      activeTabs.set(new Map(snapshot));
+
+      const restoredTabs = get(sortedTabs);
+      expect(restoredTabs).toHaveLength(2);
+      expect(restoredTabs.find((tab) => tab.id === 'tab-1')?.metadata?.response).toBe('first response');
+      expect(restoredTabs.find((tab) => tab.id === 'tab-2')?.metadata?.response).toBe('second response');
+    });
+
+    it('should block returning to streaming once completed', () => {
+      const tab = {
+        id: 'tab-1',
+        title: 'Streaming Tab',
+        url: 'https://example.test',
+        type: 'notes',
+        metadata: { isStreaming: true, response: 'partial' },
+      };
+
+      addTab(tab);
+
+      // Mark the stream as finished
+      updateTab('tab-1', { metadata: { isStreaming: false, response: 'complete' } });
+
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      // Attempt to revert to streaming; guard should keep it false
+      updateTab('tab-1', { metadata: { isStreaming: true } });
+
+      const updatedTab = get(activeTabs).get('tab-1');
+      expect(updatedTab?.metadata?.isStreaming).toBe(false);
+      expect(updatedTab?.metadata?.response).toBe('complete');
+      expect(warnSpy).toHaveBeenCalled();
+
+      warnSpy.mockRestore();
     });
   });
 });

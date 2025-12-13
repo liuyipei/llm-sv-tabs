@@ -44,3 +44,11 @@ npm run test:coverage   # With coverage
 3. Test behavior, not implementation
 4. Isolate tests (independent)
 5. Clear test names (describe what is being tested)
+
+## High-Value Unit/Component Tests to Add
+
+- **Round-trip render/remount checks for persisted views.** Seed stores for chat transcripts, notes, uploads, or settings, render the component, unmount, re-render, and assert the same content appears. Targets regressions where data disappears after navigation/remount.
+- **Tab switch persistence with distinct payloads.** Initialize two tabs with different saved state, render tab A, switch to tab B, unmount, re-render tab A, and confirm its content and selection persist. Catches state leaks between tabs and selection edge cases.
+- **Store hydration after reset.** Save store state, clear it (simulating an app restart), re-initialize, and verify components render the restored data. Provides fast coverage for rehydration without full E2E.
+- **Error-path rendering for providers with mocked failures.** For components that surface provider errors, mock discovery/capability failures or timeouts and assert the UI surfaces the error state without crashing.
+- **Concurrency/race handling at the component boundary.** Simulate out-of-order responses or double submissions via mocked promises and ensure the component renders the latest state while ignoring stale updates.
