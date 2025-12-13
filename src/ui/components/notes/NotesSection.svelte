@@ -1,23 +1,13 @@
 <script lang="ts">
-  import { getContext, onMount } from 'svelte';
-  import { writable } from 'svelte/store';
+  import { getContext } from 'svelte';
   import type { IPCBridgeAPI } from '$lib/ipc-bridge';
-  import { detectFileType, separateFilesBySize, MAX_FILE_SIZE } from '$utils/file-utils';
+  import { processAndPersistFiles, processConfirmedFiles } from '$utils/file-utils';
+  import { notes, type Note } from '$stores/notes';
   import UploadProgress from './UploadProgress.svelte';
   import UploadErrors from './UploadErrors.svelte';
   import LargeFileConfirmDialog from './LargeFileConfirmDialog.svelte';
 
-  type Note = {
-    id: number;
-    title: string;
-    body: string;
-    selected: boolean;
-    fileType?: 'text' | 'pdf' | 'image';
-    mimeType?: string;
-  };
-
   const ipc = getContext<IPCBridgeAPI>('ipc');
-  let notes = writable<Note[]>([]);
   let editingNote: Note | null = $state(null);
   let isDragging = $state(false);
 
@@ -26,23 +16,6 @@
   let uploadProgress = $state<{ current: number; total: number; fileName: string } | null>(null);
   let pendingLargeFiles: File[] = $state([]);
   let uploadErrors: string[] = $state([]);
-
-  // Load notes from localStorage on mount
-  onMount(() => {
-    const stored = localStorage.getItem('llm-notes');
-    if (stored) {
-      try {
-        notes.set(JSON.parse(stored));
-      } catch (e) {
-        console.error('Failed to load notes:', e);
-      }
-    }
-  });
-
-  // Save notes to localStorage whenever they change
-  notes.subscribe(n => {
-    localStorage.setItem('llm-notes', JSON.stringify(n));
-  });
 
   // ========== Note Management ==========
 
@@ -53,16 +26,14 @@
       body: '',
       selected: false,
     };
-    notes.update(n => [...n, newNote]);
+    notes.addNote(newNote);
     editingNote = newNote;
   }
 
   async function saveNote(): Promise<void> {
     if (!editingNote || !ipc) return;
 
-    notes.update(n => n.map(item =>
-      item.id === editingNote!.id ? { ...editingNote! } : item
-    ));
+    notes.updateNote(editingNote.id, editingNote);
 
     try {
       await ipc.openNoteTab(
@@ -92,76 +63,31 @@
 
   async function processMultipleFiles(files: File[]): Promise<void> {
     uploadErrors = [];
-
-    const { normalFiles, largeFiles } = separateFilesBySize(files, MAX_FILE_SIZE);
-
-    if (largeFiles.length > 0) {
-      pendingLargeFiles = largeFiles;
-      showSizeConfirmDialog = true;
-      if (normalFiles.length > 0) {
-        await processFilesInParallel(normalFiles);
-      }
-      return;
-    }
-
-    await processFilesInParallel(files);
-  }
-
-  async function processFilesInParallel(files: File[]): Promise<void> {
-    if (files.length === 0) return;
-
     uploadProgress = { current: 0, total: files.length, fileName: '' };
 
-    const promises = files.map(async (file, index) => {
-      try {
-        uploadProgress = { current: index + 1, total: files.length, fileName: file.name };
-        await processFile(file);
-      } catch (error) {
-        uploadErrors = [...uploadErrors, `Failed to upload ${file.name}: ${error}`];
-        console.error(`Error processing file ${file.name}:`, error);
-      }
+    const { largeFiles, errors } = await processAndPersistFiles(files, ipc, {
+      onProgress: (current, total, fileName) => {
+        uploadProgress = { current, total, fileName };
+      },
+      onError: (fileName, error) => {
+        uploadErrors = [...uploadErrors, `Failed to upload ${fileName}: ${error}`];
+      },
     });
-
-    await Promise.all(promises);
 
     uploadProgress = null;
 
-    if (uploadErrors.length > 0) {
+    // Handle large files that need confirmation
+    if (largeFiles.length > 0) {
+      pendingLargeFiles = largeFiles;
+      showSizeConfirmDialog = true;
+    }
+
+    // Show errors temporarily
+    if (errors.length > 0) {
+      uploadErrors = [...uploadErrors, ...errors];
       setTimeout(() => {
         uploadErrors = [];
       }, 5000);
-    }
-  }
-
-  async function processFile(file: File): Promise<void> {
-    const fileType = detectFileType(file);
-    const reader = new FileReader();
-
-    reader.onload = async (e) => {
-      const content = e.target?.result as string;
-      const newNote: Note = {
-        id: Date.now(),
-        title: file.name,
-        body: content,
-        selected: false,
-        fileType,
-        mimeType: file.type,
-      };
-      notes.update(n => [...n, newNote]);
-
-      if (ipc) {
-        try {
-          await ipc.openNoteTab(newNote.id, newNote.title, newNote.body, fileType);
-        } catch (error) {
-          console.error('Failed to create tab for uploaded file:', error);
-        }
-      }
-    };
-
-    if (fileType === 'image' || fileType === 'pdf') {
-      reader.readAsDataURL(file);
-    } else {
-      reader.readAsText(file);
     }
   }
 
@@ -191,8 +117,23 @@
 
   async function confirmLargeFileUpload(): Promise<void> {
     if (pendingLargeFiles.length > 0) {
-      await processFilesInParallel(pendingLargeFiles);
+      uploadProgress = { current: 0, total: pendingLargeFiles.length, fileName: '' };
+
+      const errors = await processConfirmedFiles(pendingLargeFiles, ipc, {
+        onProgress: (current, total, fileName) => {
+          uploadProgress = { current, total, fileName };
+        },
+      });
+
+      uploadProgress = null;
       pendingLargeFiles = [];
+
+      if (errors.length > 0) {
+        uploadErrors = [...uploadErrors, ...errors];
+        setTimeout(() => {
+          uploadErrors = [];
+        }, 5000);
+      }
     }
     showSizeConfirmDialog = false;
   }

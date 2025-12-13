@@ -15,6 +15,7 @@
   import { activeTabId, activeTabs, sortedTabs } from '$stores/tabs';
   import { addBookmark as addBookmarkToStore } from '$stores/bookmarks';
   import { initKeyboardShortcuts } from '$utils/keyboard-shortcuts';
+  import { processAndPersistFiles, processConfirmedFiles } from '$utils/file-utils';
 
   // Import styles for markdown rendering
   import '~/highlight.js/styles/github-dark.css';
@@ -181,52 +182,22 @@
     const files = event.dataTransfer?.files;
     if (!files || files.length === 0) return;
 
-    // Process all files in parallel
-    const fileArray = Array.from(files);
-    const promises = fileArray.map(file => processDroppedFile(file));
-
+    // Process files using shared utility (persists to notes store and opens tabs)
     try {
-      await Promise.all(promises);
+      const { largeFiles, errors } = await processAndPersistFiles(Array.from(files), ipc);
+
+      // For global drops, process large files without confirmation dialog
+      // (the dialog is only shown in NotesSection)
+      if (largeFiles.length > 0) {
+        await processConfirmedFiles(largeFiles, ipc);
+      }
+
+      if (errors.length > 0) {
+        console.error('Errors processing dropped files:', errors);
+      }
     } catch (error) {
       console.error('Error processing dropped files:', error);
     }
-  }
-
-  async function processDroppedFile(file: File): Promise<void> {
-    const fileType = detectFileType(file);
-    const reader = new FileReader();
-
-    reader.onload = async (e) => {
-      const content = e.target?.result as string;
-      if (ipc) {
-        try {
-          await ipc.openNoteTab(Date.now(), file.name, content, fileType);
-        } catch (error) {
-          console.error('Failed to create tab for dropped file:', error);
-        }
-      }
-    };
-
-    if (fileType === 'image' || fileType === 'pdf') {
-      reader.readAsDataURL(file);
-    } else {
-      reader.readAsText(file);
-    }
-  }
-
-  function detectFileType(file: File): 'text' | 'pdf' | 'image' {
-    const mimeType = file.type.toLowerCase();
-    const fileName = file.name.toLowerCase();
-
-    if (mimeType.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|bmp|svg|ico)$/i.test(fileName)) {
-      return 'image';
-    }
-
-    if (mimeType === 'application/pdf' || fileName.endsWith('.pdf')) {
-      return 'pdf';
-    }
-
-    return 'text';
   }
 
   // Initialize keyboard shortcuts on mount
