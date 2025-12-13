@@ -129,6 +129,8 @@
   async function processFile(file: File): Promise<void> {
     const fileType = detectFileType(file);
     const reader = new FileReader();
+    // Use Electron's webUtils.getPathForFile() exposed via preload to get the absolute file path
+    const filePath = ipc?.getPathForFile?.(file);
 
     reader.onload = async (e) => {
       const content = e.target?.result as string;
@@ -144,7 +146,7 @@
 
       if (ipc) {
         try {
-          await ipc.openNoteTab(newNote.id, newNote.title, newNote.body, fileType);
+          await ipc.openNoteTab(newNote.id, newNote.title, newNote.body, fileType, filePath);
         } catch (error) {
           console.error('Failed to create tab for uploaded file:', error);
         }

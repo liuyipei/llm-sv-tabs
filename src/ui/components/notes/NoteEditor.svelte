@@ -10,6 +10,10 @@
   // Get tab from store
   const tab = $derived($activeTabs.get(tabId));
 
+  // Check for file load error
+  const fileLoadError = $derived(tab?.metadata?.fileLoadError);
+  const filePath = $derived(tab?.metadata?.filePath);
+
   // Local state for editing
   let title = $state('');
   let content = $state('');
@@ -80,25 +84,36 @@
 </script>
 
 <div class="note-editor">
-  <div class="note-header">
-    <input
-      type="text"
-      bind:value={title}
-      oninput={handleTitleChange}
-      class="note-title-input"
-      placeholder="Note title..."
-    />
-    <p class="note-hint">Changes are saved automatically.</p>
-  </div>
-  <div class="note-content">
-    <textarea
-      bind:this={textareaElement}
-      bind:value={content}
-      oninput={handleContentChange}
-      class="note-textarea"
-      placeholder="Start typing your note..."
-    ></textarea>
-  </div>
+  {#if fileLoadError}
+    <div class="error-container">
+      <div class="error-icon">&#128463;</div>
+      <div class="error-title">File Not Available</div>
+      <div class="error-message">{fileLoadError}</div>
+      {#if filePath}
+        <div class="file-path">{filePath}</div>
+      {/if}
+    </div>
+  {:else}
+    <div class="note-header">
+      <input
+        type="text"
+        bind:value={title}
+        oninput={handleTitleChange}
+        class="note-title-input"
+        placeholder="Note title..."
+      />
+      <p class="note-hint">Changes are saved automatically.</p>
+    </div>
+    <div class="note-content">
+      <textarea
+        bind:this={textareaElement}
+        bind:value={content}
+        oninput={handleContentChange}
+        class="note-textarea"
+        placeholder="Start typing your note..."
+      ></textarea>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -184,5 +199,45 @@
 
   .note-textarea::placeholder {
     color: #606060;
+  }
+
+  /* Error state styles */
+  .error-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    text-align: center;
+    padding: 40px;
+  }
+
+  .error-icon {
+    font-size: 48px;
+    margin-bottom: 20px;
+  }
+
+  .error-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #f48771;
+  }
+
+  .error-message {
+    font-size: 14px;
+    color: #999;
+    margin-bottom: 15px;
+    max-width: 400px;
+  }
+
+  .file-path {
+    font-size: 12px;
+    color: #666;
+    word-break: break-all;
+    background: #2d2d2d;
+    padding: 8px 12px;
+    border-radius: 4px;
+    max-width: 500px;
   }
 </style>

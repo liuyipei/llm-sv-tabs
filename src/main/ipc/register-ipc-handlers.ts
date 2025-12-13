@@ -130,8 +130,8 @@ export function registerIpcHandlers(context: MainProcessContext): void {
 
   ipcMain.handle(
     'open-note-tab',
-    async (_event, noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image') =>
-      handleSafely(() => ({ success: true, data: get.tabManager().openNoteTab(noteId, title, content, fileType) }))
+    async (_event, noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image', filePath?: string) =>
+      handleSafely(() => ({ success: true, data: get.tabManager().openNoteTab(noteId, title, content, fileType, true, filePath) }))
   );
 
   ipcMain.handle('update-note-content', async (_event, tabId: string, content: string) =>

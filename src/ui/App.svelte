@@ -273,13 +273,14 @@
 
   async function processDroppedFile(file: File): Promise<void> {
     const fileType = detectFileType(file);
+    const filePath = ipc?.getPathForFile?.(file);
     const reader = new FileReader();
 
     reader.onload = async (e) => {
       const content = e.target?.result as string;
       if (ipc) {
         try {
-          await ipc.openNoteTab(Date.now(), file.name, content, fileType);
+          await ipc.openNoteTab(Date.now(), file.name, content, fileType, filePath);
         } catch (error) {
           console.error('Failed to create tab for dropped file:', error);
         }
