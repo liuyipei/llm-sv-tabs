@@ -70,6 +70,7 @@ export interface TabMetadata {
   noteContent?: string; // For editable text notes
   filePath?: string; // Original file path for uploaded files (persisted for reload)
   fileLoadError?: string; // Error message when file could not be reloaded
+  tempFilePath?: string; // Temp file path for large PDFs/images (not persisted)
 
   // Navigation state cache for renderer
   canGoBack?: boolean;

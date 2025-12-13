@@ -1,6 +1,7 @@
 import { readFileSync, existsSync } from 'fs';
 import { basename, extname } from 'path';
 import type { TabData, TabType, TabWithView } from '../../types';
+import { tempFileService } from '../services/temp-file-service.js';
 
 interface SessionPersistenceServiceDeps {
   tabs: Map<string, TabWithView>;
@@ -242,11 +243,11 @@ export class SessionPersistenceService {
 
         this.deps.tabs.set(tabId, tab);
 
-        // Load HTML content into WebContentsView
+        // Write to temp file and load via file:// protocol
+        // This avoids Chromium's ~2MB data URL limit that causes large files to fail
         if (tab.view) {
-          const htmlContent = this.deps.createNoteHTML(title, content, fileType);
-          const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent);
-          tab.view.webContents.loadURL(dataUrl);
+          const fileUrl = tempFileService.writeToTempFile(tabId, content, fileType as 'pdf' | 'image');
+          tab.view.webContents.loadURL(fileUrl);
         }
 
         this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) });
