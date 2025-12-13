@@ -1,6 +1,7 @@
 import { WebContentsView, BrowserWindow } from 'electron';
 import type { TabData, TabMetadata, TabType, TabWithView } from '../types';
 import { SessionManager } from './services/session-manager.js';
+import { tempFileService } from './services/temp-file-service.js';
 import { createNoteHTML } from './templates/note-template.js';
 import { createDebugInfoHTML } from './templates/debug-info-template.js';
 import { LLMTabService } from './tab-manager/llm-tab-service.js';
@@ -397,11 +398,11 @@ class TabManager {
 
     this.tabs.set(tabId, tab);
 
-    // For images/PDFs, create HTML content and load in WebContentsView
+    // For images/PDFs, write to temp file and load via file:// protocol
+    // This avoids Chromium's ~2MB data URL limit that causes large files to fail
     if (useWebContentsView && tab.view) {
-      const htmlContent = createNoteHTML(title, content, fileType);
-      const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent);
-      tab.view.webContents.loadURL(dataUrl);
+      const fileUrl = tempFileService.writeToTempFile(tabId, content, fileType as 'pdf' | 'image');
+      tab.view.webContents.loadURL(fileUrl);
     }
 
     // Set as active tab (if autoSelect is true)
@@ -622,6 +623,9 @@ class TabManager {
       // Note: WebContents cleanup is handled automatically when view is removed
       // The destroy() method was removed in newer Electron versions
     }
+
+    // Clean up any temp files associated with this tab (PDFs/images)
+    tempFileService.cleanupForTab(tabId);
 
     // Remove from tabs
     this.tabs.delete(tabId);

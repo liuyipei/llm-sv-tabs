@@ -5,6 +5,7 @@ import TabManager from './tab-manager.js';
 import { BookmarkManager } from './services/bookmark-manager.js';
 import { ScreenshotService } from './services/screenshot-service.js';
 import { shutdownManager } from './services/shutdown-manager.js';
+import { tempFileService } from './services/temp-file-service.js';
 import { configureSessionSecurity } from './session-security.js';
 import { registerIpcHandlers } from './ipc/register-ipc-handlers.js';
 import type { MainProcessContext } from './ipc/register-ipc-handlers.js';
@@ -138,6 +139,9 @@ app.commandLine.appendSwitch('disable-features', 'UserAgentClientHint');
 app.whenReady().then(async () => {
   // Setup shutdown handlers first to catch early termination
   shutdownManager.setup();
+
+  // Register temp file cleanup on shutdown
+  shutdownManager.registerCleanup('temp-files', () => tempFileService.cleanupAll());
 
   if (!sessionSecurityConfigured) {
     configureSessionSecurity(__dirname);
