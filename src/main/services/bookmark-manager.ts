@@ -6,6 +6,7 @@ import { app } from 'electron';
 import { join } from 'path';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import type { Bookmark } from '../../types';
+import { normalizeUrl } from '../../utils/url-normalization';
 
 export class BookmarkManager {
   private bookmarksPath: string;
@@ -55,9 +56,35 @@ export class BookmarkManager {
   }
 
   /**
-   * Add a new bookmark
+   * Add a new bookmark or move existing one to the top
+   * Returns the bookmark and whether it was new or moved
    */
-  addBookmark(bookmark: Omit<Bookmark, 'id' | 'created'>): Bookmark {
+  addBookmark(bookmark: Omit<Bookmark, 'id' | 'created'>): { bookmark: Bookmark; isNew: boolean } {
+    const normalizedUrl = normalizeUrl(bookmark.url);
+
+    // Check if a bookmark with the same normalized URL already exists
+    const existingIndex = this.bookmarks.findIndex(
+      b => normalizeUrl(b.url) === normalizedUrl
+    );
+
+    if (existingIndex !== -1) {
+      // Bookmark exists - move it to the end (top of the list when reversed for display)
+      const existingBookmark = this.bookmarks[existingIndex];
+      // Update the created timestamp to move it to the top
+      existingBookmark.created = Date.now();
+      // Update title in case it changed
+      existingBookmark.title = bookmark.title;
+
+      // Remove from current position
+      this.bookmarks.splice(existingIndex, 1);
+      // Add to the end (will be shown at top)
+      this.bookmarks.push(existingBookmark);
+
+      this.saveBookmarks();
+      return { bookmark: existingBookmark, isNew: false };
+    }
+
+    // Create new bookmark
     const newBookmark: Bookmark = {
       ...bookmark,
       id: `bookmark-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -66,7 +93,7 @@ export class BookmarkManager {
 
     this.bookmarks.push(newBookmark);
     this.saveBookmarks();
-    return newBookmark;
+    return { bookmark: newBookmark, isNew: true };
   }
 
   /**
@@ -99,10 +126,11 @@ export class BookmarkManager {
   }
 
   /**
-   * Find bookmark by URL
+   * Find bookmark by URL (uses normalized URL for comparison)
    */
   findByUrl(url: string): Bookmark | undefined {
-    return this.bookmarks.find((b) => b.url === url);
+    const normalizedUrl = normalizeUrl(url);
+    return this.bookmarks.find((b) => normalizeUrl(b.url) === normalizedUrl);
   }
 
   /**

@@ -2,6 +2,7 @@
   import { getContext } from 'svelte';
   import { activeTabId, selectedTabs, toggleTabSelection } from '$stores/tabs';
   import { addBookmark } from '$stores/bookmarks';
+  import { toastStore } from '$stores/toast';
   import type { Tab } from '../../../types';
   import type { IPCBridgeAPI } from '$lib/ipc-bridge';
 
@@ -105,17 +106,34 @@
     event.stopPropagation();
     showContextMenu = false;
     try {
-      const bookmark = {
+      const bookmarkInput = {
         title: tab.title || 'Untitled',
         url: tab.url,
       };
 
       if (ipc) {
-        await ipc.addBookmark(bookmark);
+        const result = await ipc.addBookmark(bookmarkInput);
+
+        if ((result as any)?.success && (result as any)?.data) {
+          const { bookmark, isNew } = (result as any).data;
+          addBookmark(bookmark);
+
+          if (isNew) {
+            toastStore.show(`Bookmark added: ${bookmark.title}`, 'success');
+          } else {
+            toastStore.show(`Bookmark moved to top: ${bookmark.title}`, 'info');
+          }
+        } else {
+          toastStore.show('Failed to add bookmark', 'error');
+        }
+      } else {
+        // Fallback when IPC is not available (shouldn't happen in normal use)
+        addBookmark(bookmarkInput);
+        toastStore.show(`Bookmark added: ${bookmarkInput.title}`, 'success');
       }
-      addBookmark(bookmark);
     } catch (error) {
       console.error('Failed to add bookmark:', error);
+      toastStore.show('Failed to add bookmark', 'error');
     }
   }
 

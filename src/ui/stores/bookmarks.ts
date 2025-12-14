@@ -1,5 +1,6 @@
 import { writable, type Writable } from 'svelte/store';
 import type { Bookmark } from '../../types';
+import { normalizeUrl } from '../../utils/url-normalization';
 
 // Create a persisted store that syncs with localStorage
 function createPersistedStore<T>(key: string, initial: T): Writable<T> {
@@ -49,15 +50,49 @@ type BookmarkInput = Omit<Bookmark, 'id' | 'created'> &
   Partial<Pick<Bookmark, 'id' | 'created'>>;
 
 // Helper functions
-export function addBookmark(bookmark: BookmarkInput): Bookmark {
-  const newBookmark: Bookmark = {
-    ...bookmark,
-    id: bookmark.id || `bookmark-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    created: bookmark.created || Date.now(),
-  };
+export function addBookmark(bookmark: BookmarkInput): { bookmark: Bookmark; isNew: boolean } {
+  const normalizedUrl = normalizeUrl(bookmark.url);
+  let resultBookmark: Bookmark;
+  let isNew = true;
 
-  bookmarks.update((items) => [...items, newBookmark]);
-  return newBookmark;
+  bookmarks.update((items) => {
+    // Check if a bookmark with the same normalized URL already exists
+    const existingIndex = items.findIndex(
+      b => normalizeUrl(b.url) === normalizedUrl
+    );
+
+    if (existingIndex !== -1) {
+      // Bookmark exists - move it to the end (top of the list when reversed for display)
+      const existingBookmark = items[existingIndex];
+      // Update the created timestamp to move it to the top
+      existingBookmark.created = Date.now();
+      // Update title in case it changed
+      existingBookmark.title = bookmark.title;
+
+      resultBookmark = existingBookmark;
+      isNew = false;
+
+      // Remove from current position and add to the end
+      const newItems = [...items];
+      newItems.splice(existingIndex, 1);
+      newItems.push(existingBookmark);
+      return newItems;
+    }
+
+    // Create new bookmark
+    const newBookmark: Bookmark = {
+      ...bookmark,
+      id: bookmark.id || `bookmark-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      created: bookmark.created || Date.now(),
+    };
+
+    resultBookmark = newBookmark;
+    isNew = true;
+
+    return [...items, newBookmark];
+  });
+
+  return { bookmark: resultBookmark!, isNew };
 }
 
 export function removeBookmark(id: string): void {
@@ -71,9 +106,10 @@ export function updateBookmark(id: string, updates: Partial<Bookmark>): void {
 }
 
 export function findBookmarkByUrl(url: string): Bookmark | undefined {
+  const normalizedUrl = normalizeUrl(url);
   let found: Bookmark | undefined;
   bookmarks.subscribe((items) => {
-    found = items.find((b) => b.url === url);
+    found = items.find((b) => normalizeUrl(b.url) === normalizedUrl);
   })();
   return found;
 }

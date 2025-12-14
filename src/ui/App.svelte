@@ -12,9 +12,11 @@
   import MessageStream from '$components/chat/MessageStream.svelte';
   import ApiKeyInstructionsView from '$components/llm/ApiKeyInstructionsView.svelte';
   import NoteEditor from '$components/notes/NoteEditor.svelte';
+  import Toast from '$components/Toast.svelte';
   import { activeSidebarView, sidebarTabsHeightPercent } from '$stores/ui';
   import { activeTabId, activeTabs, sortedTabs } from '$stores/tabs';
   import { addBookmark as addBookmarkToStore } from '$stores/bookmarks';
+  import { toastStore } from '$stores/toast';
   import { initKeyboardShortcuts } from '$utils/keyboard-shortcuts';
 
   // Import styles for markdown rendering
@@ -98,11 +100,22 @@
         title: activeTab.title,
         url: activeTab.url,
       });
-      const bookmark = (result as any)?.data || { title: activeTab.title, url: activeTab.url };
-      addBookmarkToStore(bookmark);
-      console.log('Bookmark added:', activeTab.title);
+
+      if ((result as any)?.success && (result as any)?.data) {
+        const { bookmark, isNew } = (result as any).data;
+        addBookmarkToStore(bookmark);
+
+        if (isNew) {
+          toastStore.show(`Bookmark added: ${bookmark.title}`, 'success');
+        } else {
+          toastStore.show(`Bookmark moved to top: ${bookmark.title}`, 'info');
+        }
+      } else {
+        toastStore.show('Failed to add bookmark', 'error');
+      }
     } catch (error) {
       console.error('Failed to bookmark tab:', error);
+      toastStore.show('Failed to add bookmark', 'error');
     }
   }
 
@@ -459,6 +472,8 @@
     </section>
   </div>
 </main>
+
+<Toast />
 
 <style>
   :global(body) {

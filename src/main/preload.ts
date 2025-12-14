@@ -96,7 +96,7 @@ const electronAPI = {
   getBookmarks: (): Promise<IPCResponse<Bookmark[]>> =>
     ipcRenderer.invoke('get-bookmarks'),
 
-  addBookmark: (bookmark: Omit<Bookmark, 'id' | 'created'>): Promise<IPCResponse<Bookmark>> =>
+  addBookmark: (bookmark: Omit<Bookmark, 'id' | 'created'>): Promise<IPCResponse<{ bookmark: Bookmark; isNew: boolean }>> =>
     ipcRenderer.invoke('add-bookmark', bookmark),
 
   deleteBookmark: (id: string): Promise<IPCResponse> =>
