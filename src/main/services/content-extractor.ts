@@ -185,6 +185,17 @@ export class ContentExtractor {
       const primaryPreview = previews[0];
       const additionalPreviews = previews.slice(1);
 
+      // Warn if we couldn't extract anything from the PDF
+      const hasText = pdfContent && typeof pdfContent === 'object' && pdfContent.text;
+      const hasImages = previews.length > 0;
+      if (!hasText && !hasImages) {
+        console.warn('PDF extraction returned no text and no images:', {
+          title: tabData.title,
+          hasView: !!view,
+          pdfPath,
+        });
+      }
+
       return {
         type: 'pdf',
         title: tabData.title,
@@ -370,32 +381,63 @@ export class ContentExtractor {
     const bounds = (view as any).getBounds?.();
     const captureBounds = bounds ? { x: 0, y: 0, width: bounds.width, height: bounds.height } : undefined;
 
-    await this.waitForPdfTextLayer(view);
-    const numPages = await this.getPdfPageCount(view);
-    const pagesToCapture = Math.min(numPages ?? maxPages, maxPages);
-
     const previews: ImageDataPayload[] = [];
-    if (pagesToCapture === 0) return previews;
 
-    for (let page = 1; page <= pagesToCapture; page += 1) {
-      // Navigate to the page in the PDF viewer so the viewport shows the target page
-      await view.webContents.executeJavaScript(`
-        (() => {
-          const app = (window as any).PDFViewerApplication;
-          if (app && app.page !== undefined) {
-            app.page = ${page};
-          }
-        })();
-      `);
+    try {
+      await this.waitForPdfTextLayer(view);
+      const numPages = await this.getPdfPageCount(view);
+      const pagesToCapture = Math.min(numPages ?? maxPages, maxPages);
 
-      // Give the viewer a short moment to render the requested page
-      await new Promise(resolve => setTimeout(resolve, 120));
+      if (pagesToCapture === 0) {
+        console.warn('No PDF pages to capture (page count is 0)');
+        return previews;
+      }
 
-      const image = captureBounds
-        ? await view.webContents.capturePage(captureBounds)
-        : await view.webContents.capturePage();
-      const resized = ImageResizer.resizeImage(image.toDataURL(), 1568);
-      previews.push({ data: resized, mimeType: 'image/png', page });
+      for (let page = 1; page <= pagesToCapture; page += 1) {
+        try {
+          // Navigate to the page in the PDF viewer so the viewport shows the target page
+          await view.webContents.executeJavaScript(`
+            (() => {
+              try {
+                const app = (window as any).PDFViewerApplication;
+                if (app && app.page !== undefined) {
+                  app.page = ${page};
+                }
+              } catch (e) {
+                console.error('PDF page navigation error:', e);
+              }
+            })();
+          `);
+
+          // Give the viewer a short moment to render the requested page
+          await new Promise(resolve => setTimeout(resolve, 120));
+
+          const image = captureBounds
+            ? await view.webContents.capturePage(captureBounds)
+            : await view.webContents.capturePage();
+          const resized = ImageResizer.resizeImage(image.toDataURL(), 1568);
+          previews.push({ data: resized, mimeType: 'image/png', page });
+        } catch (error) {
+          console.warn(`Failed to capture PDF page ${page}:`, error);
+          // Continue to next page instead of failing completely
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to capture PDF page previews:', error);
+    }
+
+    // If we failed to capture any pages with navigation, try capturing current visible page
+    if (previews.length === 0) {
+      try {
+        console.log('Attempting fallback: capturing currently visible PDF page');
+        const image = captureBounds
+          ? await view.webContents.capturePage(captureBounds)
+          : await view.webContents.capturePage();
+        const resized = ImageResizer.resizeImage(image.toDataURL(), 1568);
+        previews.push({ data: resized, mimeType: 'image/png', page: 1 });
+      } catch (error) {
+        console.error('Failed to capture even the visible PDF page:', error);
+      }
     }
 
     return previews;
