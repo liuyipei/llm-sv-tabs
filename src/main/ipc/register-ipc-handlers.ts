@@ -255,7 +255,7 @@ export function registerIpcHandlers(context: MainProcessContext): void {
               const tabData = tabManager.getTabData(selectedTabId);
               if (tabData) {
                 // For PDF/image tabs, get the view for screenshot capture
-                const view = tabManager.getTabView(selectedTabId);
+                const view = tabManager.getTabView(selectedTabId) ?? undefined;
                 const content = await ContentExtractor.extractFromNoteTab(tabData, view);
                 extractedContents.push(content);
               }
