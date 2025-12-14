@@ -83,7 +83,10 @@ export function upsertBookmark(
 
     const updated = [...existing];
     updated.splice(existingIndex, 1);
-    updated.push(updatedBookmark);
+
+    // Place the updated bookmark at the start so the newest/moved bookmark
+    // appears at the top of the list.
+    updated.unshift(updatedBookmark);
 
     return { updated, bookmark: updatedBookmark, isNew: false };
   }
@@ -94,5 +97,6 @@ export function upsertBookmark(
     created: bookmark.created || Date.now(),
   } as Bookmark;
 
-  return { updated: [...existing, newBookmark], bookmark: newBookmark, isNew: true };
+  // Add new bookmarks to the start so they appear at the top of the list.
+  return { updated: [newBookmark, ...existing], bookmark: newBookmark, isNew: true };
 }

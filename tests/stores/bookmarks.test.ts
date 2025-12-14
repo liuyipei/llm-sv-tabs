@@ -130,9 +130,9 @@ describe('Bookmarks Store', () => {
 
       const allBookmarks = get(bookmarks);
       expect(allBookmarks).toHaveLength(2);
-      // The duplicate should be moved to the end (top of the list)
-      expect(allBookmarks[1].id).toBe(result1.bookmark.id);
-      expect(allBookmarks[1].title).toBe('Updated Title');
+      // The duplicate should be moved to the start (top of the list)
+      expect(allBookmarks[0].id).toBe(result1.bookmark.id);
+      expect(allBookmarks[0].title).toBe('Updated Title');
     });
 
     it('should normalize URLs for duplicate detection', () => {
@@ -338,8 +338,8 @@ describe('Bookmarks Store', () => {
       });
 
       const allBookmarks = get(bookmarks);
-      expect(allBookmarks[0].title).toBe('Updated Bookmark 1');
-      expect(allBookmarks[1].title).toBe('Bookmark 2');
+      expect(allBookmarks[0].title).toBe('Bookmark 2');
+      expect(allBookmarks[1].title).toBe('Updated Bookmark 1');
     });
   });
 
