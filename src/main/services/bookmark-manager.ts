@@ -6,6 +6,8 @@ import { app } from 'electron';
 import { join } from 'path';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import type { Bookmark } from '../../types';
+import { upsertBookmark } from '../../utils/bookmark-utils.js';
+import { normalizeUrl } from '../../utils/url-normalization.js';
 
 export class BookmarkManager {
   private bookmarksPath: string;
@@ -55,18 +57,14 @@ export class BookmarkManager {
   }
 
   /**
-   * Add a new bookmark
+   * Add a new bookmark or move existing one to the top
+   * Returns the bookmark and whether it was new or moved
    */
-  addBookmark(bookmark: Omit<Bookmark, 'id' | 'created'>): Bookmark {
-    const newBookmark: Bookmark = {
-      ...bookmark,
-      id: `bookmark-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      created: Date.now(),
-    };
-
-    this.bookmarks.push(newBookmark);
+  addBookmark(bookmark: Omit<Bookmark, 'id' | 'created'>): { bookmark: Bookmark; isNew: boolean } {
+    const { updated, bookmark: result, isNew } = upsertBookmark(this.bookmarks, bookmark);
+    this.bookmarks = updated;
     this.saveBookmarks();
-    return newBookmark;
+    return { bookmark: result, isNew };
   }
 
   /**
@@ -99,10 +97,11 @@ export class BookmarkManager {
   }
 
   /**
-   * Find bookmark by URL
+   * Find bookmark by URL (uses normalized URL for comparison)
    */
   findByUrl(url: string): Bookmark | undefined {
-    return this.bookmarks.find((b) => b.url === url);
+    const normalizedUrl = normalizeUrl(url);
+    return this.bookmarks.find((b) => normalizeUrl(b.url) === normalizedUrl);
   }
 
   /**

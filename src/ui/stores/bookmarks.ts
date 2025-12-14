@@ -1,5 +1,7 @@
 import { writable, type Writable } from 'svelte/store';
 import type { Bookmark } from '../../types';
+import { upsertBookmark, type BookmarkInput } from '../../utils/bookmark-utils';
+import { normalizeUrl } from '../../utils/url-normalization';
 
 // Create a persisted store that syncs with localStorage
 function createPersistedStore<T>(key: string, initial: T): Writable<T> {
@@ -45,19 +47,19 @@ function createPersistedStore<T>(key: string, initial: T): Writable<T> {
 // Bookmarks store with localStorage persistence
 export const bookmarks: Writable<Bookmark[]> = createPersistedStore<Bookmark[]>('bookmarks', []);
 
-type BookmarkInput = Omit<Bookmark, 'id' | 'created'> &
-  Partial<Pick<Bookmark, 'id' | 'created'>>;
-
 // Helper functions
-export function addBookmark(bookmark: BookmarkInput): Bookmark {
-  const newBookmark: Bookmark = {
-    ...bookmark,
-    id: bookmark.id || `bookmark-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    created: bookmark.created || Date.now(),
-  };
+export function addBookmark(bookmark: BookmarkInput): { bookmark: Bookmark; isNew: boolean } {
+  let resultBookmark: Bookmark | undefined;
+  let isNew = true;
 
-  bookmarks.update((items) => [...items, newBookmark]);
-  return newBookmark;
+  bookmarks.update((items) => {
+    const result = upsertBookmark(items, bookmark);
+    resultBookmark = result.bookmark;
+    isNew = result.isNew;
+    return result.updated;
+  });
+
+  return { bookmark: resultBookmark!, isNew };
 }
 
 export function removeBookmark(id: string): void {
@@ -71,9 +73,10 @@ export function updateBookmark(id: string, updates: Partial<Bookmark>): void {
 }
 
 export function findBookmarkByUrl(url: string): Bookmark | undefined {
+  const normalizedUrl = normalizeUrl(url);
   let found: Bookmark | undefined;
   bookmarks.subscribe((items) => {
-    found = items.find((b) => b.url === url);
+    found = items.find((b) => normalizeUrl(b.url) === normalizedUrl);
   })();
   return found;
 }
