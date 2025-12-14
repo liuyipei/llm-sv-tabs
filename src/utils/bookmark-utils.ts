@@ -1,5 +1,5 @@
 import type { Bookmark } from '../types';
-import { normalizeUrl } from './url-normalization';
+import { normalizeUrl } from './url-normalization.js';
 
 export type BookmarkInput = Omit<Bookmark, 'id' | 'created'> &
   Partial<Pick<Bookmark, 'id' | 'created'>>;
