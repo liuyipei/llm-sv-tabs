@@ -254,7 +254,9 @@ export function registerIpcHandlers(context: MainProcessContext): void {
             if (tab.type === 'notes' || tab.component === 'llm-response') {
               const tabData = tabManager.getTabData(selectedTabId);
               if (tabData) {
-                const content = await ContentExtractor.extractFromNoteTab(tabData);
+                // For PDF/image tabs, get the view for screenshot capture
+                const view = tabManager.getTabView(selectedTabId);
+                const content = await ContentExtractor.extractFromNoteTab(tabData, view);
                 extractedContents.push(content);
               }
             } else {

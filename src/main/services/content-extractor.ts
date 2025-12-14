@@ -155,9 +155,33 @@ export class ContentExtractor {
   }
 
   /**
-   * Extract content from a note tab (especially image tabs)
+   * Extract content from a note tab (especially image and PDF tabs)
    */
-  static async extractFromNoteTab(tabData: TabData): Promise<ExtractedContent> {
+  static async extractFromNoteTab(
+    tabData: TabData,
+    view?: WebContentsView
+  ): Promise<ExtractedContent> {
+    // Check if this is a PDF tab
+    // Future: Consider extracting text for token optimization instead of rendering as image
+    if (tabData.metadata?.fileType === 'pdf' && view) {
+      // Capture PDF as image for vision models
+      const screenshot = await this.captureScreenshot(view);
+
+      // Resize to match LLM image limits (max 1568px on long side)
+      const resizedDataUrl = ImageResizer.resizeImage(screenshot, 1568);
+
+      return {
+        type: 'image',
+        title: tabData.title,
+        url: tabData.url,
+        content: '', // No text content - sending visual representation
+        imageData: {
+          data: resizedDataUrl,
+          mimeType: 'image/png',
+        },
+      };
+    }
+
     // Check if this is an image tab
     if (tabData.metadata?.fileType === 'image' && tabData.metadata?.imageData) {
       const imageDataUrl = tabData.metadata.imageData;
