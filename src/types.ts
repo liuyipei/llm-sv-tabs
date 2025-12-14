@@ -68,6 +68,7 @@ export interface TabMetadata {
   mimeType?: string;
   imageData?: string; // base64 data URL for images
   noteContent?: string; // For editable text notes
+  noteId?: number; // Identifier for note tabs/bookmarks
   filePath?: string; // Original file path for uploaded files (persisted for reload)
   fileLoadError?: string; // Error message when file could not be reloaded
   tempFilePath?: string; // Temp file path for large PDFs/images (not persisted)
@@ -104,6 +105,9 @@ export interface Bookmark {
   // For file-based bookmarks (PDFs, images, text files)
   filePath?: string;
   fileType?: 'text' | 'pdf' | 'image';
+  // For text note bookmarks
+  noteId?: number;
+  noteContent?: string;
 }
 
 export type BookmarkResult = { bookmark: Bookmark; isNew: boolean };

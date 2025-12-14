@@ -36,6 +36,8 @@ export function upsertBookmark(
       url: bookmark.url,
       filePath: bookmark.filePath,
       fileType: bookmark.fileType,
+      noteId: bookmark.noteId,
+      noteContent: bookmark.noteContent,
       created: Date.now(),
     };
 

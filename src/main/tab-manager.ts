@@ -1,6 +1,4 @@
 import { WebContentsView, BrowserWindow } from 'electron';
-import { readFileSync, existsSync } from 'fs';
-import { extname } from 'path';
 import type { TabData, TabMetadata, TabType, TabWithView } from '../types';
 import { SessionManager } from './services/session-manager.js';
 import { tempFileService } from './services/temp-file-service.js';
@@ -11,6 +9,7 @@ import { FindInPageService } from './tab-manager/find-in-page-service.js';
 import { NavigationService } from './tab-manager/navigation-service.js';
 import { SessionPersistenceService } from './tab-manager/session-persistence-service.js';
 import { createConfiguredView } from './tab-manager/web-contents-view-factory.js';
+import { NoteTabService } from './tab-manager/note-tab-service.js';
 
 class TabManager {
   private mainWindow: BrowserWindow;
@@ -29,6 +28,7 @@ class TabManager {
   private findInPageService: FindInPageService;
   private navigation: NavigationService;
   private sessionPersistence: SessionPersistenceService;
+  private noteTabs: NoteTabService;
 
   constructor(mainWindow: BrowserWindow) {
     this.mainWindow = mainWindow;
@@ -65,6 +65,16 @@ class TabManager {
       openUrl: (url, autoSelect) => this.openUrl(url, autoSelect),
       createView: () => this.createView(),
       createNoteHTML: (title, content, fileType) => createNoteHTML(title, content, fileType as 'text' | 'pdf' | 'image'),
+    });
+
+    this.noteTabs = new NoteTabService({
+      tabs: this.tabs,
+      createTabId: () => this.createTabId(),
+      getTabData: (tabId) => this.getTabData(tabId),
+      sendToRenderer: (channel, payload) => this.sendToRenderer(channel, payload),
+      saveSession: () => this.saveSession(),
+      setActiveTab: (tabId) => this.setActiveTab(tabId),
+      createView: () => this.createView(),
     });
 
     // Handle window resize to update WebContentsView bounds
@@ -364,201 +374,22 @@ class TabManager {
   }
 
   openNoteTab(noteId: number, title: string, content: string, fileType: 'text' | 'pdf' | 'image' = 'text', autoSelect: boolean = true, filePath?: string): { tabId: string; tab: TabData } {
-    const tabId = this.createTabId();
-
-    // For text notes, use Svelte component (editable); for images/PDFs, use WebContentsView
-    const useWebContentsView = fileType !== 'text';
-
-    // Generate URL: for text notes, show preview of content; otherwise use note:// protocol
-    const noteUrl = fileType === 'text'
-      ? this.generateNoteUrl(content)
-      : `note://${noteId}`;
-
-    const tab: TabWithView = {
-      id: tabId,
-      title: title,
-      url: noteUrl,
-      type: 'notes' as TabType,
-      view: useWebContentsView ? this.createView() : undefined,
-      component: fileType === 'text' ? 'note' : undefined,
-      created: Date.now(),
-      lastViewed: Date.now(),
-      metadata: {
-        fileType: fileType,
-        // For text notes, store content in metadata for editing
-        noteContent: fileType === 'text' ? content : undefined,
-        // For image tabs, store the data URL
-        imageData: fileType === 'image' ? content : undefined,
-        // Extract MIME type from data URL if it's an image
-        mimeType: fileType === 'image' && content.startsWith('data:')
-          ? content.split(';')[0].split(':')[1]
-          : undefined,
-        // Store original file path for session persistence
-        filePath: filePath,
-      },
-    };
-
-    this.tabs.set(tabId, tab);
-
-    // For images/PDFs, write to temp file and load via file:// protocol
-    // This avoids Chromium's ~2MB data URL limit that causes large files to fail
-    if (useWebContentsView && tab.view) {
-      const fileUrl = tempFileService.writeToTempFile(tabId, content, fileType as 'pdf' | 'image');
-      tab.view.webContents.loadURL(fileUrl);
-    }
-
-    // Set as active tab (if autoSelect is true)
-    if (autoSelect) {
-      this.setActiveTab(tabId);
-    }
-
-    // Notify renderer
-    this.sendToRenderer('tab-created', { tab: this.getTabData(tabId) });
-
-    // Save session after tab change
-    void this.saveSession();
-
-    return { tabId, tab: this.getTabData(tabId)! };
+    return this.noteTabs.openNoteTab(noteId, title, content, fileType, autoSelect, filePath);
   }
 
   /**
    * Open a file from a bookmark by reading it from disk.
    * Similar to session persistence restore, but for bookmarks.
    */
-  openFileFromBookmark(title: string, filePath: string, fileType: 'text' | 'pdf' | 'image'): { success: boolean; data?: { tabId: string; tab: TabData }; error?: string } {
-    // Check if file exists
-    if (!existsSync(filePath)) {
-      return { success: false, error: `File not found: ${filePath}` };
-    }
-
-    try {
-      const tabId = this.createTabId();
-
-      if (fileType === 'text') {
-        // Read text file
-        const content = readFileSync(filePath, 'utf-8');
-
-        const tab: TabWithView = {
-          id: tabId,
-          title,
-          url: this.generateNoteUrl(content),
-          type: 'notes' as TabType,
-          component: 'note',
-          created: Date.now(),
-          lastViewed: Date.now(),
-          metadata: {
-            fileType: 'text',
-            noteContent: content,
-            filePath,
-          },
-        };
-
-        this.tabs.set(tabId, tab);
-        this.setActiveTab(tabId);
-        this.sendToRenderer('tab-created', { tab: this.getTabData(tabId) });
-        void this.saveSession();
-
-        return { success: true, data: { tabId, tab: this.getTabData(tabId)! } };
-      } else {
-        // Read binary file (image or PDF) as base64
-        const buffer = readFileSync(filePath);
-        const mimeType = this.getMimeTypeForFile(filePath, fileType);
-        const content = `data:${mimeType};base64,${buffer.toString('base64')}`;
-
-        const tab: TabWithView = {
-          id: tabId,
-          title,
-          url: `note://${Date.now()}`,
-          type: 'notes' as TabType,
-          view: this.createView(),
-          created: Date.now(),
-          lastViewed: Date.now(),
-          metadata: {
-            fileType,
-            imageData: fileType === 'image' ? content : undefined,
-            mimeType,
-            filePath,
-          },
-        };
-
-        this.tabs.set(tabId, tab);
-
-        // Write to temp file and load via file:// protocol
-        // This avoids Chromium's ~2MB data URL limit
-        if (tab.view) {
-          const fileUrl = tempFileService.writeToTempFile(tabId, content, fileType as 'pdf' | 'image');
-          tab.view.webContents.loadURL(fileUrl);
-        }
-
-        this.setActiveTab(tabId);
-        this.sendToRenderer('tab-created', { tab: this.getTabData(tabId) });
-        void this.saveSession();
-
-        return { success: true, data: { tabId, tab: this.getTabData(tabId)! } };
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`Failed to open file from bookmark ${filePath}:`, errorMessage);
-      return { success: false, error: `Failed to read file: ${errorMessage}` };
-    }
-  }
-
-  /**
-   * Get MIME type for a file based on extension
-   */
-  private getMimeTypeForFile(filePath: string, fileType: 'image' | 'pdf'): string {
-    const ext = extname(filePath).toLowerCase();
-
-    if (fileType === 'pdf') {
-      return 'application/pdf';
-    }
-
-    const mimeTypes: Record<string, string> = {
-      '.jpg': 'image/jpeg',
-      '.jpeg': 'image/jpeg',
-      '.png': 'image/png',
-      '.gif': 'image/gif',
-      '.webp': 'image/webp',
-      '.bmp': 'image/bmp',
-      '.svg': 'image/svg+xml',
-      '.ico': 'image/x-icon',
-    };
-
-    return mimeTypes[ext] || 'application/octet-stream';
-  }
-
-  /**
-   * Generate URL for note tab based on content preview
-   */
-  private generateNoteUrl(content: string): string {
-    if (!content || content.trim().length === 0) {
-      return 'note://empty';
-    }
-    // Get first 30 characters of content, trimmed and cleaned
-    const preview = content.trim().substring(0, 30).replace(/\s+/g, ' ');
-    return preview + (content.length > 30 ? '...' : '');
+  openFileFromBookmark(title: string, filePath: string, fileType: 'text' | 'pdf' | 'image', noteId?: number): { success: boolean; data?: { tabId: string; tab: TabData }; error?: string } {
+    return this.noteTabs.openFileFromBookmark(title, filePath, fileType, noteId);
   }
 
   /**
    * Update note content and URL
    */
   updateNoteContent(tabId: string, content: string): { success: boolean; error?: string } {
-    const tab = this.tabs.get(tabId);
-    if (!tab) return { success: false, error: 'Tab not found' };
-    if (tab.metadata?.fileType !== 'text') return { success: false, error: 'Not a text note tab' };
-
-    // Update content in metadata
-    if (tab.metadata) {
-      tab.metadata.noteContent = content;
-    }
-
-    // Update URL based on content preview
-    tab.url = this.generateNoteUrl(content);
-
-    // Notify renderer of URL update
-    this.sendToRenderer('tab-url-updated', { id: tabId, url: tab.url });
-
-    return { success: true };
+    return this.noteTabs.updateNoteContent(tabId, content);
   }
 
   openLLMResponseTab(query: string, response?: string, error?: string, autoSelect: boolean = true): { tabId: string; tab: TabData } {

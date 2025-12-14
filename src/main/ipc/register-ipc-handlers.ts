@@ -191,7 +191,26 @@ export function registerIpcHandlers(context: MainProcessContext): void {
       // If the bookmark has file path and type, it's a file-based bookmark
       if (bookmark.filePath && bookmark.fileType) {
         // Use the session persistence service to restore the file tab
-        return tabManager.openFileFromBookmark(bookmark.title, bookmark.filePath, bookmark.fileType);
+        return tabManager.openFileFromBookmark(bookmark.title, bookmark.filePath, bookmark.fileType, bookmark.noteId);
+      }
+
+      // Note bookmark with persisted content/id
+      if (bookmark.noteId !== undefined) {
+        const fileType = bookmark.fileType ?? 'text';
+        const noteContent = bookmark.noteContent ?? '';
+        return { success: true, data: tabManager.openNoteTab(bookmark.noteId, bookmark.title, noteContent, fileType, true, bookmark.filePath) };
+      }
+
+      // Legacy note:// bookmarks without metadata
+      if (bookmark.url?.toLowerCase().startsWith('note://')) {
+        const rawId = bookmark.url.replace('note://', '');
+        const parsedId = Number.parseInt(rawId, 10);
+        if (!Number.isNaN(parsedId)) {
+          const fileType = bookmark.fileType ?? 'text';
+          const noteContent = bookmark.noteContent ?? '';
+          return { success: true, data: tabManager.openNoteTab(parsedId, bookmark.title, noteContent, fileType, true, bookmark.filePath) };
+        }
+        return { success: false, error: 'Invalid note bookmark' };
       }
 
       // Regular web bookmark - use standard openUrl
