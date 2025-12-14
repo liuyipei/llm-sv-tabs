@@ -171,6 +171,72 @@ describe('Bookmarks Store', () => {
       const allBookmarks = get(bookmarks);
       expect(allBookmarks).toHaveLength(1);
     });
+
+    it('should detect duplicate file-based bookmarks by file path', () => {
+      const result1 = addBookmark({
+        title: 'Document.pdf',
+        url: 'note://123',
+        filePath: '/path/to/document.pdf',
+        fileType: 'pdf',
+      });
+      expect(result1.isNew).toBe(true);
+
+      // Same file with different note:// URL should be detected as duplicate
+      const result2 = addBookmark({
+        title: 'Document.pdf (renamed)',
+        url: 'note://456', // Different URL
+        filePath: '/path/to/document.pdf', // Same file path
+        fileType: 'pdf',
+      });
+
+      expect(result2.isNew).toBe(false);
+      expect(result2.bookmark.id).toBe(result1.bookmark.id);
+      expect(result2.bookmark.title).toBe('Document.pdf (renamed)');
+
+      const allBookmarks = get(bookmarks);
+      expect(allBookmarks).toHaveLength(1);
+    });
+
+    it('should treat different files as separate bookmarks', () => {
+      const result1 = addBookmark({
+        title: 'Document1.pdf',
+        url: 'note://123',
+        filePath: '/path/to/document1.pdf',
+        fileType: 'pdf',
+      });
+
+      const result2 = addBookmark({
+        title: 'Document2.pdf',
+        url: 'note://456',
+        filePath: '/path/to/document2.pdf',
+        fileType: 'pdf',
+      });
+
+      expect(result1.isNew).toBe(true);
+      expect(result2.isNew).toBe(true);
+
+      const allBookmarks = get(bookmarks);
+      expect(allBookmarks).toHaveLength(2);
+    });
+
+    it('should preserve filePath and fileType when updating file bookmark', () => {
+      const result1 = addBookmark({
+        title: 'Photo.png',
+        url: 'note://123',
+        filePath: '/path/to/photo.png',
+        fileType: 'image',
+      });
+
+      const result2 = addBookmark({
+        title: 'Photo (updated)',
+        url: 'note://456',
+        filePath: '/path/to/photo.png',
+        fileType: 'image',
+      });
+
+      expect(result2.bookmark.filePath).toBe('/path/to/photo.png');
+      expect(result2.bookmark.fileType).toBe('image');
+    });
   });
 
   describe('removeBookmark', () => {

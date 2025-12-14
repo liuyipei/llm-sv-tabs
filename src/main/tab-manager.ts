@@ -1,4 +1,6 @@
 import { WebContentsView, BrowserWindow } from 'electron';
+import { readFileSync, existsSync } from 'fs';
+import { extname } from 'path';
 import type { TabData, TabMetadata, TabType, TabWithView } from '../types';
 import { SessionManager } from './services/session-manager.js';
 import { tempFileService } from './services/temp-file-service.js';
@@ -417,6 +419,112 @@ class TabManager {
     void this.saveSession();
 
     return { tabId, tab: this.getTabData(tabId)! };
+  }
+
+  /**
+   * Open a file from a bookmark by reading it from disk.
+   * Similar to session persistence restore, but for bookmarks.
+   */
+  openFileFromBookmark(title: string, filePath: string, fileType: 'text' | 'pdf' | 'image'): { success: boolean; data?: { tabId: string; tab: TabData }; error?: string } {
+    // Check if file exists
+    if (!existsSync(filePath)) {
+      return { success: false, error: `File not found: ${filePath}` };
+    }
+
+    try {
+      const tabId = this.createTabId();
+
+      if (fileType === 'text') {
+        // Read text file
+        const content = readFileSync(filePath, 'utf-8');
+
+        const tab: TabWithView = {
+          id: tabId,
+          title,
+          url: this.generateNoteUrl(content),
+          type: 'notes' as TabType,
+          component: 'note',
+          created: Date.now(),
+          lastViewed: Date.now(),
+          metadata: {
+            fileType: 'text',
+            noteContent: content,
+            filePath,
+          },
+        };
+
+        this.tabs.set(tabId, tab);
+        this.setActiveTab(tabId);
+        this.sendToRenderer('tab-created', { tab: this.getTabData(tabId) });
+        void this.saveSession();
+
+        return { success: true, data: { tabId, tab: this.getTabData(tabId)! } };
+      } else {
+        // Read binary file (image or PDF) as base64
+        const buffer = readFileSync(filePath);
+        const mimeType = this.getMimeTypeForFile(filePath, fileType);
+        const content = `data:${mimeType};base64,${buffer.toString('base64')}`;
+
+        const tab: TabWithView = {
+          id: tabId,
+          title,
+          url: `note://${Date.now()}`,
+          type: 'notes' as TabType,
+          view: this.createView(),
+          created: Date.now(),
+          lastViewed: Date.now(),
+          metadata: {
+            fileType,
+            imageData: fileType === 'image' ? content : undefined,
+            mimeType,
+            filePath,
+          },
+        };
+
+        this.tabs.set(tabId, tab);
+
+        // Write to temp file and load via file:// protocol
+        // This avoids Chromium's ~2MB data URL limit
+        if (tab.view) {
+          const fileUrl = tempFileService.writeToTempFile(tabId, content, fileType as 'pdf' | 'image');
+          tab.view.webContents.loadURL(fileUrl);
+        }
+
+        this.setActiveTab(tabId);
+        this.sendToRenderer('tab-created', { tab: this.getTabData(tabId) });
+        void this.saveSession();
+
+        return { success: true, data: { tabId, tab: this.getTabData(tabId)! } };
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`Failed to open file from bookmark ${filePath}:`, errorMessage);
+      return { success: false, error: `Failed to read file: ${errorMessage}` };
+    }
+  }
+
+  /**
+   * Get MIME type for a file based on extension
+   */
+  private getMimeTypeForFile(filePath: string, fileType: 'image' | 'pdf'): string {
+    const ext = extname(filePath).toLowerCase();
+
+    if (fileType === 'pdf') {
+      return 'application/pdf';
+    }
+
+    const mimeTypes: Record<string, string> = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+      '.bmp': 'image/bmp',
+      '.svg': 'image/svg+xml',
+      '.ico': 'image/x-icon',
+    };
+
+    return mimeTypes[ext] || 'application/octet-stream';
   }
 
   /**

@@ -110,6 +110,9 @@
       const bookmarkInput = {
         title: tab.title || 'Untitled',
         url: tab.url,
+        // Include file metadata for file-based bookmarks (PDFs, images, text files)
+        filePath: tab.metadata?.filePath,
+        fileType: tab.metadata?.fileType,
       };
 
       if (ipc) {

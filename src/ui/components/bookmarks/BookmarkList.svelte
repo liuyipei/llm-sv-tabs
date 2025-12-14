@@ -2,6 +2,7 @@
   import { getContext, onMount } from 'svelte';
   import { bookmarks, removeBookmark } from '$stores/bookmarks';
   import type { IPCBridgeAPI } from '$lib/ipc-bridge';
+  import type { Bookmark } from '../../../types';
 
   const ipc = getContext<IPCBridgeAPI>('ipc');
 
@@ -27,9 +28,10 @@
     }
   }
 
-  async function handleOpen(url: string) {
+  async function handleOpen(bookmark: Bookmark) {
     if (ipc) {
-      await ipc.openUrl(url);
+      // Use openBookmark to properly handle file-based bookmarks (PDFs, images, text)
+      await ipc.openBookmark(bookmark);
     }
   }
 </script>
@@ -42,7 +44,7 @@
   {:else}
     {#each $bookmarks as bookmark (bookmark.id)}
       <div class="bookmark-item">
-        <div class="bookmark-content" onclick={() => handleOpen(bookmark.url)} onkeydown={(e) => e.key === 'Enter' && handleOpen(bookmark.url)} role="button" tabindex="0">
+        <div class="bookmark-content" onclick={() => handleOpen(bookmark)} onkeydown={(e) => e.key === 'Enter' && handleOpen(bookmark)} role="button" tabindex="0">
           <span class="bookmark-title">{bookmark.title}</span>
           <span class="bookmark-url">{bookmark.url}</span>
         </div>

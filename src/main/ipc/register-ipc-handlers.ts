@@ -183,6 +183,22 @@ export function registerIpcHandlers(context: MainProcessContext): void {
     handleSafely(() => ({ success: get.bookmarkManager().deleteBookmark(id), data: { id } }))
   );
 
+  // Open a bookmark - handles both web URLs and file-based bookmarks (PDFs, images, text)
+  ipcMain.handle('open-bookmark', async (_event, bookmark: Bookmark) =>
+    handleSafely(() => {
+      const tabManager = get.tabManager();
+
+      // If the bookmark has file path and type, it's a file-based bookmark
+      if (bookmark.filePath && bookmark.fileType) {
+        // Use the session persistence service to restore the file tab
+        return tabManager.openFileFromBookmark(bookmark.title, bookmark.filePath, bookmark.fileType);
+      }
+
+      // Regular web bookmark - use standard openUrl
+      return { success: true, data: tabManager.openUrl(bookmark.url) };
+    })
+  );
+
   // LLM Query with Streaming
   ipcMain.handle('send-query', async (_event, query: string, options?: QueryOptions): Promise<LLMResponse> => {
     if (!options?.provider) {

@@ -5,8 +5,23 @@
  * - Removes www. prefix
  * - Removes default ports (80 for http, 443 for https)
  * - Sorts query parameters alphabetically
+ * - Handles special protocols (note://, file://, etc.) by returning as-is
  */
 export function normalizeUrl(url: string): string {
+  // Special protocols that don't need normalization
+  // note:// URLs are dynamically generated and shouldn't be compared
+  // For file-based bookmarks, duplicate detection uses filePath instead
+  const specialProtocols = ['note:', 'file:', 'data:', 'blob:'];
+  const lowerUrl = url.toLowerCase();
+
+  for (const protocol of specialProtocols) {
+    if (lowerUrl.startsWith(protocol)) {
+      // Return the URL as-is for special protocols
+      // These URLs are either not meaningful for comparison or should use other identifiers
+      return url;
+    }
+  }
+
   try {
     const urlObj = new URL(url);
 
