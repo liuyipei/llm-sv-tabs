@@ -113,6 +113,11 @@ Comprehensive test suite with **80+ tests** running in < 10 seconds:
 
 See [TESTING.md](./TESTING.md) for details.
 
+## Continuous Integration
+
+- GitHub Actions workflows live in [`.github/workflows`](./.github/workflows/) and are evaluated from the branch that opens a pull request. You will see the updated triggers (manual dispatch button and `/run-tests` comment handler) on any PR created from a branch containing the workflow changes.
+- To make the new CI behavior available to all contributors and default-branch pushes, merge the workflow updates into the default branch; Actions on other branches keep using the workflow definitions from their own commits.
+
 ## Architecture Benefits
 
 - **60-70% code reduction** vs vanilla JS
