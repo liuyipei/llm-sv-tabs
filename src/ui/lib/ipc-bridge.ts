@@ -43,6 +43,7 @@ export interface IPCBridgeAPI {
   getBookmarks(): Promise<IPCResponse<Bookmark[]> | Bookmark[]>;
   addBookmark(bookmark: Omit<Bookmark, 'id' | 'created'>): Promise<IPCResponse<BookmarkResult> | { success: boolean }>;
   deleteBookmark(id: string): Promise<IPCResponse | { success: boolean }>;
+  openBookmark(bookmark: Bookmark): Promise<IPCResponse<{ tabId: string; tab: Tab }> | { success: boolean }>;
   sendQuery(query: string, options?: QueryOptions): Promise<LLMResponse | { response: string }>;
   discoverModels(provider: ProviderType, apiKey?: string, endpoint?: string): Promise<IPCResponse<LLMModel[]> | LLMModel[]>;
   triggerScreenshot(): Promise<IPCResponse<{ success: boolean }>>;
@@ -154,6 +155,7 @@ export function initializeIPC(): IPCBridgeAPI {
     getBookmarks: () => window.electronAPI.getBookmarks(),
     addBookmark: (bookmark: Omit<Bookmark, 'id' | 'created'>) => window.electronAPI.addBookmark(bookmark),
     deleteBookmark: (id: string) => window.electronAPI.deleteBookmark(id),
+    openBookmark: (bookmark: Bookmark) => window.electronAPI.openBookmark(bookmark),
     sendQuery: (query: string, options?: QueryOptions) => window.electronAPI.sendQuery(query, options),
     discoverModels: (provider: ProviderType, apiKey?: string, endpoint?: string) => window.electronAPI.discoverModels(provider, apiKey, endpoint),
     triggerScreenshot: () => window.electronAPI.triggerScreenshot(),
@@ -365,6 +367,24 @@ function createMockAPI(): IPCBridgeAPI {
     deleteBookmark: async (id: string) => {
       console.log('Mock: deleteBookmark', id);
       return { success: true };
+    },
+    openBookmark: async (bookmark: Bookmark) => {
+      console.log('Mock: openBookmark', bookmark);
+      // For file-based bookmarks, create a note tab; for web bookmarks, create a webpage tab
+      const isFileBased = bookmark.filePath && bookmark.fileType;
+      const tab: Tab = {
+        id: `mock-bookmark-${Date.now()}`,
+        title: bookmark.title,
+        url: bookmark.url,
+        type: isFileBased ? 'notes' : 'webpage',
+        metadata: isFileBased ? {
+          fileType: bookmark.fileType,
+          filePath: bookmark.filePath,
+        } : undefined,
+      };
+      activeTabs.update((tabs) => ({ ...tabs, [tab.id]: tab }));
+      activeTabId.set(tab.id);
+      return { success: true, data: { tabId: tab.id, tab } };
     },
     sendQuery: async (query: string, options?: QueryOptions): Promise<LLMResponse> => {
       console.log('Mock: sendQuery', query, options);

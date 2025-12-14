@@ -103,6 +103,9 @@ const electronAPI = {
   deleteBookmark: (id: string): Promise<IPCResponse> =>
     ipcRenderer.invoke('delete-bookmark', id),
 
+  openBookmark: (bookmark: Bookmark): Promise<IPCResponse<{ tabId: string; tab: TabData }>> =>
+    ipcRenderer.invoke('open-bookmark', bookmark),
+
   // LLM Query
   sendQuery: (query: string, options?: QueryOptions): Promise<LLMResponse> =>
     ipcRenderer.invoke('send-query', query, options),

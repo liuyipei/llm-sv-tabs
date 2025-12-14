@@ -34,6 +34,9 @@
       const result = await ipc.addBookmark({
         title: activeTab.title,
         url: activeTab.url,
+        // Include file metadata for file-based bookmarks (PDFs, images, text files)
+        filePath: activeTab.metadata?.filePath,
+        fileType: activeTab.metadata?.fileType,
       });
 
       if (!handleBookmarkResponse(result)) {

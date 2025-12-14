@@ -8,18 +8,34 @@ function generateBookmarkId(): string {
   return `bookmark-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
+/**
+ * Get the key used for comparing bookmarks for duplicates.
+ * For file-based bookmarks, use the file path.
+ * For web bookmarks, use the normalized URL.
+ */
+function getBookmarkComparisonKey(bookmark: Pick<Bookmark, 'url' | 'filePath'>): string {
+  // For file-based bookmarks, use the file path for comparison
+  if (bookmark.filePath) {
+    return `file://${bookmark.filePath}`;
+  }
+  // For web bookmarks, use normalized URL
+  return normalizeUrl(bookmark.url);
+}
+
 export function upsertBookmark(
   existing: Bookmark[],
   bookmark: BookmarkInput
 ): { updated: Bookmark[]; bookmark: Bookmark; isNew: boolean } {
-  const normalizedUrl = normalizeUrl(bookmark.url);
-  const existingIndex = existing.findIndex((item) => normalizeUrl(item.url) === normalizedUrl);
+  const comparisonKey = getBookmarkComparisonKey(bookmark);
+  const existingIndex = existing.findIndex((item) => getBookmarkComparisonKey(item) === comparisonKey);
 
   if (existingIndex !== -1) {
     const updatedBookmark: Bookmark = {
       ...existing[existingIndex],
       title: bookmark.title,
       url: bookmark.url,
+      filePath: bookmark.filePath,
+      fileType: bookmark.fileType,
       created: Date.now(),
     };
 

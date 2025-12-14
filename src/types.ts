@@ -101,6 +101,9 @@ export interface Bookmark {
   url: string;
   created: number;
   tags?: string[];
+  // For file-based bookmarks (PDFs, images, text files)
+  filePath?: string;
+  fileType?: 'text' | 'pdf' | 'image';
 }
 
 export type BookmarkResult = { bookmark: Bookmark; isNew: boolean };
