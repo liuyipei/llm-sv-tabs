@@ -38,8 +38,8 @@ export class NoteTabService {
     // For text notes, use Svelte component (editable); for images/PDFs, use WebContentsView
     const useWebContentsView = fileType !== 'text';
 
-    // Generate URL: for text notes, show preview of content; otherwise use note:// protocol
-    const noteUrl = fileType === 'text' ? this.generateNoteUrl(content) : `note://${noteId}`;
+    // Generate canonical note URL for all note tab variants
+    const noteUrl = this.generateNoteUrl(noteId);
 
     const tab: TabWithView = {
       id: tabId,
@@ -108,7 +108,7 @@ export class NoteTabService {
       const tab: TabWithView = {
         id: tabId,
         title,
-        url: `note://${Date.now()}`,
+        url: this.generateNoteUrl(noteId),
         type: 'notes' as TabType,
         view: this.deps.createView(),
         created: Date.now(),
@@ -150,7 +150,6 @@ export class NoteTabService {
       tab.metadata.noteContent = content;
     }
 
-    tab.url = this.generateNoteUrl(content);
     this.deps.sendToRenderer('tab-url-updated', { id: tabId, url: tab.url });
 
     return { success: true };
@@ -188,13 +187,13 @@ export class NoteTabService {
     tabId: string;
     title: string;
     content: string;
-    filePath: string;
+    filePath?: string;
     noteId?: number;
   }): TabWithView {
     return {
       id: tabId,
       title,
-      url: this.generateNoteUrl(content),
+      url: this.generateNoteUrl(noteId),
       type: 'notes' as TabType,
       component: 'note',
       created: Date.now(),
@@ -256,12 +255,8 @@ export class NoteTabService {
     return mimeTypes[ext] || 'application/octet-stream';
   }
 
-  private generateNoteUrl(content: string): string {
-    if (!content || content.trim().length === 0) {
-      return 'note://empty';
-    }
-
-    const preview = content.trim().substring(0, 30).replace(/\s+/g, ' ');
-    return preview + (content.length > 30 ? '...' : '');
+  private generateNoteUrl(noteId: number | undefined): string {
+    const id = noteId ?? Date.now();
+    return `note://${id}`;
   }
 }

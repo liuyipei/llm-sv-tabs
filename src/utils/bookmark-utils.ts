@@ -1,3 +1,4 @@
+import { normalize as normalizePath } from 'path';
 import type { Bookmark } from '../types';
 import { normalizeUrl } from './url-normalization.js';
 
@@ -16,7 +17,9 @@ function generateBookmarkId(): string {
 function getBookmarkComparisonKey(bookmark: Pick<Bookmark, 'url' | 'filePath'>): string {
   // For file-based bookmarks, use the file path for comparison
   if (bookmark.filePath) {
-    return `file://${bookmark.filePath}`;
+    const normalizedPath = normalizePath(bookmark.filePath);
+    const platformPath = process.platform === 'win32' ? normalizedPath.toLowerCase() : normalizedPath;
+    return `file://${platformPath}`;
   }
   // For web bookmarks, use normalized URL
   return normalizeUrl(bookmark.url);
