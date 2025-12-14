@@ -22,7 +22,15 @@
       class="toast"
       style="border-left-color: {getTypeColor(toast.type)}"
       transition:fly={{ y: -20, duration: 300 }}
+      role="button"
+      tabindex="0"
       on:click={() => toastStore.dismiss(toast.id)}
+      on:keydown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          toastStore.dismiss(toast.id);
+        }
+      }}
     >
       <span class="toast-message">{toast.message}</span>
       <button class="toast-close" on:click={() => toastStore.dismiss(toast.id)}>×</button>
