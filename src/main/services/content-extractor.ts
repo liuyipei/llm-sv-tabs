@@ -1,5 +1,6 @@
-import { BrowserWindow, WebContentsView } from 'electron';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { WebContentsView } from 'electron';
+import { fileURLToPath } from 'node:url';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import type {
   ExtractedContent,
   ImageDataPayload,
@@ -175,10 +176,8 @@ export class ContentExtractor {
     if (tabData.metadata?.fileType === 'pdf') {
       const pdfPath = this.resolvePdfPath(tabData);
 
-      // Try to extract searchable text from the PDF (from live view first, then fallback to file)
-      const pdfContent =
-        (await this.extractPdfTextFromWebContents(view)) ||
-        (pdfPath ? await this.extractPdfTextFromFile(pdfPath) : undefined);
+      // Extract text using pdfjs-dist directly (reliable, no DOM dependency)
+      const pdfContent = pdfPath ? await this.extractPdfTextWithPdfjsLib(pdfPath) : undefined;
 
       // Capture viewport-sized previews for vision models when a view is available (multi-page aware)
       const previews = view ? await this.capturePdfPagePreviews(view) : [];
@@ -243,87 +242,35 @@ export class ContentExtractor {
   }
 
   /**
-   * Attempt to extract text from a PDF loaded in a WebContentsView.
+   * Extract text from PDF using pdfjs-dist library directly (no DOM dependency).
+   * This is reliable and works for PDFs of any size, bypassing DOM virtualization issues.
    */
-  private static async extractPdfTextFromWebContents(view?: WebContentsView): Promise<PDFContent | undefined> {
-    if (!view) return undefined;
-
+  private static async extractPdfTextWithPdfjsLib(filePath: string): Promise<PDFContent | undefined> {
     try {
-      await this.waitForPdfTextLayer(view);
+      const loadingTask = pdfjsLib.getDocument(filePath);
+      const doc = await loadingTask.promise;
+      const numPages = doc.numPages;
+      const pages: string[] = [];
 
-      const pdfContent = await view.webContents.executeJavaScript(`
-        (() => {
-          try {
-            const textLayers = Array.from(document.querySelectorAll('.textLayer'));
-            if (textLayers.length === 0) return null;
-
-            const pages = textLayers
-              .map(layer => {
-                try {
-                  return Array.from(layer.querySelectorAll('span'))
-                    .map(span => span.textContent || '')
-                    .join('')
-                    .trim();
-                } catch (e) {
-                  console.error('Error extracting text from layer:', e);
-                  return '';
-                }
-              })
-              .filter(Boolean);
-
-            return {
-              text: pages.join('\\n\\n'),
-              numPages: pages.length,
-            };
-          } catch (error) {
-            console.error('PDF text extraction error:', error);
-            return { error: error.message || String(error) };
-          }
-        })();
-      `);
-
-      // Check if extraction returned an error
-      if (pdfContent && 'error' in pdfContent) {
-        console.warn('PDF text extraction failed in renderer:', pdfContent.error);
-        return undefined;
-      }
-
-      if (pdfContent) {
-        const totalPages = await this.getPdfPageCount(view);
-        if (totalPages && totalPages > pdfContent.numPages) {
-          pdfContent.numPages = totalPages;
+      for (let i = 1; i <= numPages; i++) {
+        try {
+          const page = await doc.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items.map((item: any) => item.str).join(' ');
+          pages.push(pageText);
+        } catch (error) {
+          console.warn(`Failed to extract text from PDF page ${i}:`, error);
+          pages.push(''); // Continue with empty page rather than failing
         }
       }
 
-      return pdfContent || undefined;
+      return {
+        text: pages.join('\n\n'),
+        numPages,
+      };
     } catch (error) {
-      console.warn('Failed to extract PDF text from view:', error);
+      console.warn('Failed to extract PDF text with pdfjs-dist:', error);
       return undefined;
-    }
-  }
-
-  /**
-   * Load a PDF offscreen and extract text via its rendered text layer.
-   */
-  private static async extractPdfTextFromFile(filePath: string): Promise<PDFContent | undefined> {
-    const window = new BrowserWindow({
-      show: false,
-      webPreferences: {
-        offscreen: true,
-      },
-    });
-
-    try {
-      await window.webContents.loadURL(pathToFileURL(filePath).toString());
-
-      await this.waitForPdfTextLayer(window as unknown as WebContentsView);
-
-      return await this.extractPdfTextFromWebContents(window as unknown as WebContentsView);
-    } catch (error) {
-      console.warn('Failed to extract PDF text from file:', error);
-      return undefined;
-    } finally {
-      window.destroy();
     }
   }
 
