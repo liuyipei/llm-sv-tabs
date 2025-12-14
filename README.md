@@ -39,6 +39,7 @@ For a deep dive into the architecture and design philosophy:
 
 - **[User Experience & Prompt Context Management](./design/04-user-experience-and-context-management.md)** ⭐ **Start here** - Learn about the UX design
 - [Smart Content Extraction](./design/09-smart-content-extraction.md) - Context-aware DOM extraction for articles and web apps
+- [PDF Extraction for LLMs](./design/11-pdf-extraction-for-llms.md) - Hybrid text + image extraction with paginated previews
 - [Token Streaming & API Providers](./design/01-token-streaming-and-providers.md) - Provider architecture and real-time streaming
 - [Visual Layout Architecture](./design/02-visual-layout.md) - Hybrid rendering system combining Electron and Svelte
 - [Flexible Tab System](./design/03-flexible-tab-system.md) - How tabs handle URLs, files, text, and LLM responses
