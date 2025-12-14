@@ -242,24 +242,40 @@ export class ContentExtractor {
 
       const pdfContent = await view.webContents.executeJavaScript(`
         (() => {
-          const textLayers = Array.from(document.querySelectorAll('.textLayer'));
-          if (textLayers.length === 0) return null;
+          try {
+            const textLayers = Array.from(document.querySelectorAll('.textLayer'));
+            if (textLayers.length === 0) return null;
 
-          const pages = textLayers
-            .map(layer =>
-              Array.from(layer.querySelectorAll('span'))
-                .map(span => span.textContent || '')
-                .join('')
-                .trim()
-            )
-            .filter(Boolean);
+            const pages = textLayers
+              .map(layer => {
+                try {
+                  return Array.from(layer.querySelectorAll('span'))
+                    .map(span => span.textContent || '')
+                    .join('')
+                    .trim();
+                } catch (e) {
+                  console.error('Error extracting text from layer:', e);
+                  return '';
+                }
+              })
+              .filter(Boolean);
 
-          return {
-            text: pages.join('\n\n'),
-            numPages: pages.length,
-          };
+            return {
+              text: pages.join('\\n\\n'),
+              numPages: pages.length,
+            };
+          } catch (error) {
+            console.error('PDF text extraction error:', error);
+            return { error: error.message || String(error) };
+          }
         })();
       `);
+
+      // Check if extraction returned an error
+      if (pdfContent && 'error' in pdfContent) {
+        console.warn('PDF text extraction failed in renderer:', pdfContent.error);
+        return undefined;
+      }
 
       if (pdfContent) {
         const totalPages = await this.getPdfPageCount(view);
