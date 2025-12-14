@@ -4,11 +4,17 @@ on:
   push:
     tags:
       - 'v*'  # Triggers on version tags like v1.0.0
+  pull_request:
   workflow_dispatch:  # Allows manual trigger
+
+permissions:
+  contents: read
 
 jobs:
   build-windows:
     runs-on: windows-latest
+    env:
+      HAS_SIGNING: ${{ secrets.WINDOWS_CERTIFICATE != '' && secrets.WINDOWS_CERTIFICATE_PASSWORD != '' }}
 
     steps:
       - name: Checkout code
@@ -30,7 +36,7 @@ jobs:
         run: npm run build
 
       - name: Decode code signing certificate
-        if: ${{ secrets.WINDOWS_CERTIFICATE }}
+        if: ${{ env.HAS_SIGNING == 'true' }}
         shell: powershell
         env:
           CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE }}
@@ -41,6 +47,7 @@ jobs:
           echo "WIN_CSC_LINK=$certificatePath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Build and sign Windows app
+        if: ${{ startsWith(github.ref, 'refs/tags/') && env.HAS_SIGNING == 'true' }}
         env:
           # Code signing - WIN_CSC_LINK set in previous step
           WIN_CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
@@ -49,6 +56,7 @@ jobs:
         run: npm run dist:win
 
       - name: Upload Windows artifacts
+        if: ${{ startsWith(github.ref, 'refs/tags/') && env.HAS_SIGNING == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: windows-release
@@ -57,7 +65,7 @@ jobs:
           retention-days: 7
 
       - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') && env.HAS_SIGNING == 'true'
         uses: softprops/action-gh-release@v1
         with:
           files: |
