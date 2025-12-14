@@ -38,57 +38,58 @@ describe('Bookmarks Store', () => {
 
   describe('addBookmark', () => {
     it('should add a bookmark', () => {
-      const bookmark = addBookmark({
+      const result = addBookmark({
         title: 'Test Page',
         url: 'https://example.com',
       });
 
-      expect(bookmark).toHaveProperty('id');
-      expect(bookmark).toHaveProperty('created');
-      expect(bookmark.title).toBe('Test Page');
-      expect(bookmark.url).toBe('https://example.com');
+      expect(result.bookmark).toHaveProperty('id');
+      expect(result.bookmark).toHaveProperty('created');
+      expect(result.bookmark.title).toBe('Test Page');
+      expect(result.bookmark.url).toBe('https://example.com');
+      expect(result.isNew).toBe(true);
 
       const allBookmarks = get(bookmarks);
       expect(allBookmarks).toHaveLength(1);
-      expect(allBookmarks[0]).toEqual(bookmark);
+      expect(allBookmarks[0]).toEqual(result.bookmark);
     });
 
     it('should add bookmark with tags', () => {
-      const bookmark = addBookmark({
+      const result = addBookmark({
         title: 'Test Page',
         url: 'https://example.com',
         tags: ['test', 'example'],
       });
 
-      expect(bookmark.tags).toEqual(['test', 'example']);
+      expect(result.bookmark.tags).toEqual(['test', 'example']);
     });
 
     it('should generate unique IDs', () => {
-      const bookmark1 = addBookmark({
+      const result1 = addBookmark({
         title: 'Test 1',
         url: 'https://example1.com',
       });
 
-      const bookmark2 = addBookmark({
+      const result2 = addBookmark({
         title: 'Test 2',
         url: 'https://example2.com',
       });
 
-      expect(bookmark1.id).not.toBe(bookmark2.id);
+      expect(result1.bookmark.id).not.toBe(result2.bookmark.id);
       expect(get(bookmarks)).toHaveLength(2);
     });
 
     it('should preserve provided id and created fields', () => {
-      const bookmark = addBookmark({
+      const result = addBookmark({
         id: 'bookmark-main-1',
         created: 12345,
         title: 'From main',
         url: 'https://from-main.example.com',
       });
 
-      expect(bookmark.id).toBe('bookmark-main-1');
-      expect(bookmark.created).toBe(12345);
-      expect(get(bookmarks)[0]).toEqual(bookmark);
+      expect(result.bookmark.id).toBe('bookmark-main-1');
+      expect(result.bookmark.created).toBe(12345);
+      expect(get(bookmarks)[0]).toEqual(result.bookmark);
     });
 
     it('should persist to localStorage', () => {
@@ -104,16 +105,82 @@ describe('Bookmarks Store', () => {
       expect(parsed).toHaveLength(1);
       expect(parsed[0].title).toBe('Test Page');
     });
+
+    it('should detect duplicate URLs and move to top', () => {
+      const result1 = addBookmark({
+        title: 'First',
+        url: 'https://example.com',
+      });
+      expect(result1.isNew).toBe(true);
+
+      const result2 = addBookmark({
+        title: 'Test 2',
+        url: 'https://test.com',
+      });
+      expect(result2.isNew).toBe(true);
+
+      // Try to add the same URL again (should move to top)
+      const result3 = addBookmark({
+        title: 'Updated Title',
+        url: 'https://example.com',
+      });
+      expect(result3.isNew).toBe(false);
+      expect(result3.bookmark.id).toBe(result1.bookmark.id);
+      expect(result3.bookmark.title).toBe('Updated Title');
+
+      const allBookmarks = get(bookmarks);
+      expect(allBookmarks).toHaveLength(2);
+      // The duplicate should be moved to the end (top of the list)
+      expect(allBookmarks[1].id).toBe(result1.bookmark.id);
+      expect(allBookmarks[1].title).toBe('Updated Title');
+    });
+
+    it('should normalize URLs for duplicate detection', () => {
+      const result1 = addBookmark({
+        title: 'Original',
+        url: 'https://example.com/',
+      });
+
+      // Same URL with different variations should be detected as duplicate
+      const result2 = addBookmark({
+        title: 'Duplicate',
+        url: 'https://example.com',
+      });
+
+      expect(result2.isNew).toBe(false);
+      expect(result2.bookmark.id).toBe(result1.bookmark.id);
+
+      const allBookmarks = get(bookmarks);
+      expect(allBookmarks).toHaveLength(1);
+    });
+
+    it('should normalize www prefix for duplicate detection', () => {
+      const result1 = addBookmark({
+        title: 'Original',
+        url: 'https://www.example.com',
+      });
+
+      const result2 = addBookmark({
+        title: 'Without www',
+        url: 'https://example.com',
+      });
+
+      expect(result2.isNew).toBe(false);
+      expect(result2.bookmark.id).toBe(result1.bookmark.id);
+
+      const allBookmarks = get(bookmarks);
+      expect(allBookmarks).toHaveLength(1);
+    });
   });
 
   describe('removeBookmark', () => {
     it('should remove a bookmark by id', () => {
-      const bookmark = addBookmark({
+      const result = addBookmark({
         title: 'Test Page',
         url: 'https://example.com',
       });
 
-      removeBookmark(bookmark.id);
+      removeBookmark(result.bookmark.id);
 
       const allBookmarks = get(bookmarks);
       expect(allBookmarks).toHaveLength(0);
@@ -132,12 +199,12 @@ describe('Bookmarks Store', () => {
     });
 
     it('should persist removal to localStorage', () => {
-      const bookmark = addBookmark({
+      const result = addBookmark({
         title: 'Test Page',
         url: 'https://example.com',
       });
 
-      removeBookmark(bookmark.id);
+      removeBookmark(result.bookmark.id);
 
       const stored = localStorage.getItem('bookmarks');
       const parsed = JSON.parse(stored!);
@@ -147,12 +214,12 @@ describe('Bookmarks Store', () => {
 
   describe('updateBookmark', () => {
     it('should update bookmark properties', () => {
-      const bookmark = addBookmark({
+      const result = addBookmark({
         title: 'Original Title',
         url: 'https://example.com',
       });
 
-      updateBookmark(bookmark.id, {
+      updateBookmark(result.bookmark.id, {
         title: 'Updated Title',
       });
 
@@ -162,17 +229,17 @@ describe('Bookmarks Store', () => {
     });
 
     it('should not modify other bookmarks', () => {
-      const bookmark1 = addBookmark({
+      const result1 = addBookmark({
         title: 'Bookmark 1',
         url: 'https://example1.com',
       });
 
-      const bookmark2 = addBookmark({
+      const result2 = addBookmark({
         title: 'Bookmark 2',
         url: 'https://example2.com',
       });
 
-      updateBookmark(bookmark1.id, {
+      updateBookmark(result1.bookmark.id, {
         title: 'Updated Bookmark 1',
       });
 

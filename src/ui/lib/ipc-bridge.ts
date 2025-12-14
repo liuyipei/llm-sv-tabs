@@ -31,7 +31,7 @@ export interface IPCBridgeAPI {
   openRawMessageViewer(tabId: string): Promise<IPCResponse | { success: boolean }>;
   openDebugInfoWindow(tabId: string): Promise<IPCResponse | { success: boolean }>;
   getBookmarks(): Promise<IPCResponse<Bookmark[]> | Bookmark[]>;
-  addBookmark(bookmark: Omit<Bookmark, 'id' | 'created'>): Promise<IPCResponse<Bookmark> | { success: boolean }>;
+  addBookmark(bookmark: Omit<Bookmark, 'id' | 'created'>): Promise<IPCResponse<{ bookmark: Bookmark; isNew: boolean }> | { success: boolean }>;
   deleteBookmark(id: string): Promise<IPCResponse | { success: boolean }>;
   sendQuery(query: string, options?: QueryOptions): Promise<LLMResponse | { response: string }>;
   discoverModels(provider: ProviderType, apiKey?: string, endpoint?: string): Promise<IPCResponse<LLMModel[]> | LLMModel[]>;
@@ -340,7 +340,17 @@ function createMockAPI(): IPCBridgeAPI {
     },
     addBookmark: async (bookmark: Omit<Bookmark, 'id' | 'created'>) => {
       console.log('Mock: addBookmark', bookmark);
-      return { success: true };
+      return {
+        success: true,
+        data: {
+          bookmark: {
+            ...bookmark,
+            id: `bookmark-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            created: Date.now(),
+          },
+          isNew: true,
+        },
+      };
     },
     deleteBookmark: async (id: string) => {
       console.log('Mock: deleteBookmark', id);
