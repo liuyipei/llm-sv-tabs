@@ -42,11 +42,12 @@ The PDF extractor uses a **multi-strategy approach**:
 
 **When**: PDF contains searchable text (not scanned/image-based)
 
-**Processing**:
-1. **Wait for PDF.js text layer**: PDFs rendered via `<embed>` use browser's built-in PDF.js viewer
-2. **Extract from `.textLayer` DOM elements**: Query all `.textLayer` nodes and collect `<span>` text content
-3. **Fallback to file-based extraction**: If view is unavailable, load PDF in offscreen window
-4. **Page count detection**: Query `PDFViewerApplication.pdfDocument.numPages` for total page count
+**Processing** (using `pdfjs-dist` library in Node.js):
+1. **Load PDF document**: Use `pdfjsLib.getDocument(filePath)` to load PDF from file system
+2. **Iterate through pages**: Loop through all pages (1 to `doc.numPages`)
+3. **Extract text content**: For each page, call `page.getTextContent()` to get text items
+4. **Join text items**: Map text items to strings and join with spaces
+5. **Combine pages**: Join all pages with double newlines
 
 **Output Example**:
 ```typescript
@@ -57,10 +58,14 @@ The PDF extractor uses a **multi-strategy approach**:
 ```
 
 **Benefits**:
-- Lightweight (text is ~4x cheaper than images in tokens)
-- Searchable (enables text-based queries)
-- Fast extraction (direct DOM access)
-- Graceful degradation (fallback to file extraction)
+- ✅ **Reliable for any PDF size** - No DOM virtualization issues (30+ page PDFs work perfectly)
+- ✅ **Lightweight** - Text is ~4x cheaper than images in tokens
+- ✅ **Fast** - Direct extraction from PDF data model (no rendering needed)
+- ✅ **No browser dependency** - Runs in Node.js main process
+- ✅ **Searchable** - Enables text-based queries
+
+**Why not DOM scraping?**
+The browser's PDF.js viewer uses **DOM virtualization** - only visible pages exist in the DOM. Attempting to query `.textLayer` elements for a 30-page PDF would only find 1-2 pages, causing incomplete extraction and "Script failed to execute" errors.
 
 ### Image Preview Strategy
 
@@ -122,17 +127,12 @@ static async extractFromNoteTab(
   view?: WebContentsView
 ): Promise<ExtractedContent>
 
-// Text extraction from live view
-private static async extractPdfTextFromWebContents(
-  view?: WebContentsView
-): Promise<PDFContent | undefined>
-
-// Text extraction from file (fallback)
-private static async extractPdfTextFromFile(
+// Text extraction using pdfjs-dist (Node.js, no DOM dependency)
+private static async extractPdfTextWithPdfjsLib(
   filePath: string
 ): Promise<PDFContent | undefined>
 
-// Image preview capture (multi-page aware)
+// Image preview capture (multi-page aware, uses WebContentsView)
 private static async capturePdfPagePreviews(
   view: WebContentsView,
   maxPages = 3
@@ -144,10 +144,8 @@ private static async capturePdfPagePreviews(
 // 1. Resolve PDF file path
 const pdfPath = resolvePdfPath(tabData);
 
-// 2. Extract text (try view first, fallback to file)
-const pdfContent =
-  await extractPdfTextFromWebContents(view) ||
-  (pdfPath ? await extractPdfTextFromFile(pdfPath) : undefined);
+// 2. Extract text using pdfjs-dist (reliable, direct from file)
+const pdfContent = pdfPath ? await extractPdfTextWithPdfjsLib(pdfPath) : undefined;
 
 // 3. Capture paginated previews (when view available)
 const previews = view ? await capturePdfPagePreviews(view) : [];
@@ -430,6 +428,34 @@ const previews = await capturePdfPagePreviews(view, maxPages: 5);
 - [ ] Scanned PDF → Verify vision model reads content
 - [ ] Table-heavy PDF → Verify accurate table extraction
 
+## Dependencies
+
+### Runtime Dependencies
+
+```json
+{
+  "pdfjs-dist": "^5.4.449"
+}
+```
+
+**Why pdfjs-dist?**
+- ✅ **Industry standard** - Same library used by Firefox and Chrome PDF viewers
+- ✅ **Battle-tested** - Used by millions of websites and applications
+- ✅ **Node.js compatible** - Runs in main process without browser dependency
+- ✅ **No DOM virtualization** - Direct access to PDF data model (all pages available)
+- ✅ **Active maintenance** - Regular updates from Mozilla
+- ✅ **Comprehensive API** - Text extraction, metadata, page rendering
+
+**Usage in this project:**
+```typescript
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
+
+const loadingTask = pdfjsLib.getDocument(filePath);
+const doc = await loadingTask.promise;
+const page = await doc.getPage(pageNum);
+const textContent = await page.getTextContent();
+```
+
 ## Related Documents
 
 - [Design Doc 09: Smart Content Extraction](./09-smart-content-extraction.md) - Web page extraction (Article vs App routing)
@@ -438,7 +464,8 @@ const previews = await capturePdfPagePreviews(view, maxPages: 5);
 
 ## References
 
-- [PDF.js Viewer API](https://mozilla.github.io/pdf.js/api/draft/PDFViewerApplication.html) - Browser PDF viewer JavaScript API
+- [pdfjs-dist npm package](https://www.npmjs.com/package/pdfjs-dist) - Official PDF.js library for Node.js
+- [PDF.js Documentation](https://mozilla.github.io/pdf.js/) - API reference and guides
 - [Electron capturePage](https://www.electronjs.org/docs/latest/api/web-contents#contentsCapturePage) - Screenshot capture API
 - [Anthropic Vision](https://docs.anthropic.com/en/docs/vision) - Claude vision capabilities
 - [OpenAI Vision](https://platform.openai.com/docs/guides/vision) - GPT-4V vision guide
