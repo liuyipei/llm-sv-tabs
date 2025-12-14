@@ -12,6 +12,7 @@ import type {
   LLMResponse,
   Bookmark,
   ExtractedContent,
+  ImageDataPayload,
   ProviderType,
   ContentBlock,
   MessageContent,
@@ -36,6 +37,24 @@ const toLLMError = (error: unknown): LLMResponse => ({
   response: '',
   error: error instanceof Error ? error.message : String(error),
 });
+
+const collectImagesFromContent = (content: ExtractedContent): ImageDataPayload[] => {
+  const images: ImageDataPayload[] = [];
+
+  const pushPayload = (payload?: ImageDataPayload | ImageDataPayload[]) => {
+    if (!payload) return;
+    if (Array.isArray(payload)) {
+      images.push(...payload);
+    } else {
+      images.push(payload);
+    }
+  };
+
+  pushPayload(content.imageData);
+  pushPayload(content.images);
+
+  return images;
+};
 
 function createContextAccessors(context: MainProcessContext) {
   const ensure = <T>(value: T | null, name: string): T => {
@@ -278,7 +297,7 @@ export function registerIpcHandlers(context: MainProcessContext): void {
       }
 
       // Check if we have any images
-      const hasImages = extractedContents.some(c => c.type === 'image' || c.imageData);
+      const hasImages = extractedContents.some(c => c.type === 'image' || collectImagesFromContent(c).length > 0);
 
       // Build user message content
       let userMessageContent: MessageContent;
@@ -327,11 +346,12 @@ ${formattedContent}
 
         // Add image blocks
         for (const content of extractedContents) {
-          if (content.imageData) {
+          const imagePayloads = collectImagesFromContent(content);
+          for (const payload of imagePayloads) {
             // Parse data URL to get base64 data without prefix
-            const dataUrlMatch = content.imageData.data.match(/^data:([^;]+);base64,(.+)$/);
-            const base64Data = dataUrlMatch ? dataUrlMatch[2] : content.imageData.data;
-            const mimeType = dataUrlMatch ? dataUrlMatch[1] : content.imageData.mimeType;
+            const dataUrlMatch = payload.data.match(/^data:([^;]+);base64,(.+)$/);
+            const base64Data = dataUrlMatch ? dataUrlMatch[2] : payload.data;
+            const mimeType = dataUrlMatch ? dataUrlMatch[1] : payload.mimeType;
 
             contentBlocks.push({
               type: 'image',

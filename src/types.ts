@@ -220,16 +220,20 @@ export interface PDFContent {
   metadata?: Record<string, any>;
 }
 
+export interface ImageDataPayload {
+  data: string; // base64 encoded image (data URL or just base64)
+  mimeType: string; // e.g., 'image/png', 'image/jpeg'
+  page?: number; // Optional page number for PDF previews
+}
+
 export interface ExtractedContent {
   type: 'html' | 'pdf' | 'text' | 'image';
   title: string;
   url: string;
   content: string | SerializedDOM | PDFContent;
   screenshot?: string; // base64 encoded image
-  imageData?: {
-    data: string; // base64 encoded image (data URL or just base64)
-    mimeType: string; // e.g., 'image/png', 'image/jpeg'
-  };
+  imageData?: ImageDataPayload | ImageDataPayload[];
+  images?: ImageDataPayload[]; // Additional images for multimodal prompts
   metadata?: {
     extractionType?: 'article' | 'app'; // Smart extraction type
     tokenEstimate?: number; // Estimated tokens in content

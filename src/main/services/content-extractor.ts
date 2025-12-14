@@ -1,5 +1,12 @@
-import { WebContentsView } from 'electron';
-import type { ExtractedContent, SerializedDOM, TabData } from '../../types';
+import { BrowserWindow, WebContentsView } from 'electron';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import type {
+  ExtractedContent,
+  ImageDataPayload,
+  PDFContent,
+  SerializedDOM,
+  TabData,
+} from '../../types';
 import { ImageResizer } from './image-resizer.js';
 import { SmartContentExtractor } from './smart-content-extractor.js';
 
@@ -150,7 +157,10 @@ export class ContentExtractor {
    * Capture screenshot of the current view
    */
   private static async captureScreenshot(view: WebContentsView): Promise<string> {
-    const image = await view.webContents.capturePage();
+    const bounds = (view as any).getBounds?.();
+    const image = bounds
+      ? await view.webContents.capturePage({ x: 0, y: 0, width: bounds.width, height: bounds.height })
+      : await view.webContents.capturePage();
     return image.toDataURL();
   }
 
@@ -162,23 +172,32 @@ export class ContentExtractor {
     view?: WebContentsView
   ): Promise<ExtractedContent> {
     // Check if this is a PDF tab
-    // Future: Consider extracting text for token optimization instead of rendering as image
-    if (tabData.metadata?.fileType === 'pdf' && view) {
-      // Capture PDF as image for vision models
-      const screenshot = await this.captureScreenshot(view);
+    if (tabData.metadata?.fileType === 'pdf') {
+      const pdfPath = this.resolvePdfPath(tabData);
 
-      // Resize to match LLM image limits (max 1568px on long side)
-      const resizedDataUrl = ImageResizer.resizeImage(screenshot, 1568);
+      // Try to extract searchable text from the PDF (from live view first, then fallback to file)
+      const pdfContent =
+        (await this.extractPdfTextFromWebContents(view)) ||
+        (pdfPath ? await this.extractPdfTextFromFile(pdfPath) : undefined);
+
+      // Capture viewport-sized previews for vision models when a view is available (multi-page aware)
+      const previews = view ? await this.capturePdfPagePreviews(view) : [];
+      const primaryPreview = previews[0];
+      const additionalPreviews = previews.slice(1);
 
       return {
-        type: 'image',
+        type: 'pdf',
         title: tabData.title,
         url: tabData.url,
-        content: '', // No text content - sending visual representation
-        imageData: {
-          data: resizedDataUrl,
-          mimeType: 'image/png',
-        },
+        content: pdfContent ?? '',
+        imageData: primaryPreview,
+        images: additionalPreviews.length > 0 ? additionalPreviews : undefined,
+        metadata:
+          pdfContent && typeof pdfContent === 'object'
+            ? { numPages: pdfContent.numPages, previewPages: previews.map(p => p.page).filter(Boolean) }
+            : previews.length > 0
+              ? { previewPages: previews.map(p => p.page).filter(Boolean) }
+              : undefined,
       };
     }
 
@@ -210,5 +229,159 @@ export class ContentExtractor {
       url: tabData.url,
       content: tabData.metadata?.response || '', // For LLM response tabs
     };
+  }
+
+  /**
+   * Attempt to extract text from a PDF loaded in a WebContentsView.
+   */
+  private static async extractPdfTextFromWebContents(view?: WebContentsView): Promise<PDFContent | undefined> {
+    if (!view) return undefined;
+
+    try {
+      await this.waitForPdfTextLayer(view);
+
+      const pdfContent = await view.webContents.executeJavaScript(`
+        (() => {
+          const textLayers = Array.from(document.querySelectorAll('.textLayer'));
+          if (textLayers.length === 0) return null;
+
+          const pages = textLayers
+            .map(layer =>
+              Array.from(layer.querySelectorAll('span'))
+                .map(span => span.textContent || '')
+                .join('')
+                .trim()
+            )
+            .filter(Boolean);
+
+          return {
+            text: pages.join('\n\n'),
+            numPages: pages.length,
+          };
+        })();
+      `);
+
+      if (pdfContent) {
+        const totalPages = await this.getPdfPageCount(view);
+        if (totalPages && totalPages > pdfContent.numPages) {
+          pdfContent.numPages = totalPages;
+        }
+      }
+
+      return pdfContent || undefined;
+    } catch (error) {
+      console.warn('Failed to extract PDF text from view:', error);
+      return undefined;
+    }
+  }
+
+  /**
+   * Load a PDF offscreen and extract text via its rendered text layer.
+   */
+  private static async extractPdfTextFromFile(filePath: string): Promise<PDFContent | undefined> {
+    const window = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        offscreen: true,
+      },
+    });
+
+    try {
+      await window.webContents.loadURL(pathToFileURL(filePath).toString());
+
+      await this.waitForPdfTextLayer(window as unknown as WebContentsView);
+
+      return await this.extractPdfTextFromWebContents(window as unknown as WebContentsView);
+    } catch (error) {
+      console.warn('Failed to extract PDF text from file:', error);
+      return undefined;
+    } finally {
+      window.destroy();
+    }
+  }
+
+  private static resolvePdfPath(tabData: TabData): string | undefined {
+    if (tabData.metadata?.filePath) return tabData.metadata.filePath;
+
+    try {
+      if (tabData.url?.startsWith('file://')) {
+        return fileURLToPath(tabData.url);
+      }
+    } catch (error) {
+      console.warn('Failed to resolve PDF path from URL:', error);
+    }
+
+    return undefined;
+  }
+
+  private static async waitForPdfTextLayer(view: WebContentsView): Promise<void> {
+    try {
+      await view.webContents.executeJavaScript(`
+        new Promise(resolve => {
+          let attempts = 0;
+          const maxAttempts = 12;
+          const waitForText = () => {
+            const hasText = document.querySelector('.textLayer');
+            if (hasText || attempts >= maxAttempts) {
+              resolve(true);
+              return;
+            }
+            attempts += 1;
+            setTimeout(waitForText, 150);
+          };
+          waitForText();
+        });
+      `);
+    } catch {
+      // Swallow wait errors and allow extraction to continue with best-effort data
+    }
+  }
+
+  private static async getPdfPageCount(view: WebContentsView): Promise<number | undefined> {
+    try {
+      return await view.webContents.executeJavaScript(`
+        (() => {
+          const app = (window as any).PDFViewerApplication;
+          return app?.pdfDocument?.numPages || undefined;
+        })();
+      `);
+    } catch {
+      return undefined;
+    }
+  }
+
+  private static async capturePdfPagePreviews(view: WebContentsView, maxPages = 3): Promise<ImageDataPayload[]> {
+    const bounds = (view as any).getBounds?.();
+    const captureBounds = bounds ? { x: 0, y: 0, width: bounds.width, height: bounds.height } : undefined;
+
+    await this.waitForPdfTextLayer(view);
+    const numPages = await this.getPdfPageCount(view);
+    const pagesToCapture = Math.min(numPages ?? maxPages, maxPages);
+
+    const previews: ImageDataPayload[] = [];
+    if (pagesToCapture === 0) return previews;
+
+    for (let page = 1; page <= pagesToCapture; page += 1) {
+      // Navigate to the page in the PDF viewer so the viewport shows the target page
+      await view.webContents.executeJavaScript(`
+        (() => {
+          const app = (window as any).PDFViewerApplication;
+          if (app && app.page !== undefined) {
+            app.page = ${page};
+          }
+        })();
+      `);
+
+      // Give the viewer a short moment to render the requested page
+      await new Promise(resolve => setTimeout(resolve, 120));
+
+      const image = captureBounds
+        ? await view.webContents.capturePage(captureBounds)
+        : await view.webContents.capturePage();
+      const resized = ImageResizer.resizeImage(image.toDataURL(), 1568);
+      previews.push({ data: resized, mimeType: 'image/png', page });
+    }
+
+    return previews;
   }
 }
