@@ -1,6 +1,42 @@
-import { normalize as normalizePath } from 'path';
 import type { Bookmark } from '../types';
 import { normalizeUrl } from './url-normalization.js';
+
+function normalizeFilePath(filePath: string): string {
+  const withoutProtocol = filePath.startsWith('file://')
+    ? filePath.slice('file://'.length)
+    : filePath;
+
+  const unifiedSeparators = withoutProtocol.replace(/\\/g, '/');
+
+  let prefix = '';
+  let remainder = unifiedSeparators;
+
+  const driveMatch = /^([A-Za-z]:)(?:\/|$)/.exec(unifiedSeparators);
+  if (driveMatch) {
+    prefix = `${driveMatch[1]}/`;
+    remainder = unifiedSeparators.slice(driveMatch[0].length);
+  } else if (unifiedSeparators.startsWith('/')) {
+    prefix = '/';
+    remainder = unifiedSeparators.slice(1);
+  }
+
+  const segments = remainder.split('/');
+  const normalizedSegments: string[] = [];
+  for (const segment of segments) {
+    if (!segment || segment === '.') continue;
+    if (segment === '..') {
+      if (normalizedSegments.length) {
+        normalizedSegments.pop();
+      }
+      continue;
+    }
+    normalizedSegments.push(segment);
+  }
+
+  const normalizedPath = normalizedSegments.join('/');
+  const withPrefix = prefix ? `${prefix}${normalizedPath}` : normalizedPath;
+  return withPrefix || prefix || '.';
+}
 
 export type BookmarkInput = Omit<Bookmark, 'id' | 'created'> &
   Partial<Pick<Bookmark, 'id' | 'created'>>;
@@ -17,8 +53,9 @@ function generateBookmarkId(): string {
 function getBookmarkComparisonKey(bookmark: Pick<Bookmark, 'url' | 'filePath'>): string {
   // For file-based bookmarks, use the file path for comparison
   if (bookmark.filePath) {
-    const normalizedPath = normalizePath(bookmark.filePath);
-    const platformPath = process.platform === 'win32' ? normalizedPath.toLowerCase() : normalizedPath;
+    const normalizedPath = normalizeFilePath(bookmark.filePath);
+    const isWindows = typeof process !== 'undefined' && process.platform === 'win32';
+    const platformPath = isWindows ? normalizedPath.toLowerCase() : normalizedPath;
     return `file://${platformPath}`;
   }
   // For web bookmarks, use normalized URL

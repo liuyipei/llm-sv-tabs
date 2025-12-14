@@ -237,6 +237,34 @@ describe('Bookmarks Store', () => {
       expect(result2.bookmark.filePath).toBe('/path/to/photo.png');
       expect(result2.bookmark.fileType).toBe('image');
     });
+
+    it('should normalize Windows file paths when detecting duplicates', () => {
+      const platformSpy = vi.spyOn(process, 'platform', 'get').mockReturnValue('win32');
+
+      const result1 = addBookmark({
+        title: 'Report.docx',
+        url: 'note://abc',
+        filePath: String.raw`C:\\Users\\User\\Documents\\Report.docx`,
+        fileType: 'doc',
+      });
+
+      const result2 = addBookmark({
+        title: 'Report renamed',
+        url: 'note://def',
+        filePath: 'c:/users/user/documents/report.docx',
+        fileType: 'doc',
+      });
+
+      platformSpy.mockRestore();
+
+      expect(result1.isNew).toBe(true);
+      expect(result2.isNew).toBe(false);
+      expect(result2.bookmark.id).toBe(result1.bookmark.id);
+
+      const allBookmarks = get(bookmarks);
+      expect(allBookmarks).toHaveLength(1);
+      expect(allBookmarks[0].title).toBe('Report renamed');
+    });
   });
 
   describe('removeBookmark', () => {
