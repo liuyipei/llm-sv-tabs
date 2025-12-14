@@ -103,6 +103,8 @@ export interface Bookmark {
   tags?: string[];
 }
 
+export type BookmarkResult = { bookmark: Bookmark; isNew: boolean };
+
 // ============================================================================
 // Chat/Message Types
 // ============================================================================
@@ -337,7 +339,7 @@ export interface IPCBridge {
 
   // Bookmarks
   getBookmarks(): Promise<IPCResponse<Bookmark[]>>;
-  addBookmark(bookmark: Omit<Bookmark, 'id' | 'created'>): Promise<IPCResponse<Bookmark>>;
+  addBookmark(bookmark: Omit<Bookmark, 'id' | 'created'>): Promise<IPCResponse<BookmarkResult>>;
   deleteBookmark(id: string): Promise<IPCResponse>;
 
   // Screenshot capture

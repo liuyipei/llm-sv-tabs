@@ -5,6 +5,7 @@
   import { toastStore } from '$stores/toast';
   import type { Tab } from '../../../types';
   import type { IPCBridgeAPI } from '$lib/ipc-bridge';
+  import { applyBookmarkResult, handleBookmarkResponse } from '$lib/bookmark-results';
 
   let { tab }: { tab: Tab } = $props();
 
@@ -114,22 +115,13 @@
       if (ipc) {
         const result = await ipc.addBookmark(bookmarkInput);
 
-        if ((result as any)?.success && (result as any)?.data) {
-          const { bookmark, isNew } = (result as any).data;
-          addBookmark(bookmark);
-
-          if (isNew) {
-            toastStore.show(`Bookmark added: ${bookmark.title}`, 'success');
-          } else {
-            toastStore.show(`Bookmark moved to top: ${bookmark.title}`, 'info');
-          }
-        } else {
+        if (!handleBookmarkResponse(result)) {
           toastStore.show('Failed to add bookmark', 'error');
         }
       } else {
         // Fallback when IPC is not available (shouldn't happen in normal use)
-        addBookmark(bookmarkInput);
-        toastStore.show(`Bookmark added: ${bookmarkInput.title}`, 'success');
+        const result = addBookmark(bookmarkInput);
+        applyBookmarkResult(result);
       }
     } catch (error) {
       console.error('Failed to add bookmark:', error);
