@@ -9,7 +9,8 @@
   },
   "include": [
     "src/main/**/*.ts",
-    "src/types.ts"
+    "src/types.ts",
+    "src/utils/**/*.ts"
   ],
   "exclude": [
     "src/ui",
