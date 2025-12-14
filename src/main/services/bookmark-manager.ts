@@ -6,8 +6,8 @@ import { app } from 'electron';
 import { join } from 'path';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import type { Bookmark } from '../../types';
-import { upsertBookmark } from '../../utils/bookmark-utils';
-import { normalizeUrl } from '../../utils/url-normalization';
+import { upsertBookmark } from '../../utils/bookmark-utils.js';
+import { normalizeUrl } from '../../utils/url-normalization.js';
 
 export class BookmarkManager {
   private bookmarksPath: string;
