@@ -8,7 +8,17 @@ import {
   updateTabTitle,
   updateTabUrl,
 } from '$stores/tabs';
-import type { QueryOptions, LLMResponse, Bookmark, Tab, IPCResponse, TabData, ProviderType, LLMModel } from '../../types';
+import type {
+  QueryOptions,
+  LLMResponse,
+  Bookmark,
+  BookmarkResult,
+  Tab,
+  IPCResponse,
+  TabData,
+  ProviderType,
+  LLMModel,
+} from '../../types';
 
 export interface IPCBridgeAPI {
   openUrl(url: string): Promise<IPCResponse<{ tabId: string; tab: TabData }> | { tabId: string; tab: Tab }>;
@@ -31,7 +41,7 @@ export interface IPCBridgeAPI {
   openRawMessageViewer(tabId: string): Promise<IPCResponse | { success: boolean }>;
   openDebugInfoWindow(tabId: string): Promise<IPCResponse | { success: boolean }>;
   getBookmarks(): Promise<IPCResponse<Bookmark[]> | Bookmark[]>;
-  addBookmark(bookmark: Omit<Bookmark, 'id' | 'created'>): Promise<IPCResponse<{ bookmark: Bookmark; isNew: boolean }> | { success: boolean }>;
+  addBookmark(bookmark: Omit<Bookmark, 'id' | 'created'>): Promise<IPCResponse<BookmarkResult> | { success: boolean }>;
   deleteBookmark(id: string): Promise<IPCResponse | { success: boolean }>;
   sendQuery(query: string, options?: QueryOptions): Promise<LLMResponse | { response: string }>;
   discoverModels(provider: ProviderType, apiKey?: string, endpoint?: string): Promise<IPCResponse<LLMModel[]> | LLMModel[]>;

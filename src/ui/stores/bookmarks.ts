@@ -1,5 +1,6 @@
 import { writable, type Writable } from 'svelte/store';
 import type { Bookmark } from '../../types';
+import { upsertBookmark, type BookmarkInput } from '../../utils/bookmark-utils';
 import { normalizeUrl } from '../../utils/url-normalization';
 
 // Create a persisted store that syncs with localStorage
@@ -46,50 +47,16 @@ function createPersistedStore<T>(key: string, initial: T): Writable<T> {
 // Bookmarks store with localStorage persistence
 export const bookmarks: Writable<Bookmark[]> = createPersistedStore<Bookmark[]>('bookmarks', []);
 
-type BookmarkInput = Omit<Bookmark, 'id' | 'created'> &
-  Partial<Pick<Bookmark, 'id' | 'created'>>;
-
 // Helper functions
 export function addBookmark(bookmark: BookmarkInput): { bookmark: Bookmark; isNew: boolean } {
-  const normalizedUrl = normalizeUrl(bookmark.url);
-  let resultBookmark: Bookmark;
+  let resultBookmark: Bookmark | undefined;
   let isNew = true;
 
   bookmarks.update((items) => {
-    // Check if a bookmark with the same normalized URL already exists
-    const existingIndex = items.findIndex(
-      b => normalizeUrl(b.url) === normalizedUrl
-    );
-
-    if (existingIndex !== -1) {
-      // Bookmark exists - move it to the end (top of the list when reversed for display)
-      const existingBookmark = items[existingIndex];
-      // Update the created timestamp to move it to the top
-      existingBookmark.created = Date.now();
-      // Update title in case it changed
-      existingBookmark.title = bookmark.title;
-
-      resultBookmark = existingBookmark;
-      isNew = false;
-
-      // Remove from current position and add to the end
-      const newItems = [...items];
-      newItems.splice(existingIndex, 1);
-      newItems.push(existingBookmark);
-      return newItems;
-    }
-
-    // Create new bookmark
-    const newBookmark: Bookmark = {
-      ...bookmark,
-      id: bookmark.id || `bookmark-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      created: bookmark.created || Date.now(),
-    };
-
-    resultBookmark = newBookmark;
-    isNew = true;
-
-    return [...items, newBookmark];
+    const result = upsertBookmark(items, bookmark);
+    resultBookmark = result.bookmark;
+    isNew = result.isNew;
+    return result.updated;
   });
 
   return { bookmark: resultBookmark!, isNew };

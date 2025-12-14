@@ -3,9 +3,9 @@
   import BookmarkList from './BookmarkList.svelte';
   import { bookmarksCollapsed } from '$stores/ui';
   import { activeTabId, sortedTabs } from '$stores/tabs';
-  import { addBookmark as addBookmarkToStore } from '$stores/bookmarks';
   import { toastStore } from '$stores/toast';
   import type { IPCBridgeAPI } from '$lib/ipc-bridge';
+  import { handleBookmarkResponse } from '$lib/bookmark-results';
 
   const ipc = getContext<IPCBridgeAPI>('ipc');
 
@@ -36,16 +36,7 @@
         url: activeTab.url,
       });
 
-      if ((result as any)?.success && (result as any)?.data) {
-        const { bookmark, isNew } = (result as any).data;
-        addBookmarkToStore(bookmark);
-
-        if (isNew) {
-          toastStore.show(`Bookmark added: ${bookmark.title}`, 'success');
-        } else {
-          toastStore.show(`Bookmark moved to top: ${bookmark.title}`, 'info');
-        }
-      } else {
+      if (!handleBookmarkResponse(result)) {
         toastStore.show('Failed to add bookmark', 'error');
       }
     } catch (error) {

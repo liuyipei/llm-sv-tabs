@@ -15,8 +15,8 @@
   import Toast from '$components/Toast.svelte';
   import { activeSidebarView, sidebarTabsHeightPercent } from '$stores/ui';
   import { activeTabId, activeTabs, sortedTabs } from '$stores/tabs';
-  import { addBookmark as addBookmarkToStore } from '$stores/bookmarks';
   import { toastStore } from '$stores/toast';
+  import { handleBookmarkResponse } from '$lib/bookmark-results';
   import { initKeyboardShortcuts } from '$utils/keyboard-shortcuts';
 
   // Import styles for markdown rendering
@@ -101,16 +101,7 @@
         url: activeTab.url,
       });
 
-      if ((result as any)?.success && (result as any)?.data) {
-        const { bookmark, isNew } = (result as any).data;
-        addBookmarkToStore(bookmark);
-
-        if (isNew) {
-          toastStore.show(`Bookmark added: ${bookmark.title}`, 'success');
-        } else {
-          toastStore.show(`Bookmark moved to top: ${bookmark.title}`, 'info');
-        }
-      } else {
+      if (!handleBookmarkResponse(result)) {
         toastStore.show('Failed to add bookmark', 'error');
       }
     } catch (error) {
