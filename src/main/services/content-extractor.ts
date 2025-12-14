@@ -1,6 +1,6 @@
 import { WebContentsView } from 'electron';
 import { fileURLToPath } from 'node:url';
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
+import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import type {
   ExtractedContent,
   ImageDataPayload,
@@ -247,7 +247,7 @@ export class ContentExtractor {
    */
   private static async extractPdfTextWithPdfjsLib(filePath: string): Promise<PDFContent | undefined> {
     try {
-      const loadingTask = pdfjsLib.getDocument(filePath);
+      const loadingTask = getDocument(filePath);
       const doc = await loadingTask.promise;
       const numPages = doc.numPages;
       const pages: string[] = [];

@@ -13,7 +13,7 @@ PDFs contain text and visual content requiring different extraction strategies. 
 ### Text Extraction (pdfjs-dist in Node.js)
 
 ```typescript
-const loadingTask = pdfjsLib.getDocument(filePath);
+const loadingTask = getDocument(filePath);
 const doc = await loadingTask.promise;
 const pages: string[] = [];
 
@@ -75,7 +75,7 @@ export interface ImageDataPayload {
 
 **Usage**:
 ```typescript
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
+import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 ```
 
 ## References
