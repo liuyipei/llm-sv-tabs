@@ -329,6 +329,7 @@ export class ContentExtractor {
     const captureBounds = bounds ? { x: 0, y: 0, width: bounds.width, height: bounds.height } : undefined;
 
     const previews: ImageDataPayload[] = [];
+    let navigationSupported = true;
 
     try {
       await this.waitForPdfTextLayer(view);
@@ -342,19 +343,33 @@ export class ContentExtractor {
 
       for (let page = 1; page <= pagesToCapture; page += 1) {
         try {
-          // Navigate to the page in the PDF viewer so the viewport shows the target page
-          await view.webContents.executeJavaScript(`
-            (() => {
-              try {
-                const app = (window as any).PDFViewerApplication;
-                if (app && app.page !== undefined) {
-                  app.page = ${page};
-                }
-              } catch (e) {
-                console.error('PDF page navigation error:', e);
+          if (navigationSupported) {
+            try {
+              // Navigate to the page in the PDF viewer so the viewport shows the target page
+              await view.webContents.executeJavaScript(`
+                (() => {
+                  try {
+                    const app = (window as any).PDFViewerApplication;
+                    if (app && app.page !== undefined) {
+                      app.page = ${page};
+                    }
+                  } catch (e) {
+                    console.error('PDF page navigation error:', e);
+                  }
+                })();
+              `);
+            } catch (navigationError) {
+              navigationSupported = false;
+
+              // If navigation fails (often due to sandboxed PDF viewers), continue with the
+              // currently visible page instead of aborting the capture loop.
+              if (page > 1) {
+                break;
               }
-            })();
-          `);
+
+              console.warn('PDF page navigation is not supported in this viewer, capturing visible page only:', navigationError);
+            }
+          }
 
           // Give the viewer a short moment to render the requested page
           await new Promise(resolve => setTimeout(resolve, 120));
