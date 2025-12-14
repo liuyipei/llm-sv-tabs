@@ -109,10 +109,12 @@
     try {
       const bookmarkInput = {
         title: tab.title || 'Untitled',
-        url: tab.url,
+        url: tab.metadata?.noteId !== undefined ? `note://${tab.metadata.noteId}` : tab.url,
         // Include file metadata for file-based bookmarks (PDFs, images, text files)
         filePath: tab.metadata?.filePath,
         fileType: tab.metadata?.fileType,
+        noteId: tab.metadata?.noteId,
+        noteContent: tab.metadata?.noteContent,
       };
 
       if (ipc) {

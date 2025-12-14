@@ -165,6 +165,7 @@ export class SessionPersistenceService {
       metadata: {
         fileType: 'text',
         noteContent: metadata.noteContent || '',
+        noteId: metadata.noteId,
       },
     };
 
@@ -213,6 +214,7 @@ export class SessionPersistenceService {
             fileType: 'text',
             noteContent: content,
             filePath,
+            noteId: metadata.noteId,
           },
         };
 
@@ -238,6 +240,7 @@ export class SessionPersistenceService {
             imageData: fileType === 'image' ? content : undefined,
             mimeType,
             filePath,
+            noteId: metadata.noteId,
           },
         };
 
