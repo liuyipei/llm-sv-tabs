@@ -55,11 +55,13 @@
   },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
+    "@napi-rs/canvas": "^0.1.68",
     "dompurify": "^3.3.1",
     "highlight.js": "^11.11.1",
     "jsdom": "^27.3.0",
     "katex": "^0.16.27",
     "marked": "^17.0.1",
+    "pdfjs-dist": "^5.4.449",
     "turndown": "^7.2.2"
   }
 }
