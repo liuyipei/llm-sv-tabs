@@ -246,6 +246,25 @@ export interface ExtractedContent {
   };
 }
 
+// PDF-specific extraction types (used by pdf-extractor.ts)
+export interface PageText {
+  pageNumber: number;
+  text: string;
+  extractionTimeMs?: number;
+}
+
+export interface PageImage {
+  pageNumber: number;
+  dataUrl: string; // PNG as data URL
+  captureTimeMs?: number;
+}
+
+export interface PdfExtractedContent {
+  textPages: PageText[];
+  images: PageImage[];
+  totalExtractionTimeMs?: number;
+}
+
 // ============================================================================
 // IPC Message Types
 // ============================================================================
