@@ -1,13 +1,9 @@
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { pathToFileURL } from 'node:url';
 import { performance } from 'node:perf_hooks';
 import { createCanvas, Image, DOMMatrix, ImageData, Path2D } from '@napi-rs/canvas';
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import type { PdfExtractedContent, PageImage, PageText } from '../../types';
-
-// ES module equivalent of __dirname
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 /**
  * pdfjs-dist 5.x expects @napi-rs/canvas and these browser globals to be available.
@@ -20,9 +16,11 @@ if (!g.DOMMatrix) g.DOMMatrix = DOMMatrix;
 if (!g.ImageData) g.ImageData = ImageData;
 if (!g.Path2D) g.Path2D = Path2D;
 
-const workerPath = path.join(__dirname, '../../node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs');
+// Use process.cwd() to find node_modules from project root
+// (built file is in dist-main/main/services/, so __dirname-based paths don't work)
+const workerPath = path.join(process.cwd(), 'node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs');
 GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).href;
-const standardFontPath = path.join(__dirname, '../../node_modules/pdfjs-dist/standard_fonts/');
+const standardFontPath = path.join(process.cwd(), 'node_modules/pdfjs-dist/standard_fonts/');
 (GlobalWorkerOptions as any).standardFontDataUrl = `${pathToFileURL(standardFontPath).href}`;
 
 export interface TextExtractionResult {
