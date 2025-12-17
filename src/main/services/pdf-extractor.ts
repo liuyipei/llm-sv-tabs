@@ -1,9 +1,13 @@
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { performance } from 'node:perf_hooks';
 import { createCanvas, Image, DOMMatrix, ImageData, Path2D } from '@napi-rs/canvas';
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import type { PdfExtractedContent, PageImage, PageText } from '../../types';
+
+// ES module equivalent of __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * pdfjs-dist 5.x expects @napi-rs/canvas and these browser globals to be available.
