@@ -10,3 +10,12 @@ export { OpenAICompatibleProvider } from './openai-compatible-provider.js';
 export { VLLMProvider } from './vllm-provider.js';
 export { ProviderFactory } from './provider-factory.js';
 export { ModelDiscovery } from './model-discovery.js';
+export {
+  probeVisionSupport,
+  getCachedVisionCapability,
+  setVisionCapability,
+  clearVisionCapabilityCache,
+  hasImageContent,
+  stripImageContent,
+  type VisionProbeResult,
+} from './vision-capability-probe.js';
