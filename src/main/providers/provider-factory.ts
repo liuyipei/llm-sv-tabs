@@ -8,6 +8,7 @@ import { OpenAIProvider } from './openai-provider.js';
 import { AnthropicProvider } from './anthropic-provider.js';
 import { OllamaProvider } from './ollama-provider.js';
 import { OpenAICompatibleProvider } from './openai-compatible-provider.js';
+import { VLLMProvider } from './vllm-provider.js';
 import { GeminiProvider } from './gemini-provider.js';
 import { XAIProvider } from './xai-provider.js';
 import { OpenRouterProvider } from './openrouter-provider.js';
@@ -53,7 +54,7 @@ export class ProviderFactory {
         break;
 
       case 'vllm':
-        provider = new OpenAICompatibleProvider('vllm', endpoint, apiKey);
+        provider = new VLLMProvider(endpoint, apiKey);
         break;
 
       case 'local-openai-compatible':
