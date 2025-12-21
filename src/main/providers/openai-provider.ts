@@ -15,8 +15,18 @@ import {
 export class OpenAIProvider extends BaseProvider {
   private static readonly API_BASE = 'https://api.openai.com/v1';
   private static readonly MODELS: LLMModel[] = [
+    // GPT-4.1 family (April 2025) - 1M context, vision support
+    { id: 'gpt-4.1', name: 'GPT-4.1', provider: 'openai', contextWindow: 1000000, supportsVision: true },
+    { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini', provider: 'openai', contextWindow: 1000000, supportsVision: true },
+    { id: 'gpt-4.1-nano', name: 'GPT-4.1 Nano', provider: 'openai', contextWindow: 1000000, supportsVision: true },
+    // o-series reasoning models (2025)
+    { id: 'o4-mini', name: 'o4-mini', provider: 'openai', contextWindow: 128000, supportsVision: true },
+    { id: 'o3', name: 'o3', provider: 'openai', contextWindow: 200000, supportsVision: true },
+    { id: 'o3-mini', name: 'o3-mini', provider: 'openai', contextWindow: 200000, supportsVision: true },
+    // GPT-4o family (2024)
     { id: 'gpt-4o', name: 'GPT-4o', provider: 'openai', contextWindow: 128000, supportsVision: true },
     { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'openai', contextWindow: 128000, supportsVision: true },
+    // Legacy models
     { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', provider: 'openai', contextWindow: 128000, supportsVision: true },
     { id: 'gpt-4', name: 'GPT-4', provider: 'openai', contextWindow: 8192, supportsVision: false },
     { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', provider: 'openai', contextWindow: 16385, supportsVision: false },
