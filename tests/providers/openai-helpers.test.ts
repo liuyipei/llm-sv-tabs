@@ -10,13 +10,28 @@ describe('convertToOpenAIContent', () => {
     expect(convertToOpenAIContent(text)).toBe('hello world');
   });
 
-  it('converts structured content blocks', () => {
+  it('converts structured content blocks with images first', () => {
     const content: MessageContent = [
       { type: 'text', text: 'hello' },
       { type: 'image', source: { media_type: 'image/png', data: 'abcd' } },
     ];
 
     const result = convertToOpenAIContent(content);
+
+    // Images are placed before text for Llama 4, Qwen3-VL compatibility
+    expect(result).toEqual([
+      { type: 'image_url', image_url: { url: 'data:image/png;base64,abcd' } },
+      { type: 'text', text: 'hello' },
+    ]);
+  });
+
+  it('respects text_first ordering when specified', () => {
+    const content: MessageContent = [
+      { type: 'text', text: 'hello' },
+      { type: 'image', source: { media_type: 'image/png', data: 'abcd' } },
+    ];
+
+    const result = convertToOpenAIContent(content, 'text_first');
 
     expect(result).toEqual([
       { type: 'text', text: 'hello' },
