@@ -23,3 +23,32 @@ export {
   type ModelVisionInfo,
   type PreparedMessages,
 } from './vision-capability-probe.js';
+export {
+  getModelCapabilities,
+  setModelCapabilities,
+  setUserOverride,
+  clearUserOverride,
+  getUserOverrides,
+  restoreUserOverrides,
+  supportsInputModality,
+  supportsVision,
+  requiresImagesFirst,
+  getContentOrdering,
+  inferCapabilitiesFromName,
+  registerFromNameHeuristic,
+  type ModelCapabilities,
+  type InputModality,
+  type OutputModality,
+  type ContentOrdering,
+  type CapabilitySource,
+} from './model-capabilities.js';
+export {
+  getProbeAdapter,
+  registerProbeAdapter,
+  probeAndRegisterCapabilities,
+  quickVisionProbe,
+  OpenAICompatibleProbeAdapter,
+  AnthropicProbeAdapter,
+  type CapabilityProbeAdapter,
+  type ProbeResult,
+} from './capability-probes.js';

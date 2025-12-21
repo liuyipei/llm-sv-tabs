@@ -25,6 +25,12 @@ import {
   hasImageContent,
   stripImageContent,
 } from './vision-capability-probe.js';
+import {
+  getModelCapabilities,
+  setModelCapabilities,
+  getContentOrdering,
+  type ContentOrdering,
+} from './model-capabilities.js';
 
 /**
  * Patterns used to detect vision-language models by name.
@@ -47,6 +53,15 @@ const VISION_MODEL_PATTERNS = [
   /-vl\b/i,           // Generic -VL suffix
   /-omni\b/i,         // Omni models (multimodal)
   /vision/i,          // Generic vision keyword
+];
+
+/**
+ * Patterns for models that require images before text in content.
+ * Critical for Llama 4 and Qwen3-VL which return 400 errors otherwise.
+ */
+const IMAGES_FIRST_PATTERNS = [
+  /qwen.*vl/i,        // Qwen-VL, Qwen2-VL, Qwen3-VL
+  /llama.*4/i,        // Llama 4 family
 ];
 
 /**
@@ -105,6 +120,7 @@ export class VLLMProvider extends BaseProvider {
         // Check for capabilities in the 2025 extended format
         // Priority: explicit capabilities > config > name heuristics
         let supportsVision: boolean;
+        let contentOrdering: ContentOrdering = 'images_first'; // Default safe ordering
 
         if (model.capabilities?.vision !== undefined) {
           // Prefer explicit capabilities field (2025 standard)
@@ -117,8 +133,24 @@ export class VLLMProvider extends BaseProvider {
           supportsVision = isLikelyVisionModel(model.id);
         }
 
-        // Cache the discovered capability
+        // Infer content ordering from model name patterns
+        if (IMAGES_FIRST_PATTERNS.some(p => p.test(model.id))) {
+          contentOrdering = 'images_first';
+        }
+
+        // Register full capabilities in the new registry
         if (this.endpoint) {
+          setModelCapabilities('vllm', this.endpoint, model.id, {
+            modelId: model.id,
+            provider: 'vllm',
+            inputModalities: supportsVision ? ['text', 'image'] : ['text'],
+            outputModalities: ['text'],
+            contentOrdering,
+            supportsStreaming: true,
+            supportsSystemPrompt: true,
+          }, 'api_metadata');
+
+          // Also update legacy cache for backward compatibility
           setVisionCapability('vllm', this.endpoint, model.id, supportsVision, 'model discovery');
         }
 
@@ -164,24 +196,32 @@ export class VLLMProvider extends BaseProvider {
 
   /**
    * Prepare messages for sending, handling vision support detection.
-   * Returns processed messages and whether images were stripped.
+   * Returns processed messages, whether images were stripped, and content ordering.
    */
   private async prepareMessages(
     messages: Array<{ role: string; content: MessageContent }>,
     endpoint: string,
     apiKey: string | undefined,
     model: string
-  ): Promise<{ messages: Array<{ role: string; content: MessageContent }>; imagesStripped: boolean }> {
+  ): Promise<{
+    messages: Array<{ role: string; content: MessageContent }>;
+    imagesStripped: boolean;
+    contentOrdering: ContentOrdering;
+  }> {
+    // Get model capabilities for content ordering
+    const caps = getModelCapabilities('vllm', endpoint, model);
+    const contentOrdering = getContentOrdering(caps);
+
     // If no images in content, just return as-is
     if (!hasImageContent(messages as Array<{ role: string; content: unknown }>)) {
-      return { messages, imagesStripped: false };
+      return { messages, imagesStripped: false, contentOrdering };
     }
 
     // Check if model supports vision
     const supportsVision = await this.checkVisionSupport(endpoint, apiKey, model);
 
     if (supportsVision) {
-      return { messages, imagesStripped: false };
+      return { messages, imagesStripped: false, contentOrdering };
     }
 
     // Vision not supported - strip images and proceed with text only
@@ -192,7 +232,7 @@ export class VLLMProvider extends BaseProvider {
     const textOnlyMessages = stripImageContent(
       messages as Array<{ role: string; content: unknown }>
     );
-    return { messages: textOnlyMessages, imagesStripped: true };
+    return { messages: textOnlyMessages, imagesStripped: true, contentOrdering };
   }
 
   async query(
@@ -215,7 +255,7 @@ export class VLLMProvider extends BaseProvider {
 
     try {
       // Prepare messages (may strip images if vision not supported)
-      const { messages: preparedMessages, imagesStripped } = await this.prepareMessages(
+      const { messages: preparedMessages, imagesStripped, contentOrdering } = await this.prepareMessages(
         messages,
         endpoint,
         apiKey,
@@ -228,7 +268,7 @@ export class VLLMProvider extends BaseProvider {
         method: 'POST',
         headers,
         body: JSON.stringify(
-          buildOpenAIChatBody(preparedMessages, model, maxTokens, 'max_tokens')
+          buildOpenAIChatBody(preparedMessages, model, maxTokens, 'max_tokens', {}, contentOrdering)
         ),
       });
 
@@ -290,7 +330,7 @@ export class VLLMProvider extends BaseProvider {
 
     try {
       // Prepare messages (may strip images if vision not supported)
-      const { messages: preparedMessages, imagesStripped } = await this.prepareMessages(
+      const { messages: preparedMessages, imagesStripped, contentOrdering } = await this.prepareMessages(
         messages,
         endpoint,
         apiKey,
@@ -312,7 +352,7 @@ export class VLLMProvider extends BaseProvider {
           buildOpenAIChatBody(preparedMessages, model, maxTokens, 'max_tokens', {
             stream: true,
             stream_options: { include_usage: true },
-          })
+          }, contentOrdering)
         ),
       });
 
