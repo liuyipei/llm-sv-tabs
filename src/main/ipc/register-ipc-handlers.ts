@@ -1,21 +1,20 @@
 import { ipcMain } from 'electron';
 import TabManager from '../tab-manager.js';
-import { ProviderFactory } from '../providers/provider-factory.js';
 import { ContentExtractor } from '../services/content-extractor.js';
 import { ModelDiscovery } from '../providers/model-discovery.js';
 import { BookmarkManager } from '../services/bookmark-manager.js';
 import { ScreenshotService } from '../services/screenshot-service.js';
-import { normalizeWhitespace } from '../utils/text-normalizer.js';
-import { formatSerializedDOM } from '../utils/dom-formatter.js';
+import { buildCanonicalConversation } from '../vlm-gateway/conversation-builder.js';
+import { chat as multimodalChat } from '../vlm-gateway/index.js';
+import { getModelCapabilities } from '../vlm-gateway/capabilities.js';
+import type { ModelSelector } from '../vlm-gateway/models.js';
+import type { ChatOptions } from '../vlm-gateway/pdf-strategies.js';
 import type {
   QueryOptions,
   LLMResponse,
   Bookmark,
   ExtractedContent,
   ProviderType,
-  ContentBlock,
-  MessageContent,
-  SerializedDOM,
   ContextTabInfo,
 } from '../../types';
 
@@ -36,6 +35,47 @@ const toLLMError = (error: unknown): LLMResponse => ({
   response: '',
   error: error instanceof Error ? error.message : String(error),
 });
+
+const PORTKEY_PROVIDERS: ProviderType[] = [
+  'openai',
+  'anthropic',
+  'gemini',
+  'xai',
+  'openrouter',
+  'fireworks',
+  'minimax',
+];
+
+function toModelSelector(options: QueryOptions): ModelSelector {
+  const provider = options.provider;
+  const defaultModel = ModelDiscovery.getDefaultModel(provider) || 'default';
+  const model = options.model || defaultModel;
+
+  if (PORTKEY_PROVIDERS.includes(provider)) {
+    return {
+      providerKind: 'portkey',
+      model,
+      displayName: model,
+      provider,
+    };
+  }
+
+  return {
+    providerKind: 'direct-openai',
+    model,
+    displayName: model,
+    provider,
+  };
+}
+
+function toChatOptions(options: QueryOptions): ChatOptions {
+  return {
+    maxTokens: options.maxTokens,
+    apiKey: options.apiKey,
+    endpoint: options.endpoint,
+    portkeyApiKey: options.apiKey,
+  };
+}
 
 function createContextAccessors(context: MainProcessContext) {
   const ensure = <T>(value: T | null, name: string): T => {
@@ -248,22 +288,10 @@ export function registerIpcHandlers(context: MainProcessContext): void {
     }
 
     try {
-      // Get provider instance
-      const provider = ProviderFactory.getProvider(
-        options.provider,
-        options.apiKey,
-        options.endpoint
-      );
+      const selector: ModelSelector = toModelSelector(options);
+      const chatOptions: ChatOptions = toChatOptions(options);
+      const capabilities = await getModelCapabilities(selector, chatOptions.portkeyApiKey);
 
-      // Build messages array (supporting multimodal content)
-      const messages: Array<{ role: string; content: MessageContent }> = [];
-
-      // Add system prompt if provided
-      if (options.systemPrompt) {
-        messages.push({ role: 'system', content: options.systemPrompt });
-      }
-
-      // Extract content from selected tabs if requested
       const extractedContents: ExtractedContent[] = [];
       const contextTabs: ContextTabInfo[] = [];
       if (options.selectedTabIds && options.selectedTabIds.length > 0) {
@@ -271,13 +299,11 @@ export function registerIpcHandlers(context: MainProcessContext): void {
           const tab = tabManager.getTab(selectedTabId);
           if (!tab) continue;
 
-          // Build context tab info for persistence
           const contextTabInfo: ContextTabInfo = {
             id: selectedTabId,
             title: tab.title,
             url: tab.url,
             type: tab.type,
-            // Include persistent identifiers if this is an LLM response tab
             persistentId: tab.metadata?.persistentId,
             shortId: tab.metadata?.shortId,
             slug: tab.metadata?.slug,
@@ -285,7 +311,6 @@ export function registerIpcHandlers(context: MainProcessContext): void {
           contextTabs.push(contextTabInfo);
 
           try {
-            // Check if this is a note tab (could be image, text, or LLM response)
             if (tab.type === 'notes' || tab.component === 'llm-response') {
               const tabData = tabManager.getTabData(selectedTabId);
               if (tabData) {
@@ -293,7 +318,6 @@ export function registerIpcHandlers(context: MainProcessContext): void {
                 extractedContents.push(content);
               }
             } else {
-              // Regular webpage tab with WebContentsView
               const view = tabManager.getTabView(selectedTabId);
               if (view) {
                 const content = await ContentExtractor.extractFromTab(
@@ -310,148 +334,34 @@ export function registerIpcHandlers(context: MainProcessContext): void {
         }
       }
 
-      // Check if we have any images (including PDF page images)
-      const hasImages = extractedContents.some(
-        c => c.type === 'image' || c.imageData || c.metadata?.pdfPageImages?.length > 0
+      const { conversation, fullQuery } = buildCanonicalConversation(
+        query,
+        options.systemPrompt,
+        extractedContents,
+        capabilities,
       );
 
-      // Build user message content
-      let userMessageContent: MessageContent;
-      let fullQuery = query;
-
-      if (hasImages) {
-        // Build multimodal content array
-        const contentBlocks: ContentBlock[] = [];
-
-        // Add text context from tabs first
-        const textContents = extractedContents
-          .filter(c => c.type !== 'image')
-          .map((content) => {
-            let formattedContent = '';
-
-            // Check if content is SerializedDOM (structured HTML data)
-            if (content.type === 'html' && typeof content.content === 'object' && 'mainContent' in content.content) {
-              formattedContent = formatSerializedDOM(content.content as SerializedDOM);
-            } else if (typeof content.content === 'string') {
-              // Plain text content
-              formattedContent = normalizeWhitespace(content.content);
-            } else {
-              // Fallback for other types
-              formattedContent = normalizeWhitespace(String(content.content));
-            }
-
-            return `
-# Tab: ${content.title}
-**URL**: ${content.url}
-
-${formattedContent}
-            `.trim();
-          })
-          .filter(text => text.length > 0);
-
-        if (textContents.length > 0) {
-          const contextText = `Here is the content from the selected tabs:\n\n${textContents.join('\n\n---\n\n')}\n\n`;
-          fullQuery = `${contextText}${query}`;
-        }
-
-        // Add text block with query
-        contentBlocks.push({
-          type: 'text',
-          text: fullQuery,
-        });
-
-        // Add image blocks
-        for (const content of extractedContents) {
-          if (content.imageData) {
-            // Parse data URL to get base64 data without prefix
-            const dataUrlMatch = content.imageData.data.match(/^data:([^;]+);base64,(.+)$/);
-            const base64Data = dataUrlMatch ? dataUrlMatch[2] : content.imageData.data;
-            const mimeType = dataUrlMatch ? dataUrlMatch[1] : content.imageData.mimeType;
-
-            contentBlocks.push({
-              type: 'image',
-              source: {
-                type: 'base64',
-                media_type: mimeType,
-                data: base64Data,
-              },
-            });
-          }
-
-          // Add PDF page images (for vision models)
-          if (content.metadata?.pdfPageImages) {
-            for (const pageImage of content.metadata.pdfPageImages) {
-              const dataUrlMatch = pageImage.data.match(/^data:([^;]+);base64,(.+)$/);
-              const base64Data = dataUrlMatch ? dataUrlMatch[2] : pageImage.data;
-              const mimeType = dataUrlMatch ? dataUrlMatch[1] : pageImage.mimeType;
-
-              contentBlocks.push({
-                type: 'image',
-                source: {
-                  type: 'base64',
-                  media_type: mimeType,
-                  data: base64Data,
-                },
-              });
-            }
-          }
-        }
-
-        userMessageContent = contentBlocks;
-      } else {
-        // Text-only content
-        const textContents = extractedContents
-          .map((content) => {
-            let formattedContent = '';
-
-            // Check if content is SerializedDOM (structured HTML data)
-            if (content.type === 'html' && typeof content.content === 'object' && 'mainContent' in content.content) {
-              formattedContent = formatSerializedDOM(content.content as SerializedDOM);
-            } else if (typeof content.content === 'string') {
-              // Plain text content
-              formattedContent = normalizeWhitespace(content.content);
-            } else {
-              // Fallback for other types
-              formattedContent = normalizeWhitespace(String(content.content));
-            }
-
-            return `
-# Tab: ${content.title}
-**URL**: ${content.url}
-
-${formattedContent}
-            `.trim();
-          })
-          .filter(text => text.length > 0);
-
-        if (textContents.length > 0) {
-          const contextText = `Here is the content from the selected tabs:\n\n${textContents.join('\n\n---\n\n')}\n\n`;
-          fullQuery = `${contextText}${query}`;
-        }
-
-        userMessageContent = fullQuery;
-      }
-
-      // Persist context metadata before streaming so the UI can render it immediately
       tabManager.updateLLMMetadata(tabId, {
         selectedTabIds: options.selectedTabIds,
         contextTabs: contextTabs.length > 0 ? contextTabs : undefined,
         fullQuery: typeof fullQuery === 'string' && fullQuery !== query ? fullQuery : undefined,
       });
 
-      // Add user message
-      messages.push({ role: 'user', content: userMessageContent });
+      const response = await multimodalChat(
+        selector,
+        conversation,
+        chatOptions,
+        (chunk) => {
+          if (chunk.type === 'delta' && chunk.text) {
+            tabManager!.sendStreamChunk(tabId, chunk.text);
+          }
+        },
+        capabilities
+      );
 
-      // Stream response
-      const response = await provider.queryStream(messages, options, (chunk) => {
-        // Send chunk to renderer
-        tabManager!.sendStreamChunk(tabId, chunk);
-      });
-
-      // Update tab metadata after streaming completes
       const tab = tabManager.getTab(tabId);
       if (tab?.metadata) {
-        tab.metadata.response = response.response;
+        tab.metadata.response = response.text;
         tab.metadata.isStreaming = false;
         tab.metadata.tokensIn = response.tokensIn;
         tab.metadata.tokensOut = response.tokensOut;
@@ -460,7 +370,6 @@ ${formattedContent}
         tab.metadata.selectedTabIds = options.selectedTabIds;
         tab.metadata.contextTabs = contextTabs.length > 0 ? contextTabs : undefined;
 
-        // Update title
         const modelName = response.model || '';
         const tokensIn = response.tokensIn || 0;
         const tokensOut = response.tokensOut || 0;
@@ -471,7 +380,7 @@ ${formattedContent}
           tab.title = `Response ${modelName}`;
         }
 
-        tabManager.updateLLMResponseTab(tabId, response.response, {
+        tabManager.updateLLMResponseTab(tabId, response.text, {
           tokensIn: response.tokensIn,
           tokensOut: response.tokensOut,
           model: response.model,
@@ -481,27 +390,24 @@ ${formattedContent}
         });
       }
 
-      // Add fullQuery to response metadata (only for text queries)
       return {
         ...response,
+        response: response.text,
         fullQuery: typeof fullQuery === 'string' && fullQuery !== query ? fullQuery : undefined,
       };
     } catch (error) {
-      // Update tab with error
       const tab = tabManager.getTab(tabId);
       if (tab?.metadata) {
         tab.metadata.error = error instanceof Error ? error.message : String(error);
         tab.metadata.isStreaming = false;
       }
 
-      // Ensure renderer transitions out of streaming state even on failures
       tabManager.updateLLMResponseTab(tabId, tab?.metadata?.response || '', {
         error: error instanceof Error ? error.message : String(error),
       });
 
       return toLLMError(error);
     } finally {
-      // Ensure renderer exits streaming state even if upstream handlers throw
       const preFinishMetadata = tabManager?.getTabMetadataSnapshot(tabId);
       const preFinishTabs = tabManager?.getLLMTabsSnapshot();
       console.log('🔵 [MAIN] Finishing stream', { tabId, preFinishMetadata, preFinishTabs });
@@ -598,4 +504,3 @@ ${formattedContent}
     })
   );
 }
-

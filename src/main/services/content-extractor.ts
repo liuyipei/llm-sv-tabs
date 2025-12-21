@@ -205,6 +205,7 @@ export class ContentExtractor {
             pageCount: pdfContent.textPages.length,
             pdfPageImages, // Array of page images for vision models
             extractionTimeMs: pdfContent.totalExtractionTimeMs,
+            filePath: tabData.metadata.filePath,
           },
         };
       } catch (error) {

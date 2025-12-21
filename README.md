@@ -47,6 +47,7 @@ For a deep dive into the architecture and design philosophy:
 - [Round-Trip Test Pattern](./design/06-round-trip-test-pattern.md) - Testing pattern for state persistence through navigation
 - [Store Synchronization Across Processes](./design/07-store-synchronization-across-processes.md) - IPC-based state management
 - [Keyboard Shortcuts](./design/08-keyboard-shortcuts.md) - Global shortcuts and focus management with WebContentsView
+- [Multimodal Gateway](./design/12-multimodal-gateway.md) - Canonical message schema, capability-aware routing, and Portkey-first wiring
 
 ## Features
 
@@ -57,6 +58,7 @@ For a deep dive into the architecture and design philosophy:
 - **Content Extraction**: DOM serialization and webpage screenshots for vision models
 - **File Upload**: Support for images, PDFs, and text files as tab content
 - **Reactive UI**: Svelte 5 components with automatic updates
+- **Multimodal Gateway**: Canonical message schema with capability-aware routing through Portkey or direct providers
 - **Type-Safe**: Full TypeScript with comprehensive type definitions
 
 ## Requirements
