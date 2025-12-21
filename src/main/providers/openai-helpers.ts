@@ -3,25 +3,38 @@ import type { MessageContent } from '../../types';
 type TokenLimitField = 'max_tokens' | 'max_completion_tokens';
 
 /**
- * Convert our internal content format to OpenAI-compatible format
+ * Convert our internal content format to OpenAI-compatible format.
+ *
+ * IMPORTANT: Images are placed BEFORE text in the content array.
+ * This is required by many 2025 VLMs (Llama 4, Qwen3-VL) which will
+ * return 400 errors if images appear after text in the sequence.
  */
 export function convertToOpenAIContent(content: MessageContent): any {
   if (typeof content === 'string') {
     return content;
   }
 
-  return content.map(block => {
+  // Separate images and text, then concatenate with images first
+  const imageParts: any[] = [];
+  const textParts: any[] = [];
+
+  for (const block of content) {
     if (block.type === 'text') {
-      return { type: 'text', text: block.text };
+      textParts.push({ type: 'text', text: block.text });
     } else if (block.type === 'image') {
       const dataUrl = `data:${block.source.media_type};base64,${block.source.data}`;
-      return {
+      imageParts.push({
         type: 'image_url',
         image_url: { url: dataUrl }
-      };
+      });
+    } else {
+      // Unknown block type, preserve as-is in text section
+      textParts.push(block);
     }
-    return block;
-  });
+  }
+
+  // Images first, then text (critical for Llama 4, Qwen3-VL compatibility)
+  return [...imageParts, ...textParts];
 }
 
 export function toOpenAIMessages(messages: Array<{ role: string; content: MessageContent }>) {

@@ -40,9 +40,13 @@ export class AnthropicProvider extends BaseProvider {
   // Anthropic requires a fixed version header for their API; this is the latest for the messages endpoint.
   private static readonly API_VERSION = '2023-06-01';
   private static readonly MODELS: LLMModel[] = [
-    // Claude 4 family (2025)
+    // Claude 4.5 family (Dec 2025) - frontier models
+    { id: 'claude-4.5-opus', name: 'Claude 4.5 Opus', provider: 'anthropic', contextWindow: 200000, supportsVision: true },
+    { id: 'claude-4.5-sonnet', name: 'Claude 4.5 Sonnet', provider: 'anthropic', contextWindow: 200000, supportsVision: true },
+    // Claude 4 family (May 2025)
     { id: 'claude-opus-4-20250514', name: 'Claude Opus 4', provider: 'anthropic', contextWindow: 200000, supportsVision: true },
     { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4', provider: 'anthropic', contextWindow: 200000, supportsVision: true },
+    { id: 'claude-4-haiku', name: 'Claude 4 Haiku', provider: 'anthropic', contextWindow: 200000, supportsVision: true },
     // Claude 3.5 family - Haiku vision added Feb 2025
     { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet', provider: 'anthropic', contextWindow: 200000, supportsVision: true },
     { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku', provider: 'anthropic', contextWindow: 200000, supportsVision: true },

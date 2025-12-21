@@ -15,12 +15,16 @@ import {
 export class OpenAIProvider extends BaseProvider {
   private static readonly API_BASE = 'https://api.openai.com/v1';
   private static readonly MODELS: LLMModel[] = [
+    // GPT-5 family (Dec 2025) - frontier multimodal
+    { id: 'gpt-5.2-high', name: 'GPT-5.2 High', provider: 'openai', contextWindow: 256000, supportsVision: true },
+    { id: 'gpt-5-omni', name: 'GPT-5 Omni', provider: 'openai', contextWindow: 256000, supportsVision: true },
     // GPT-4.1 family (April 2025) - 1M context, vision support
     { id: 'gpt-4.1', name: 'GPT-4.1', provider: 'openai', contextWindow: 1000000, supportsVision: true },
     { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini', provider: 'openai', contextWindow: 1000000, supportsVision: true },
     { id: 'gpt-4.1-nano', name: 'GPT-4.1 Nano', provider: 'openai', contextWindow: 1000000, supportsVision: true },
     // o-series reasoning models (2025)
     { id: 'o4-mini', name: 'o4-mini', provider: 'openai', contextWindow: 128000, supportsVision: true },
+    { id: 'o3-vision', name: 'o3 Vision', provider: 'openai', contextWindow: 200000, supportsVision: true },
     { id: 'o3', name: 'o3', provider: 'openai', contextWindow: 200000, supportsVision: true },
     { id: 'o3-mini', name: 'o3-mini', provider: 'openai', contextWindow: 200000, supportsVision: true },
     // GPT-4o family (2024)

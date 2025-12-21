@@ -34,16 +34,35 @@ const VISION_MODEL_PATTERNS = [
   /qwen.*vl/i,        // Qwen-VL, Qwen2-VL, Qwen3-VL
   /qwen.*vision/i,    // Qwen-Vision variants
   /llava/i,           // LLaVA models
+  /llama.*4.*(maverick|scout)/i, // Llama 4 multimodal variants
   /cogvlm/i,          // CogVLM
   /internvl/i,        // InternVL
   /phi.*vision/i,     // Phi-Vision
   /minicpm.*v/i,      // MiniCPM-V
   /deepseek.*vl/i,    // DeepSeek-VL
+  /deepseek.*vision/i, // DeepSeek vision variants
   /yi.*vl/i,          // Yi-VL
   /glm.*v/i,          // GLM-4V
+  /nemotron.*vl/i,    // NVIDIA Nemotron VL
   /-vl\b/i,           // Generic -VL suffix
+  /-omni\b/i,         // Omni models (multimodal)
   /vision/i,          // Generic vision keyword
 ];
+
+/**
+ * Model metadata from /v1/models endpoint (2025 extended format)
+ */
+interface ModelInfo {
+  id: string;
+  capabilities?: {
+    vision?: boolean;
+    function_calling?: boolean;
+  };
+  // Some providers use config instead
+  config?: {
+    vision?: boolean;
+  };
+}
 
 /**
  * Check if a model name indicates likely vision capability
@@ -80,14 +99,36 @@ export class VLLMProvider extends BaseProvider {
         headers,
       });
 
-      const data = (await response.json()) as { data?: Array<{ id: string }> };
+      const data = (await response.json()) as { data?: ModelInfo[] };
 
-      return (data.data || []).map(model => ({
-        id: model.id,
-        name: model.id,
-        provider: 'vllm' as const,
-        supportsVision: isLikelyVisionModel(model.id),
-      }));
+      return (data.data || []).map(model => {
+        // Check for capabilities in the 2025 extended format
+        // Priority: explicit capabilities > config > name heuristics
+        let supportsVision: boolean;
+
+        if (model.capabilities?.vision !== undefined) {
+          // Prefer explicit capabilities field (2025 standard)
+          supportsVision = model.capabilities.vision;
+        } else if (model.config?.vision !== undefined) {
+          // Fallback to config field (some providers use this)
+          supportsVision = model.config.vision;
+        } else {
+          // Fallback to name-based heuristics
+          supportsVision = isLikelyVisionModel(model.id);
+        }
+
+        // Cache the discovered capability
+        if (this.endpoint) {
+          setVisionCapability('vllm', this.endpoint, model.id, supportsVision, 'model discovery');
+        }
+
+        return {
+          id: model.id,
+          name: model.id,
+          provider: 'vllm' as const,
+          supportsVision,
+        };
+      });
     } catch (error) {
       console.error('Failed to fetch vLLM models:', error);
       return [];
