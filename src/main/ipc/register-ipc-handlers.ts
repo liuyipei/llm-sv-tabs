@@ -310,8 +310,10 @@ export function registerIpcHandlers(context: MainProcessContext): void {
         }
       }
 
-      // Check if we have any images
-      const hasImages = extractedContents.some(c => c.type === 'image' || c.imageData);
+      // Check if we have any images (including PDF page images)
+      const hasImages = extractedContents.some(
+        c => c.type === 'image' || c.imageData || c.metadata?.pdfPageImages?.length > 0
+      );
 
       // Build user message content
       let userMessageContent: MessageContent;
@@ -374,6 +376,24 @@ ${formattedContent}
                 data: base64Data,
               },
             });
+          }
+
+          // Add PDF page images (for vision models)
+          if (content.metadata?.pdfPageImages) {
+            for (const pageImage of content.metadata.pdfPageImages) {
+              const dataUrlMatch = pageImage.data.match(/^data:([^;]+);base64,(.+)$/);
+              const base64Data = dataUrlMatch ? dataUrlMatch[2] : pageImage.data;
+              const mimeType = dataUrlMatch ? dataUrlMatch[1] : pageImage.mimeType;
+
+              contentBlocks.push({
+                type: 'image',
+                source: {
+                  type: 'base64',
+                  media_type: mimeType,
+                  data: base64Data,
+                },
+              });
+            }
           }
         }
 

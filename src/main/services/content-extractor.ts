@@ -2,6 +2,7 @@ import { WebContentsView } from 'electron';
 import type { ExtractedContent, SerializedDOM, TabData } from '../../types';
 import { ImageResizer } from './image-resizer.js';
 import { SmartContentExtractor } from './smart-content-extractor.js';
+import { extractPdfContent } from './pdf-extractor.js';
 
 /**
  * Content Extraction Service
@@ -176,6 +177,45 @@ export class ContentExtractor {
           mimeType: mimeType,
         },
       };
+    }
+
+    // Check if this is a PDF tab
+    if (tabData.metadata?.fileType === 'pdf' && tabData.metadata?.filePath) {
+      try {
+        const pdfContent = await extractPdfContent(tabData.metadata.filePath);
+
+        // Concatenate all page texts
+        const fullText = pdfContent.textPages
+          .map((page) => `--- Page ${page.pageNumber} ---\n${page.text}`)
+          .join('\n\n');
+
+        // Collect all page images for vision models
+        const pdfPageImages = pdfContent.images.map((img) => ({
+          pageNumber: img.pageNumber,
+          data: img.dataUrl,
+          mimeType: 'image/png',
+        }));
+
+        return {
+          type: 'pdf',
+          title: tabData.title,
+          url: tabData.url,
+          content: fullText,
+          metadata: {
+            pageCount: pdfContent.textPages.length,
+            pdfPageImages, // Array of page images for vision models
+            extractionTimeMs: pdfContent.totalExtractionTimeMs,
+          },
+        };
+      } catch (error) {
+        console.error('Failed to extract PDF content:', error);
+        return {
+          type: 'pdf',
+          title: tabData.title,
+          url: tabData.url,
+          content: `[PDF extraction failed: ${error instanceof Error ? error.message : String(error)}]`,
+        };
+      }
     }
 
     // For non-image note tabs, return text content
