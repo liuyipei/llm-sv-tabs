@@ -5,6 +5,35 @@
 import { BaseProvider, type ProviderCapabilities } from './base-provider.js';
 import type { LLMModel, LLMResponse, QueryOptions, MessageContent } from '../../types';
 import { fetchModelsWithFallback, readSSEStream, validateWithApiKey } from './provider-helpers.js';
+import {
+  hasImageContent,
+  prepareMessagesWithVisionCheck,
+  type ModelVisionInfo,
+} from './vision-capability-probe.js';
+
+/**
+ * Strip image content from Anthropic-format messages
+ */
+function stripAnthropicImages(
+  messages: Array<{ role: string; content: MessageContent }>
+): Array<{ role: string; content: MessageContent }> {
+  return messages.map(msg => {
+    if (typeof msg.content === 'string') {
+      return msg;
+    }
+
+    if (Array.isArray(msg.content)) {
+      const textParts = msg.content.filter(block => block.type === 'text');
+      // If only text parts remain, simplify to string if single part
+      if (textParts.length === 1) {
+        return { role: msg.role, content: (textParts[0] as { type: 'text'; text: string }).text };
+      }
+      return { role: msg.role, content: textParts };
+    }
+
+    return msg;
+  });
+}
 
 export class AnthropicProvider extends BaseProvider {
   private static readonly API_BASE = 'https://api.anthropic.com/v1';
@@ -75,10 +104,20 @@ export class AnthropicProvider extends BaseProvider {
     const model = options?.model || this.model || 'claude-3-5-sonnet-20241022';
     const maxTokens = options?.maxTokens ?? 4096;
 
+    // Check vision support and prepare messages
+    const hasImages = hasImageContent(messages as Array<{ role: string; content: unknown }>);
+    const { messages: preparedMessages, imagesStripped, warning } = prepareMessagesWithVisionCheck(
+      messages,
+      model,
+      AnthropicProvider.MODELS as ModelVisionInfo[],
+      hasImages,
+      stripAnthropicImages
+    );
+
     try {
       // Anthropic API expects system messages separately
-      const systemMessages = messages.filter(m => m.role === 'system');
-      const userMessages = messages.filter(m => m.role !== 'system');
+      const systemMessages = preparedMessages.filter(m => m.role === 'system');
+      const userMessages = preparedMessages.filter(m => m.role !== 'system');
 
       const response = await this.makeRequest(`${AnthropicProvider.API_BASE}/messages`, {
         method: 'POST',
@@ -97,8 +136,15 @@ export class AnthropicProvider extends BaseProvider {
       const data = await response.json() as any;
       const responseTime = Date.now() - startTime;
 
+      let responseText = data.content[0]?.text || '';
+
+      // Prepend warning if images were stripped
+      if (imagesStripped && warning) {
+        responseText = `[Note: ${warning}]\n\n${responseText}`;
+      }
+
       return {
-        response: data.content[0]?.text || '',
+        response: responseText,
         tokensIn: data.usage?.input_tokens,
         tokensOut: data.usage?.output_tokens,
         responseTime,
@@ -131,10 +177,25 @@ export class AnthropicProvider extends BaseProvider {
     const model = options?.model || this.model || 'claude-3-5-sonnet-20241022';
     const maxTokens = options?.maxTokens ?? 4096;
 
+    // Check vision support and prepare messages
+    const hasImages = hasImageContent(messages as Array<{ role: string; content: unknown }>);
+    const { messages: preparedMessages, imagesStripped, warning } = prepareMessagesWithVisionCheck(
+      messages,
+      model,
+      AnthropicProvider.MODELS as ModelVisionInfo[],
+      hasImages,
+      stripAnthropicImages
+    );
+
+    // Emit warning first if images were stripped
+    if (imagesStripped && warning) {
+      onChunk(`[Note: ${warning}]\n\n`);
+    }
+
     try {
       // Anthropic API expects system messages separately
-      const systemMessages = messages.filter(m => m.role === 'system');
-      const userMessages = messages.filter(m => m.role !== 'system');
+      const systemMessages = preparedMessages.filter(m => m.role === 'system');
+      const userMessages = preparedMessages.filter(m => m.role !== 'system');
 
       const response = await fetch(`${AnthropicProvider.API_BASE}/messages`, {
         method: 'POST',
@@ -178,8 +239,13 @@ export class AnthropicProvider extends BaseProvider {
 
       const responseTime = Date.now() - startTime;
 
+      // Include warning in final response text
+      const responseText = imagesStripped && warning
+        ? `[Note: ${warning}]\n\n${fullText}`
+        : fullText;
+
       return {
-        response: fullText,
+        response: responseText,
         tokensIn,
         tokensOut,
         responseTime,

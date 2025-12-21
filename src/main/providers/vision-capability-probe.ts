@@ -230,3 +230,79 @@ export function stripImageContent(
     return { role: msg.role, content: '' };
   });
 }
+
+/**
+ * Model metadata with vision support info
+ */
+export interface ModelVisionInfo {
+  id: string;
+  supportsVision?: boolean;
+}
+
+/**
+ * Result of preparing messages for a provider
+ */
+export interface PreparedMessages<T> {
+  messages: T[];
+  imagesStripped: boolean;
+  warning?: string;
+}
+
+/**
+ * Check if a model supports vision based on known model metadata.
+ * Returns undefined if the model is not in the list (unknown).
+ */
+export function checkModelVisionSupport(
+  modelId: string,
+  knownModels: ModelVisionInfo[]
+): boolean | undefined {
+  const model = knownModels.find(m => m.id === modelId);
+  if (model === undefined) {
+    return undefined; // Unknown model
+  }
+  return model.supportsVision ?? undefined;
+}
+
+/**
+ * Prepare messages for sending, handling vision support based on model metadata.
+ * This is a generic helper that providers can use to check model-level vision support.
+ *
+ * @param messages - The messages to send
+ * @param modelId - The model being used
+ * @param knownModels - List of known models with vision support info
+ * @param stripFn - Function to strip images from messages (provider-specific)
+ * @returns Prepared messages and whether images were stripped
+ */
+export function prepareMessagesWithVisionCheck<T>(
+  messages: T[],
+  modelId: string,
+  knownModels: ModelVisionInfo[],
+  hasImages: boolean,
+  stripFn: (messages: T[]) => T[]
+): PreparedMessages<T> {
+  // If no images, just return as-is
+  if (!hasImages) {
+    return { messages, imagesStripped: false };
+  }
+
+  // Check if this model is known and whether it supports vision
+  const visionSupport = checkModelVisionSupport(modelId, knownModels);
+
+  // If unknown model, assume it might support vision (let the API decide)
+  if (visionSupport === undefined) {
+    return { messages, imagesStripped: false };
+  }
+
+  // If model supports vision, return as-is
+  if (visionSupport) {
+    return { messages, imagesStripped: false };
+  }
+
+  // Model doesn't support vision - strip images
+  const strippedMessages = stripFn(messages);
+  return {
+    messages: strippedMessages,
+    imagesStripped: true,
+    warning: `Model "${modelId}" does not support vision. Images have been removed from the request.`,
+  };
+}

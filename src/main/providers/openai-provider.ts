@@ -5,6 +5,12 @@
 import { BaseProvider, type ProviderCapabilities } from './base-provider.js';
 import type { LLMModel, LLMResponse, QueryOptions, MessageContent } from '../../types';
 import { buildOpenAIChatBody, buildOpenAIHeaders, parseOpenAIStream } from './openai-helpers.js';
+import {
+  hasImageContent,
+  stripImageContent,
+  prepareMessagesWithVisionCheck,
+  type ModelVisionInfo,
+} from './vision-capability-probe.js';
 
 export class OpenAIProvider extends BaseProvider {
   private static readonly API_BASE = 'https://api.openai.com/v1';
@@ -70,20 +76,37 @@ export class OpenAIProvider extends BaseProvider {
     const model = options?.model || this.model || 'gpt-4o-mini';
     const maxTokens = options?.maxTokens ?? 4096;
 
+    // Check vision support and prepare messages
+    const hasImages = hasImageContent(messages as Array<{ role: string; content: unknown }>);
+    const { messages: preparedMessages, imagesStripped, warning } = prepareMessagesWithVisionCheck(
+      messages,
+      model,
+      OpenAIProvider.MODELS as ModelVisionInfo[],
+      hasImages,
+      (msgs) => stripImageContent(msgs as Array<{ role: string; content: unknown }>) as typeof msgs
+    );
+
     try {
       const response = await this.makeRequest(`${OpenAIProvider.API_BASE}/chat/completions`, {
         method: 'POST',
         headers: buildOpenAIHeaders(apiKey),
         body: JSON.stringify(
-          buildOpenAIChatBody(messages, model, maxTokens, 'max_completion_tokens'),
+          buildOpenAIChatBody(preparedMessages, model, maxTokens, 'max_completion_tokens'),
         ),
       });
 
       const data = await response.json() as any;
       const responseTime = Date.now() - startTime;
 
+      let responseText = data.choices[0]?.message?.content || '';
+
+      // Prepend warning if images were stripped
+      if (imagesStripped && warning) {
+        responseText = `[Note: ${warning}]\n\n${responseText}`;
+      }
+
       return {
-        response: data.choices[0]?.message?.content || '',
+        response: responseText,
         tokensIn: data.usage?.prompt_tokens,
         tokensOut: data.usage?.completion_tokens,
         responseTime,
@@ -116,12 +139,27 @@ export class OpenAIProvider extends BaseProvider {
     const model = options?.model || this.model || 'gpt-4o-mini';
     const maxTokens = options?.maxTokens ?? 4096;
 
+    // Check vision support and prepare messages
+    const hasImages = hasImageContent(messages as Array<{ role: string; content: unknown }>);
+    const { messages: preparedMessages, imagesStripped, warning } = prepareMessagesWithVisionCheck(
+      messages,
+      model,
+      OpenAIProvider.MODELS as ModelVisionInfo[],
+      hasImages,
+      (msgs) => stripImageContent(msgs as Array<{ role: string; content: unknown }>) as typeof msgs
+    );
+
+    // Emit warning first if images were stripped
+    if (imagesStripped && warning) {
+      onChunk(`[Note: ${warning}]\n\n`);
+    }
+
     try {
       const response = await fetch(`${OpenAIProvider.API_BASE}/chat/completions`, {
         method: 'POST',
         headers: buildOpenAIHeaders(apiKey, {}, true),
         body: JSON.stringify(
-          buildOpenAIChatBody(messages, model, maxTokens, 'max_completion_tokens', {
+          buildOpenAIChatBody(preparedMessages, model, maxTokens, 'max_completion_tokens', {
             stream: true,
             stream_options: { include_usage: true },
           }),
@@ -139,8 +177,13 @@ export class OpenAIProvider extends BaseProvider {
         model
       );
 
+      // Include warning in final response text
+      const responseText = imagesStripped && warning
+        ? `[Note: ${warning}]\n\n${fullText}`
+        : fullText;
+
       return {
-        response: fullText,
+        response: responseText,
         tokensIn,
         tokensOut,
         responseTime: Date.now() - startTime,

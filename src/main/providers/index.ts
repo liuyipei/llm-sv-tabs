@@ -17,5 +17,9 @@ export {
   clearVisionCapabilityCache,
   hasImageContent,
   stripImageContent,
+  checkModelVisionSupport,
+  prepareMessagesWithVisionCheck,
   type VisionProbeResult,
+  type ModelVisionInfo,
+  type PreparedMessages,
 } from './vision-capability-probe.js';
