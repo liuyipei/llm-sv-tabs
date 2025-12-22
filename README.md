@@ -47,6 +47,8 @@ For a deep dive into the architecture and design philosophy:
 - [Round-Trip Test Pattern](./design/06-round-trip-test-pattern.md) - Testing pattern for state persistence through navigation
 - [Store Synchronization Across Processes](./design/07-store-synchronization-across-processes.md) - IPC-based state management
 - [Keyboard Shortcuts](./design/08-keyboard-shortcuts.md) - Global shortcuts and focus management with WebContentsView
+- [PDF Content Extraction](./design/11-pdf-content-extraction.md) - Robust PDF text and image extraction for LLM consumption
+- [Model Capability Probing](./design/12-model-capability-probing.md) - Active runtime discovery of vision, PDF, and multimodal support
 
 ## Features
 
