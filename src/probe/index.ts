@@ -107,3 +107,13 @@ export {
   probeSchema,
   probeStreaming,
 } from './probes';
+
+// Quick list file (shared between browser and CLI)
+export {
+  loadQuickListFromFile,
+  saveQuickListToFile,
+  getQuickListPath,
+  quickListFileExists,
+  type QuickListEntry,
+  type QuickListFile,
+} from './quick-list-file';

@@ -39,6 +39,7 @@ import {
   getDefaultCachePath,
 } from './cache';
 import { getFixtureStats } from './fixtures';
+import { loadQuickListFromFile, getQuickListPath } from './quick-list-file';
 
 // ============================================================================
 // CLI Arguments
@@ -123,6 +124,11 @@ Options:
   --timeout <ms>       Probe timeout in milliseconds (default: 15000)
   -h, --help           Show this help message
 
+Quick List Sources (checked in order):
+  1. --quick-list argument
+  2. QUICK_LIST_JSON environment variable
+  3. ~/.llm-tabs/quick-list.json (synced from browser app)
+
 Environment Variables:
   QUICK_LIST_JSON      JSON array of {provider, model} objects
   OPENAI_API_KEY       OpenAI API key
@@ -142,8 +148,11 @@ Quick List Format:
   [{"provider": "openai", "model": "gpt-4o"}, ...]
 
 Examples:
-  # Probe models from environment
-  QUICK_LIST_JSON='[{"provider":"openai","model":"gpt-4o"}]' npm run probe:quicklist
+  # Probe models from browser's quick list (default)
+  npm run probe:quicklist
+
+  # Probe specific models
+  npm run probe:quicklist -- --quick-list '[{"provider":"openai","model":"gpt-4o"}]'
 
   # Probe and save to cache
   npm run probe:quicklist -- --write-cache
@@ -157,10 +166,11 @@ Examples:
 // Quick List Loading
 // ============================================================================
 
-function loadQuickList(args: CliArgs): QuickListModel[] {
-  // 1. Try CLI argument
+async function loadQuickList(args: CliArgs, verbose: boolean): Promise<QuickListModel[]> {
+  // 1. Try CLI argument (highest priority)
   if (args.quickListJson) {
     try {
+      if (verbose) console.log('Loading quick list from --quick-list argument');
       return JSON.parse(args.quickListJson) as QuickListModel[];
     } catch (e) {
       console.error('Failed to parse --quick-list JSON:', e);
@@ -171,10 +181,18 @@ function loadQuickList(args: CliArgs): QuickListModel[] {
   const envJson = process.env.QUICK_LIST_JSON;
   if (envJson) {
     try {
+      if (verbose) console.log('Loading quick list from QUICK_LIST_JSON env');
       return JSON.parse(envJson) as QuickListModel[];
     } catch (e) {
       console.error('Failed to parse QUICK_LIST_JSON:', e);
     }
+  }
+
+  // 3. Try shared file from browser app (~/.llm-tabs/quick-list.json)
+  const fileModels = await loadQuickListFromFile();
+  if (fileModels && fileModels.length > 0) {
+    if (verbose) console.log(`Loading quick list from ${getQuickListPath()}`);
+    return fileModels;
   }
 
   return [];
@@ -320,11 +338,16 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
-  // Load quick list
-  const quickList = loadQuickList(args);
+  // Load quick list (with verbose flag for source logging)
+  const quickList = await loadQuickList(args, args.verbose);
 
   if (quickList.length === 0) {
-    console.error('No models to probe. Set QUICK_LIST_JSON or use --quick-list.');
+    console.error('No models to probe.');
+    console.error('Options:');
+    console.error('  1. Use the browser app to add models to Quick List (auto-synced)');
+    console.error('  2. Set QUICK_LIST_JSON env variable');
+    console.error('  3. Use --quick-list argument');
+    console.error('');
     console.error('Example: QUICK_LIST_JSON=\'[{"provider":"openai","model":"gpt-4o"}]\' npm run probe:quicklist');
     process.exit(1);
   }

@@ -597,5 +597,21 @@ ${formattedContent}
       return { success: true };
     })
   );
+
+  // Quick list sync for CLI probe tool
+  ipcMain.handle(
+    'sync-quick-list',
+    async (
+      _event,
+      models: Array<{ provider: ProviderType; model: string }>
+    ) =>
+      handleSafely(async () => {
+        const { saveQuickListToFile } = await import(
+          '../../probe/quick-list-file.js'
+        );
+        await saveQuickListToFile(models);
+        return { success: true };
+      })
+  );
 }
 
