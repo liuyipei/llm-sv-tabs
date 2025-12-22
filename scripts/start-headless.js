@@ -1,0 +1,81 @@
+#!/usr/bin/env node
+/**
+ * Cross-platform headless Electron launcher
+ * - Linux: Uses xvfb-run for virtual framebuffer
+ * - macOS/Windows: Uses offscreen rendering
+ */
+
+import { spawn, execSync } from 'child_process';
+import { platform } from 'os';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const projectRoot = join(__dirname, '..');
+
+const os = platform();
+
+function hasXvfb() {
+  try {
+    execSync('which xvfb-run', { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function runElectron(args = []) {
+  const electronPath = join(projectRoot, 'node_modules', '.bin', 'electron');
+  const child = spawn(electronPath, ['.', ...args], {
+    cwd: projectRoot,
+    stdio: 'inherit',
+    env: {
+      ...process.env,
+      ELECTRON_ENABLE_LOGGING: '1',
+    },
+  });
+
+  child.on('exit', (code) => process.exit(code ?? 0));
+  child.on('error', (err) => {
+    console.error('Failed to start Electron:', err.message);
+    process.exit(1);
+  });
+}
+
+function runWithXvfb() {
+  const child = spawn('xvfb-run', [
+    '--auto-servernum',
+    '--server-args=-screen 0 1280x720x24',
+    'npm', 'run', 'electron:dev'
+  ], {
+    cwd: projectRoot,
+    stdio: 'inherit',
+    env: {
+      ...process.env,
+      ELECTRON_ENABLE_LOGGING: '1',
+    },
+  });
+
+  child.on('exit', (code) => process.exit(code ?? 0));
+  child.on('error', (err) => {
+    console.error('Failed to start xvfb-run:', err.message);
+    console.error('Install xvfb: sudo apt-get install xvfb');
+    process.exit(1);
+  });
+}
+
+console.log(`Starting Electron in headless mode on ${os}...`);
+
+if (os === 'linux') {
+  if (hasXvfb()) {
+    console.log('Using xvfb-run for virtual framebuffer');
+    runWithXvfb();
+  } else {
+    console.log('xvfb-run not found, trying offscreen rendering');
+    console.log('For better results: sudo apt-get install xvfb');
+    runElectron(['--enable-features=UseOzonePlatform', '--ozone-platform=headless']);
+  }
+} else {
+  // macOS and Windows: use offscreen rendering
+  runElectron(['--enable-logging', '--disable-gpu']);
+}
