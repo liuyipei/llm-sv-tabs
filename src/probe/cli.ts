@@ -279,6 +279,7 @@ function formatTableRow(result: ModelProbeResult, maxModelLen: number): ProbeTab
   const summary = summarizeProbeResult(result);
   const caps = result.capabilities;
   const errorSummary = getErrorSummary(result);
+  const textFailed = !result.textProbe.success;
 
   // Determine status with error info
   let status: string;
@@ -288,18 +289,20 @@ function formatTableRow(result: ModelProbeResult, maxModelLen: number): ProbeTab
     status = errorSummary ? `FAIL:${errorSummary}` : 'FAILED';
   }
 
+  // If text probe failed, we have no real data - show '-' for capabilities
   return {
     provider: result.provider,
     model: truncateModel(result.model, maxModelLen),
-    vision: summary.vision === 'yes' ? '\u2713' :
+    vision: textFailed ? '-' :
+            summary.vision === 'yes' ? '\u2713' :
             summary.vision === 'partial' ? '~' : '\u2717',
-    pdfNative: caps.supportsPdfNative ? '\u2713' : '\u2717',
-    pdfImages: caps.supportsPdfAsImages ? '\u2713' : '\u2717',
-    base64Req: caps.requiresBase64Images ? '\u2713' : '-',
-    imgFirst: caps.requiresImagesFirst ? '\u2713' : '-',
-    msgShape: caps.messageShape.replace('openai.', 'oai.')
-                                .replace('anthropic.', 'ant.')
-                                .replace('gemini.', 'gem.'),
+    pdfNative: textFailed ? '-' : (caps.supportsPdfNative ? '\u2713' : '\u2717'),
+    pdfImages: textFailed ? '-' : (caps.supportsPdfAsImages ? '\u2713' : '\u2717'),
+    base64Req: textFailed ? '-' : (caps.requiresBase64Images ? '\u2713' : '-'),
+    imgFirst: textFailed ? '-' : (caps.requiresImagesFirst ? '\u2713' : '-'),
+    msgShape: textFailed ? '-' : caps.messageShape.replace('openai.', 'oai.')
+                                                   .replace('anthropic.', 'ant.')
+                                                   .replace('gemini.', 'gem.'),
     status,
   };
 }
