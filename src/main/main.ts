@@ -13,6 +13,9 @@ import type { MainProcessContext } from './ipc/register-ipc-handlers.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Check for smoke test mode (used in CI to verify app starts correctly)
+const isSmokeTest = process.argv.includes('--smoke-test');
+
 let mainWindow: BrowserWindow | null = null;
 const appContext: MainProcessContext = {
   tabManager: null,
@@ -42,6 +45,14 @@ async function createWindow(): Promise<void> {
     mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(join(__dirname, '../../dist/index.html'));
+  }
+
+  // In smoke test mode, exit after window loads successfully
+  if (isSmokeTest) {
+    mainWindow.webContents.once('did-finish-load', () => {
+      console.log('Smoke test passed: window loaded successfully');
+      app.quit();
+    });
   }
 
   // Initialize tab manager

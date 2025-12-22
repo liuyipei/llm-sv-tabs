@@ -32,6 +32,9 @@ jobs:
       - name: Build application
         run: npm run build
 
+      - name: Smoke test (verify app launches)
+        run: node scripts/start-headless.js --smoke-test
+
       - name: Decode code signing certificate
         if: ${{ env.HAS_SIGNING == 'true' }}
         shell: powershell

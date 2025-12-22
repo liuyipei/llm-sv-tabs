@@ -3,6 +3,12 @@
  * Cross-platform headless Electron launcher
  * - Linux: Uses xvfb-run for virtual framebuffer
  * - macOS/Windows: Uses offscreen rendering
+ *
+ * Usage:
+ *   node scripts/start-headless.js [--smoke-test]
+ *
+ * Options:
+ *   --smoke-test  Exit after window loads (for CI verification)
  */
 
 import { spawn, execSync } from 'child_process';
@@ -15,6 +21,9 @@ const projectRoot = join(__dirname, '..');
 
 const os = platform();
 
+// Pass through arguments like --smoke-test
+const appArgs = process.argv.slice(2);
+
 function hasXvfb() {
   try {
     execSync('which xvfb-run', { stdio: 'ignore' });
@@ -24,9 +33,9 @@ function hasXvfb() {
   }
 }
 
-function runElectron(args = []) {
+function runElectron(electronArgs = []) {
   const electronPath = join(projectRoot, 'node_modules', '.bin', 'electron');
-  const child = spawn(electronPath, ['.', ...args], {
+  const child = spawn(electronPath, ['.', ...electronArgs, ...appArgs], {
     cwd: projectRoot,
     stdio: 'inherit',
     env: {
@@ -42,11 +51,18 @@ function runElectron(args = []) {
   });
 }
 
-function runWithXvfb() {
+function runWithXvfb(electronArgs = []) {
+  const allArgs = [...electronArgs, ...appArgs];
+  const argsStr = allArgs.length > 0 ? ` -- ${allArgs.join(' ')}` : '';
+
+  // Run electron directly with xvfb-run instead of npm
+  const electronPath = join(projectRoot, 'node_modules', '.bin', 'electron');
   const child = spawn('xvfb-run', [
     '--auto-servernum',
     '--server-args=-screen 0 1280x720x24',
-    'npm', 'run', 'electron:dev'
+    electronPath,
+    '.',
+    ...allArgs
   ], {
     cwd: projectRoot,
     stdio: 'inherit',
@@ -65,6 +81,9 @@ function runWithXvfb() {
 }
 
 console.log(`Starting Electron in headless mode on ${os}...`);
+if (appArgs.length > 0) {
+  console.log(`App arguments: ${appArgs.join(' ')}`);
+}
 
 if (os === 'linux') {
   if (hasXvfb()) {

@@ -23,6 +23,7 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
+    "test:smoke": "npm run build && node scripts/start-headless.js --smoke-test",
     "typecheck": "tsc --noEmit",
     "probe:quicklist": "npx tsx src/probe/cli.ts"
   },

@@ -27,6 +27,7 @@ npm test                # Run all tests (~80 tests in <10 seconds)
 npm run test:watch      # Watch mode
 npm run test:ui         # Interactive Vitest UI
 npm run test:coverage   # With coverage report
+npm run test:smoke      # Smoke test: launch app headless, exit on success
 ```
 
 No build required for tests!
