@@ -217,13 +217,12 @@ export interface StaticCapabilityOverride {
 export interface ProbeTableRow {
   provider: string;
   model: string;
-  vision: string;     // checkmark or x
+  vision: string;     // ✓, ~, ✗, or -
   pdfNative: string;
   pdfImages: string;
   base64Req: string;
   imgFirst: string;
   msgShape: string;
-  status: string;     // 'OK', 'PARTIAL', 'FAILED'
 }
 
 /**

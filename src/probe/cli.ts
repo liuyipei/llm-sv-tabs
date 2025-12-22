@@ -233,109 +233,65 @@ async function loadApiKeys(args: CliArgs): Promise<Record<ProviderType, string |
 // Output Formatting
 // ============================================================================
 
-/**
- * Smart truncate model name - show tail (more descriptive) with ellipsis prefix
- */
 function truncateModel(model: string, maxLen: number): string {
   if (model.length <= maxLen) return model;
   return '...' + model.slice(-(maxLen - 3));
 }
 
-/**
- * Extract short error description from probe result
- */
-function getErrorSummary(result: ModelProbeResult): string {
-  const textError = result.textProbe.errorMessage || '';
-  const httpStatus = result.textProbe.httpStatus;
-
-  // Check for rate limit
-  if (httpStatus === 429 || textError.includes('RATE_LIMIT') || textError.includes('rate limit')) {
-    return 'RATE_LIMIT';
-  }
-  // Check for auth errors
-  if (httpStatus === 401 || httpStatus === 403) {
-    return 'AUTH_ERROR';
-  }
-  // Check for not found
-  if (httpStatus === 404) {
-    return 'NOT_FOUND';
-  }
-  // Check for timeout
-  if (textError.includes('timeout') || textError.includes('Timeout')) {
-    return 'TIMEOUT';
-  }
-  // Generic HTTP error
-  if (httpStatus && httpStatus >= 400) {
-    return `HTTP_${httpStatus}`;
-  }
-  // Network error
-  if (textError.includes('fetch failed') || textError.includes('ECONNREFUSED')) {
-    return 'NETWORK';
-  }
-  return '';
-}
-
 function formatTableRow(result: ModelProbeResult, maxModelLen: number): ProbeTableRow {
   const summary = summarizeProbeResult(result);
   const caps = result.capabilities;
-  const errorSummary = getErrorSummary(result);
   const textFailed = !result.textProbe.success;
 
-  // Determine status with error info
-  let status: string;
-  if (summary.success) {
-    status = summary.issues.length > 0 ? 'PARTIAL' : 'OK';
-  } else {
-    status = errorSummary ? `FAIL:${errorSummary}` : 'FAILED';
-  }
-
-  // If text probe failed, we have no real data - show '-' for capabilities
   return {
     provider: result.provider,
     model: truncateModel(result.model, maxModelLen),
-    vision: textFailed ? '-' :
-            summary.vision === 'yes' ? '\u2713' :
-            summary.vision === 'partial' ? '~' : '\u2717',
-    pdfNative: textFailed ? '-' : (caps.supportsPdfNative ? '\u2713' : '\u2717'),
-    pdfImages: textFailed ? '-' : (caps.supportsPdfAsImages ? '\u2713' : '\u2717'),
-    base64Req: textFailed ? '-' : (caps.requiresBase64Images ? '\u2713' : '-'),
-    imgFirst: textFailed ? '-' : (caps.requiresImagesFirst ? '\u2713' : '-'),
-    msgShape: textFailed ? '-' : caps.messageShape.replace('openai.', 'oai.')
-                                                   .replace('anthropic.', 'ant.')
-                                                   .replace('gemini.', 'gem.'),
-    status,
+    vision: textFailed ? '-' : summary.vision === 'yes' ? '\u2713' : summary.vision === 'partial' ? '~' : '\u2717',
+    pdfNative: textFailed ? '-' : caps.supportsPdfNative ? '\u2713' : '\u2717',
+    pdfImages: textFailed ? '-' : caps.supportsPdfAsImages ? '\u2713' : '\u2717',
+    base64Req: textFailed ? '-' : caps.requiresBase64Images ? '\u2713' : '-',
+    imgFirst: textFailed ? '-' : caps.requiresImagesFirst ? '\u2713' : '-',
+    msgShape: textFailed ? '-' : caps.messageShape.replace('openai.', 'oai.').replace('anthropic.', 'ant.').replace('gemini.', 'gem.'),
   };
 }
 
 function printTable(results: ModelProbeResult[]): void {
-  // Determine max model length to show (use full length up to 50 chars)
   const maxModelLen = Math.min(50, Math.max(...results.map(r => r.model.length)));
   const rows = results.map(r => formatTableRow(r, maxModelLen));
+  const headers = ['Provider', 'Model', 'Vision', 'PDF', 'PDF-Img', 'Base64', 'ImgFirst', 'Shape'];
 
-  // Column headers
-  const headers = [
-    'Provider', 'Model', 'Vision', 'PDF', 'PDF-Img',
-    'Base64', 'ImgFirst', 'Shape', 'Status',
-  ];
-
-  // Calculate column widths
   const widths = headers.map((h, i) => {
     const values = [h, ...rows.map(r => Object.values(r)[i] as string)];
     return Math.max(...values.map(v => v.length));
   });
 
-  // Print header
   console.log();
   console.log(headers.map((h, i) => h.padEnd(widths[i])).join(' | '));
   console.log(widths.map(w => '-'.repeat(w)).join('-+-'));
-
-  // Print rows
   for (const row of rows) {
-    const values = Object.values(row) as string[];
-    console.log(values.map((v, i) => v.padEnd(widths[i])).join(' | '));
+    console.log(Object.values(row).map((v, i) => (v as string).padEnd(widths[i])).join(' | '));
   }
-
   console.log();
+}
+
+function printErrors(results: ModelProbeResult[]): void {
+  const errors: string[] = [];
+  for (const r of results) {
+    const key = `${r.provider}:${r.model}`;
+    if (!r.textProbe.success && r.textProbe.errorMessage) {
+      errors.push(`${key}: ${r.textProbe.errorMessage}`);
+    } else if (r.textProbe.success) {
+      if (!r.imageProbe.finalSuccess && r.imageProbe.primaryResult.errorMessage)
+        errors.push(`${key} [image]: ${r.imageProbe.primaryResult.errorMessage}`);
+      if (!r.pdfProbe.finalSuccess && r.pdfProbe.primaryResult.errorMessage)
+        errors.push(`${key} [pdf]: ${r.pdfProbe.primaryResult.errorMessage}`);
+    }
+  }
+  if (errors.length > 0) {
+    console.log('Errors:');
+    errors.forEach(e => console.log(`  ${e}`));
+    console.log();
+  }
 }
 
 function printMinimal(results: ModelProbeResult[]): void {
@@ -458,6 +414,7 @@ async function main(): Promise<void> {
       break;
     default:
       printTable(results);
+      printErrors(results);
       break;
   }
 
@@ -468,18 +425,9 @@ async function main(): Promise<void> {
     console.log(`Cache written to: ${getDefaultCachePath()}`);
   }
 
-  // Summary
-  const successful = results.filter(r => r.textProbe.success).length;
-  const failed = results.length - successful;
-
-  if (args.verbose || failed > 0) {
-    console.log(`Summary: ${successful} OK, ${failed} failed`);
-  }
-
-  // Exit with error if any failed
-  if (failed > 0 && failed === results.length) {
-    process.exit(1);
-  }
+  // Exit with error if all failed
+  const allFailed = results.every(r => !r.textProbe.success);
+  if (allFailed && results.length > 0) process.exit(1);
 }
 
 // Run if executed directly
