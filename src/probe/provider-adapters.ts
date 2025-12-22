@@ -5,6 +5,7 @@
  * for the capability probing system.
  */
 
+import * as fs from 'fs/promises';
 import type { ProviderType } from '../types';
 
 // ============================================================================
@@ -296,8 +297,6 @@ export function getApiKeyFromEnv(provider: ProviderType): string | undefined {
 export async function loadApiKeysFromFile(
   filePath: string
 ): Promise<Record<ProviderType, string>> {
-  const fs = await import('fs').then(m => m.promises);
-
   try {
     const content = await fs.readFile(filePath, 'utf-8');
     const keys = JSON.parse(content) as Record<string, string>;

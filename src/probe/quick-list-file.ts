@@ -5,7 +5,10 @@
  * the Electron app and the headless CLI.
  */
 
-import type { ProviderType } from '../../types';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import * as os from 'os';
+import type { ProviderType } from '../types';
 
 export interface QuickListEntry {
   provider: ProviderType;
@@ -25,9 +28,6 @@ const QUICK_LIST_FILE_NAME = 'quick-list.json';
  * Get the path to the quick list file
  */
 export function getQuickListPath(): string {
-  // This works in both Node.js and Electron main process
-  const os = require('os');
-  const path = require('path');
   const homeDir = os.homedir();
   return path.join(homeDir, '.llm-tabs', QUICK_LIST_FILE_NAME);
 }
@@ -38,7 +38,6 @@ export function getQuickListPath(): string {
 export async function loadQuickListFromFile(
   filePath?: string
 ): Promise<QuickListEntry[] | null> {
-  const fs = await import('fs').then(m => m.promises);
   const targetPath = filePath || getQuickListPath();
 
   try {
@@ -68,8 +67,6 @@ export async function saveQuickListToFile(
   models: QuickListEntry[],
   filePath?: string
 ): Promise<void> {
-  const fs = await import('fs').then(m => m.promises);
-  const path = await import('path');
   const targetPath = filePath || getQuickListPath();
 
   const data: QuickListFile = {
@@ -90,7 +87,6 @@ export async function saveQuickListToFile(
  * Check if quick list file exists
  */
 export async function quickListFileExists(filePath?: string): Promise<boolean> {
-  const fs = await import('fs').then(m => m.promises);
   const targetPath = filePath || getQuickListPath();
 
   try {

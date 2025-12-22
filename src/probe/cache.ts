@@ -8,6 +8,9 @@
  * 4. Provider defaults (lowest priority)
  */
 
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import * as os from 'os';
 import type { ProviderType } from '../types';
 import type {
   ProbedCapabilities,
@@ -453,8 +456,6 @@ export function clearCache(): void {
  * Get the default cache file path
  */
 export function getDefaultCachePath(): string {
-  const os = require('os');
-  const path = require('path');
   const homeDir = os.homedir();
   return path.join(homeDir, '.llm-tabs', CACHE_FILE_NAME);
 }
@@ -463,9 +464,6 @@ export function getDefaultCachePath(): string {
  * Load cache from a file
  */
 export async function loadCacheFromFile(filePath?: string): Promise<ModelCapabilitiesCache | null> {
-  const fs = await import('fs').then(m => m.promises);
-  const path = await import('path');
-
   const targetPath = filePath || getDefaultCachePath();
 
   try {
@@ -493,9 +491,6 @@ export async function loadCacheFromFile(filePath?: string): Promise<ModelCapabil
  * Save cache to a file
  */
 export async function saveCacheToFile(filePath?: string): Promise<void> {
-  const fs = await import('fs').then(m => m.promises);
-  const path = await import('path');
-
   const targetPath = filePath || getDefaultCachePath();
   const cache = getCache();
 
