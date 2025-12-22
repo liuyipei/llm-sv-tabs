@@ -2,6 +2,7 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "dist-main",
+    "rootDir": "src",
     "module": "ESNext",
     "target": "ES2022",
     "moduleResolution": "node",
