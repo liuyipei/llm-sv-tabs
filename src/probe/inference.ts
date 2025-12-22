@@ -13,7 +13,6 @@ import type {
   ProbeWithRetryResult,
   MessageShape,
   CompletionShape,
-  DEFAULT_PROBE_CONFIG,
 } from './types';
 import { probeText, probeImage, probePdf, probeSchema, probeStreaming } from './probes';
 

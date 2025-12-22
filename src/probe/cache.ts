@@ -14,7 +14,6 @@ import * as os from 'os';
 import type { ProviderType } from '../types';
 import type {
   ProbedCapabilities,
-  CachedModelCapabilities,
   ModelCapabilitiesCache,
   ModelProbeResult,
   StaticCapabilityOverride,
