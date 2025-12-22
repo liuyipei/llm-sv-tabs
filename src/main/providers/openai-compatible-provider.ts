@@ -5,6 +5,7 @@
 import { BaseProvider, type ProviderCapabilities } from './base-provider.js';
 import type { LLMModel, LLMResponse, QueryOptions, ProviderType, MessageContent } from '../../types';
 import { buildOpenAIChatBody, buildOpenAIHeaders, parseOpenAIStream } from './openai-helpers.js';
+import { buildCapabilityAwareMessage } from './message-builder.js';
 
 export interface OpenAICompatibleOptions {
   capabilities?: Partial<ProviderCapabilities>;
@@ -104,13 +105,21 @@ export class OpenAICompatibleProvider extends BaseProvider {
     const maxTokens = options?.maxTokens ?? 4096;
 
     try {
+      const capabilities = await this.getModelCapabilities(model);
+      const adaptedMessages = messages.map((msg) => ({
+        role: msg.role,
+        content: buildCapabilityAwareMessage(msg.content, capabilities),
+      }));
+
+      await this.rateLimitDelay();
+
       const headers = buildOpenAIHeaders(apiKey, this.extraHeaders);
 
       const response = await this.makeRequest(`${endpoint}${this.paths.chatCompletions}`, {
         method: 'POST',
         headers,
         body: JSON.stringify(
-          buildOpenAIChatBody(messages, model, maxTokens, 'max_tokens'),
+          buildOpenAIChatBody(adaptedMessages, model, maxTokens, 'max_tokens'),
         ),
       });
 
@@ -160,13 +169,21 @@ export class OpenAICompatibleProvider extends BaseProvider {
     const maxTokens = options?.maxTokens ?? 4096;
 
     try {
+      const capabilities = await this.getModelCapabilities(model);
+      const adaptedMessages = messages.map((msg) => ({
+        role: msg.role,
+        content: buildCapabilityAwareMessage(msg.content, capabilities),
+      }));
+
+      await this.rateLimitDelay();
+
       const headers = buildOpenAIHeaders(apiKey, this.extraHeaders, true);
 
       const response = await fetch(`${endpoint}${this.paths.chatCompletions}`, {
         method: 'POST',
         headers,
         body: JSON.stringify(
-          buildOpenAIChatBody(messages, model, maxTokens, 'max_tokens', {
+          buildOpenAIChatBody(adaptedMessages, model, maxTokens, 'max_tokens', {
             stream: true,
             stream_options: { include_usage: true },
           }),

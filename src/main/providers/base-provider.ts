@@ -3,6 +3,8 @@
  */
 
 import type { ProviderType, LLMModel, LLMResponse, QueryOptions, MessageContent } from '../../types';
+import type { ProbedCapabilities } from '../../probe/types';
+import { resolveModelCapabilities } from '../services/model-capabilities.js';
 
 export interface ProviderCapabilities {
   supportsStreaming: boolean;
@@ -16,6 +18,7 @@ export abstract class BaseProvider {
   protected apiKey?: string;
   protected endpoint?: string;
   protected model?: string;
+  protected lastRequestTime = 0;
 
   constructor(
     protected providerType: ProviderType,
@@ -88,6 +91,29 @@ export abstract class BaseProvider {
    */
   getType(): ProviderType {
     return this.providerType;
+  }
+
+  /**
+   * Resolve model capabilities with cache/probing.
+   */
+  protected async getModelCapabilities(model?: string, forceProbe = false): Promise<ProbedCapabilities> {
+    const resolvedModel = model || this.model || '';
+    return resolveModelCapabilities(this.providerType, resolvedModel, {
+      apiKey: this.apiKey,
+      endpoint: this.endpoint,
+      forceProbe,
+    });
+  }
+
+  /**
+   * Simple rate-limit delay to avoid rapid bursts.
+   */
+  protected async rateLimitDelay(): Promise<void> {
+    const elapsed = Date.now() - this.lastRequestTime;
+    if (elapsed < 1000) {
+      await new Promise((resolve) => setTimeout(resolve, 1000 - elapsed));
+    }
+    this.lastRequestTime = Date.now();
   }
 
   /**
