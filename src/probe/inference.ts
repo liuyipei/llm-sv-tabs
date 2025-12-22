@@ -4,7 +4,7 @@
  * Analyzes probe results to infer model capabilities and quirks.
  */
 
-import type { ProviderType } from '../types';
+import type { ProviderType } from '../types.js';
 import type {
   ProbeConfig,
   ProbedCapabilities,
@@ -13,8 +13,8 @@ import type {
   ProbeWithRetryResult,
   MessageShape,
   CompletionShape,
-} from './types';
-import { probeText, probeImage, probePdf, probeSchema, probeStreaming } from './probes';
+} from './types.js';
+import { probeText, probeImage, probePdf, probeSchema, probeStreaming } from './probes.js';
 
 const PROBE_VERSION = '1.0.0';
 
