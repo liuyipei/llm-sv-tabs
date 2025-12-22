@@ -60,6 +60,24 @@ export const quickSwitchModels = createPersistedStore<QuickSwitchModel[]>('quick
 // Currently selected quick-switch model (null means none selected)
 export const selectedQuickSwitchIndex = createPersistedStore<number | null>('selectedQuickSwitchIndex', null);
 
+// Auto-sync quick list to file for CLI probe tool
+// This runs on any change to the quick switch models (debounced)
+let syncTimeout: ReturnType<typeof setTimeout> | null = null;
+if (typeof window !== 'undefined') {
+  quickSwitchModels.subscribe((models) => {
+    // Debounce sync to avoid excessive writes
+    if (syncTimeout) clearTimeout(syncTimeout);
+    syncTimeout = setTimeout(() => {
+      const electronAPI = (window as any).electronAPI;
+      if (electronAPI?.syncQuickList) {
+        electronAPI.syncQuickList(models).catch((err: Error) => {
+          console.warn('Failed to sync quick list to file:', err);
+        });
+      }
+    }, 500);
+  });
+}
+
 // Model history stores
 // Stores discovered models for each provider
 export const discoveredModels = createPersistedStore<Record<string, LLMModel[]>>('discoveredModels', {});

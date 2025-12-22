@@ -217,6 +217,10 @@ const electronAPI = {
   getPathForFile: (file: File): string => {
     return webUtils.getPathForFile(file);
   },
+
+  // Quick list sync for CLI probe tool
+  syncQuickList: (models: Array<{ provider: ProviderType; model: string }>): Promise<IPCResponse> =>
+    ipcRenderer.invoke('sync-quick-list', models),
 };
 
 // Diagnostic: log every tab-updated payload to trace streaming completion signals
