@@ -233,19 +233,64 @@ async function loadApiKeys(args: CliArgs): Promise<Record<ProviderType, string |
 // Output Formatting
 // ============================================================================
 
-function checkmark(value: boolean): string {
-  return value ? '\u2713' : '\u2717';
+/**
+ * Smart truncate model name - show tail (more descriptive) with ellipsis prefix
+ */
+function truncateModel(model: string, maxLen: number): string {
+  if (model.length <= maxLen) return model;
+  return '...' + model.slice(-(maxLen - 3));
 }
 
-function formatTableRow(result: ModelProbeResult): ProbeTableRow {
+/**
+ * Extract short error description from probe result
+ */
+function getErrorSummary(result: ModelProbeResult): string {
+  const textError = result.textProbe.errorMessage || '';
+  const httpStatus = result.textProbe.httpStatus;
+
+  // Check for rate limit
+  if (httpStatus === 429 || textError.includes('RATE_LIMIT') || textError.includes('rate limit')) {
+    return 'RATE_LIMIT';
+  }
+  // Check for auth errors
+  if (httpStatus === 401 || httpStatus === 403) {
+    return 'AUTH_ERROR';
+  }
+  // Check for not found
+  if (httpStatus === 404) {
+    return 'NOT_FOUND';
+  }
+  // Check for timeout
+  if (textError.includes('timeout') || textError.includes('Timeout')) {
+    return 'TIMEOUT';
+  }
+  // Generic HTTP error
+  if (httpStatus && httpStatus >= 400) {
+    return `HTTP_${httpStatus}`;
+  }
+  // Network error
+  if (textError.includes('fetch failed') || textError.includes('ECONNREFUSED')) {
+    return 'NETWORK';
+  }
+  return '';
+}
+
+function formatTableRow(result: ModelProbeResult, maxModelLen: number): ProbeTableRow {
   const summary = summarizeProbeResult(result);
   const caps = result.capabilities;
+  const errorSummary = getErrorSummary(result);
+
+  // Determine status with error info
+  let status: string;
+  if (summary.success) {
+    status = summary.issues.length > 0 ? 'PARTIAL' : 'OK';
+  } else {
+    status = errorSummary ? `FAIL:${errorSummary}` : 'FAILED';
+  }
 
   return {
     provider: result.provider,
-    model: result.model.length > 35
-      ? result.model.slice(0, 32) + '...'
-      : result.model,
+    model: truncateModel(result.model, maxModelLen),
     vision: summary.vision === 'yes' ? '\u2713' :
             summary.vision === 'partial' ? '~' : '\u2717',
     pdfNative: caps.supportsPdfNative ? '\u2713' : '\u2717',
@@ -255,14 +300,14 @@ function formatTableRow(result: ModelProbeResult): ProbeTableRow {
     msgShape: caps.messageShape.replace('openai.', 'oai.')
                                 .replace('anthropic.', 'ant.')
                                 .replace('gemini.', 'gem.'),
-    status: summary.success
-      ? (summary.issues.length > 0 ? 'PARTIAL' : 'OK')
-      : 'FAILED',
+    status,
   };
 }
 
 function printTable(results: ModelProbeResult[]): void {
-  const rows = results.map(formatTableRow);
+  // Determine max model length to show (use full length up to 50 chars)
+  const maxModelLen = Math.min(50, Math.max(...results.map(r => r.model.length)));
+  const rows = results.map(r => formatTableRow(r, maxModelLen));
 
   // Column headers
   const headers = [
@@ -314,12 +359,12 @@ function printProgress(
   status: string
 ): void {
   const progress = `[${current}/${total}]`;
-  const modelStr = `${provider}:${model}`;
-  const statusStr = status === 'probing' ? '...' :
-                    status === 'done' ? '\u2713' : '\u2717';
+  const modelStr = truncateModel(`${provider}:${model}`, 55);
+  const statusStr = status === 'probing' ? '   ' :
+                    status === 'done' ? ' \u2713 ' : ' \u2717 ';
 
-  // Clear line and print
-  process.stdout.write(`\r${progress} ${modelStr.slice(0, 50).padEnd(50)} ${statusStr}`);
+  // Clear entire line and print (use ANSI escape for clean output)
+  process.stdout.write(`\x1b[2K\r${progress} ${modelStr.padEnd(55)}${statusStr}`);
 
   if (status !== 'probing') {
     console.log();

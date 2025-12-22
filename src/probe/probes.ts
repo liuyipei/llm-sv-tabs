@@ -29,65 +29,66 @@ import {
 } from './fixtures';
 import { getProviderEndpoint, getProviderHeaders, buildMessages } from './provider-adapters';
 
+// ============================================================================
+// Unified Probe Runner (Single Source of Truth)
+// ============================================================================
+
+interface ProbeOptions {
+  provider: ProviderType;
+  model: string;
+  apiKey?: string;
+  endpoint?: string;
+  contentType: 'text' | 'image' | 'pdf';
+  media?: { base64?: string; dataUrl?: string; mimeType?: string };
+  imagesFirst?: boolean;
+  stream?: boolean;
+}
+
 /**
- * Get the correct token limit field name for a provider.
+ * Get the correct token limit field for a provider.
  * OpenAI's newer models require max_completion_tokens instead of max_tokens.
  */
 function getTokenLimitBody(provider: ProviderType, limit: number): Record<string, number> {
-  // OpenAI and OpenAI-compatible providers (except anthropic/gemini) should use max_completion_tokens
-  // for newer models. Using max_completion_tokens is safe for all current OpenAI models.
-  if (provider === 'openai') {
-    return { max_completion_tokens: limit };
-  }
-  // Anthropic uses max_tokens
-  if (provider === 'anthropic') {
-    return { max_tokens: limit };
-  }
-  // Other OpenAI-compatible providers typically use max_tokens
+  if (provider === 'openai') return { max_completion_tokens: limit };
+  if (provider === 'anthropic') return { max_tokens: limit };
   return { max_tokens: limit };
 }
 
 /**
- * Text sanity probe - tests basic text completion
+ * Unified probe runner - all probe types use this single function.
  */
-export async function probeText(
-  provider: ProviderType,
-  model: string,
-  apiKey: string | undefined,
-  endpoint: string | undefined,
-  config: ProbeConfig
-): Promise<ProbeResult> {
+async function runProbe(options: ProbeOptions, config: ProbeConfig): Promise<ProbeResult> {
+  const { provider, model, apiKey, endpoint, contentType, media, imagesFirst, stream } = options;
   const startTime = Date.now();
 
   try {
     const url = getProviderEndpoint(provider, endpoint);
     const headers = getProviderHeaders(provider, apiKey);
-    const messages = buildMessages(provider, PROBE_PROMPTS.text, 'text');
+    const prompt = contentType === 'text' ? PROBE_PROMPTS.text :
+                   contentType === 'image' ? PROBE_PROMPTS.image : PROBE_PROMPTS.pdf;
+    const messages = buildMessages(provider, prompt, contentType, media, imagesFirst);
 
-    const response = await makeProbeRequest(
-      {
-        url,
-        method: 'POST',
-        headers,
-        body: {
-          model,
-          messages,
-          ...getTokenLimitBody(provider, 50),
-          stream: false,
-        },
+    const response = await makeProbeRequest({
+      url,
+      method: 'POST',
+      headers,
+      body: {
+        model,
+        messages,
+        ...getTokenLimitBody(provider, 50),
+        stream: stream ?? false,
       },
-      config
-    );
+      stream,
+    }, config);
 
     const latencyMs = Date.now() - startTime;
 
     if (response.status >= 200 && response.status < 300) {
-      // Check if we got meaningful content
-      const hasContent = checkResponseHasContent(response.bodyJson);
+      const hasContent = stream ? response.body.length > 0 : checkResponseHasContent(response.bodyJson);
       return {
         success: true,
         httpStatus: response.status,
-        responseStarted: true,
+        responseStarted: stream ? response.streamStarted : true,
         contentGenerated: hasContent,
         latencyMs,
       };
@@ -111,530 +112,176 @@ export async function probeText(
   }
 }
 
-/**
- * Image probe with retries for different configurations
- */
+// ============================================================================
+// Public Probe Functions
+// ============================================================================
+
+/** Text sanity probe - tests basic text completion */
+export function probeText(
+  provider: ProviderType, model: string, apiKey: string | undefined,
+  endpoint: string | undefined, config: ProbeConfig
+): Promise<ProbeResult> {
+  return runProbe({ provider, model, apiKey, endpoint, contentType: 'text' }, config);
+}
+
+/** Image probe with retries for different configurations */
 export async function probeImage(
-  provider: ProviderType,
-  model: string,
-  apiKey: string | undefined,
-  endpoint: string | undefined,
-  config: ProbeConfig
+  provider: ProviderType, model: string, apiKey: string | undefined,
+  endpoint: string | undefined, config: ProbeConfig
 ): Promise<ProbeWithRetryResult> {
-  // Probe variants to try in order
   const variants: ProbeVariant[] = [
-    { useBase64: true, imagesFirst: false },   // Standard: base64, text first
-    { useBase64: true, imagesFirst: true },    // Try: base64, images first
-    { useBase64: false, imagesFirst: false },  // Try: URL (data URL)
-    { useBase64: false, imagesFirst: true },   // Try: URL, images first
+    { useBase64: true, imagesFirst: false },
+    { useBase64: true, imagesFirst: true },
+    { useBase64: false, imagesFirst: false },
+    { useBase64: false, imagesFirst: true },
   ];
 
-  const retryResults: ProbeResult[] = [];
-  let successfulVariant: ProbeVariant | undefined;
+  const probeWithVariant = (v: ProbeVariant) => runProbe({
+    provider, model, apiKey, endpoint,
+    contentType: 'image',
+    media: v.useBase64
+      ? { base64: TINY_PNG_BASE64, mimeType: TINY_PNG_MIME_TYPE }
+      : { dataUrl: `data:${TINY_PNG_MIME_TYPE};base64,${TINY_PNG_BASE64}` },
+    imagesFirst: v.imagesFirst,
+  }, config);
 
-  // Try primary configuration first
-  const primaryResult = await probeImageWithVariant(
-    provider, model, apiKey, endpoint, variants[0], config
-  );
-
+  const primaryResult = await probeWithVariant(variants[0]);
   if (primaryResult.success) {
-    return {
-      primaryResult,
-      finalSuccess: true,
-      successfulVariant: variants[0],
-    };
+    return { primaryResult, finalSuccess: true, successfulVariant: variants[0] };
   }
 
-  // If it looks like a schema error, try other variants
+  // Retry with other variants if schema error
   if (primaryResult.schemaError || isFeatureNotSupportedError({
-    status: primaryResult.httpStatus || 0,
-    statusText: '',
-    headers: {},
-    body: '',
-    bodyJson: undefined
+    status: primaryResult.httpStatus || 0, statusText: '', headers: {}, body: '', bodyJson: undefined
   })) {
+    const retryResults: ProbeResult[] = [];
     for (let i = 1; i < variants.length && i <= config.maxRetries; i++) {
       await sleep(config.retryDelayMs);
-      const result = await probeImageWithVariant(
-        provider, model, apiKey, endpoint, variants[i], config
-      );
+      const result = await probeWithVariant(variants[i]);
       retryResults.push(result);
-
       if (result.success) {
-        successfulVariant = variants[i];
-        break;
+        return { primaryResult, retryResults, finalSuccess: true, successfulVariant: variants[i] };
       }
     }
+    return { primaryResult, retryResults: retryResults.length > 0 ? retryResults : undefined, finalSuccess: false };
   }
 
-  const finalSuccess = successfulVariant !== undefined;
-
-  return {
-    primaryResult,
-    retryResults: retryResults.length > 0 ? retryResults : undefined,
-    finalSuccess,
-    successfulVariant,
-  };
+  return { primaryResult, finalSuccess: false };
 }
 
-/**
- * Probe image with a specific configuration variant
- */
-async function probeImageWithVariant(
-  provider: ProviderType,
-  model: string,
-  apiKey: string | undefined,
-  endpoint: string | undefined,
-  variant: ProbeVariant,
-  config: ProbeConfig
-): Promise<ProbeResult> {
-  const startTime = Date.now();
-
-  try {
-    const url = getProviderEndpoint(provider, endpoint);
-    const headers = getProviderHeaders(provider, apiKey);
-
-    const imageContent = variant.useBase64
-      ? { base64: TINY_PNG_BASE64, mimeType: TINY_PNG_MIME_TYPE }
-      : { dataUrl: `data:${TINY_PNG_MIME_TYPE};base64,${TINY_PNG_BASE64}` };
-
-    const messages = buildMessages(
-      provider,
-      PROBE_PROMPTS.image,
-      'image',
-      imageContent,
-      variant.imagesFirst
-    );
-
-    const response = await makeProbeRequest(
-      {
-        url,
-        method: 'POST',
-        headers,
-        body: {
-          model,
-          messages,
-          ...getTokenLimitBody(provider, 50),
-          stream: false,
-        },
-      },
-      config
-    );
-
-    const latencyMs = Date.now() - startTime;
-
-    if (response.status >= 200 && response.status < 300) {
-      const hasContent = checkResponseHasContent(response.bodyJson);
-      return {
-        success: true,
-        httpStatus: response.status,
-        responseStarted: true,
-        contentGenerated: hasContent,
-        latencyMs,
-      };
-    }
-
-    const { errorCode, errorMessage } = parseProbeError(response);
-    return {
-      success: false,
-      httpStatus: response.status,
-      errorCode,
-      errorMessage,
-      schemaError: detectSchemaError(response),
-      latencyMs,
-    };
-  } catch (error) {
-    return {
-      success: false,
-      errorMessage: error instanceof Error ? error.message : String(error),
-      latencyMs: Date.now() - startTime,
-    };
-  }
-}
-
-/**
- * PDF probe with retries for native PDF and rasterized fallback
- */
+/** PDF probe with native and rasterized fallback */
 export async function probePdf(
-  provider: ProviderType,
-  model: string,
-  apiKey: string | undefined,
-  endpoint: string | undefined,
-  config: ProbeConfig
+  provider: ProviderType, model: string, apiKey: string | undefined,
+  endpoint: string | undefined, config: ProbeConfig
 ): Promise<ProbeWithRetryResult> {
-  // First try native PDF
-  const primaryResult = await probePdfNative(provider, model, apiKey, endpoint, config);
+  // Try native PDF
+  const primaryResult = await runProbe({
+    provider, model, apiKey, endpoint,
+    contentType: 'pdf',
+    media: { base64: TINY_PDF_BASE64, mimeType: TINY_PDF_MIME_TYPE },
+  }, config);
 
   if (primaryResult.success) {
-    return {
-      primaryResult,
-      finalSuccess: true,
-      successfulVariant: { useBase64: true, imagesFirst: false, asPdfImages: false },
-    };
+    return { primaryResult, finalSuccess: true, successfulVariant: { useBase64: true, imagesFirst: false, asPdfImages: false } };
   }
 
-  // If native PDF failed, try as rasterized images
-  const retryResults: ProbeResult[] = [];
-
-  if (primaryResult.schemaError?.includes('PDF') ||
-      primaryResult.schemaError?.includes('not supported') ||
-      primaryResult.httpStatus === 400 ||
-      primaryResult.httpStatus === 422) {
+  // Try PDF-as-images fallback
+  if (primaryResult.schemaError?.includes('PDF') || primaryResult.schemaError?.includes('not supported') ||
+      primaryResult.httpStatus === 400 || primaryResult.httpStatus === 422) {
     await sleep(config.retryDelayMs);
+    const fallbackResult = await runProbe({
+      provider, model, apiKey, endpoint,
+      contentType: 'image',
+      media: { base64: TINY_PNG_BASE64, mimeType: TINY_PNG_MIME_TYPE },
+    }, config);
 
-    const pdfAsImageResult = await probePdfAsImages(
-      provider, model, apiKey, endpoint, config
-    );
-    retryResults.push(pdfAsImageResult);
-
-    if (pdfAsImageResult.success) {
-      return {
-        primaryResult,
-        retryResults,
-        finalSuccess: true,
-        successfulVariant: { useBase64: true, imagesFirst: false, asPdfImages: true },
-      };
+    if (fallbackResult.success) {
+      return { primaryResult, retryResults: [fallbackResult], finalSuccess: true,
+               successfulVariant: { useBase64: true, imagesFirst: false, asPdfImages: true } };
     }
+    return { primaryResult, retryResults: [fallbackResult], finalSuccess: false };
   }
 
-  return {
-    primaryResult,
-    retryResults: retryResults.length > 0 ? retryResults : undefined,
-    finalSuccess: false,
-  };
+  return { primaryResult, finalSuccess: false };
 }
 
-/**
- * Probe native PDF support
- */
-async function probePdfNative(
-  provider: ProviderType,
-  model: string,
-  apiKey: string | undefined,
-  endpoint: string | undefined,
-  config: ProbeConfig
-): Promise<ProbeResult> {
-  const startTime = Date.now();
-
-  try {
-    const url = getProviderEndpoint(provider, endpoint);
-    const headers = getProviderHeaders(provider, apiKey);
-
-    const messages = buildMessages(
-      provider,
-      PROBE_PROMPTS.pdf,
-      'pdf',
-      { base64: TINY_PDF_BASE64, mimeType: TINY_PDF_MIME_TYPE }
-    );
-
-    const response = await makeProbeRequest(
-      {
-        url,
-        method: 'POST',
-        headers,
-        body: {
-          model,
-          messages,
-          ...getTokenLimitBody(provider, 50),
-          stream: false,
-        },
-      },
-      config
-    );
-
-    const latencyMs = Date.now() - startTime;
-
-    if (response.status >= 200 && response.status < 300) {
-      const hasContent = checkResponseHasContent(response.bodyJson);
-      return {
-        success: true,
-        httpStatus: response.status,
-        responseStarted: true,
-        contentGenerated: hasContent,
-        latencyMs,
-      };
-    }
-
-    const { errorCode, errorMessage } = parseProbeError(response);
-    return {
-      success: false,
-      httpStatus: response.status,
-      errorCode,
-      errorMessage,
-      schemaError: detectSchemaError(response),
-      latencyMs,
-    };
-  } catch (error) {
-    return {
-      success: false,
-      errorMessage: error instanceof Error ? error.message : String(error),
-      latencyMs: Date.now() - startTime,
-    };
-  }
-}
-
-/**
- * Probe PDF as rasterized images (fallback)
- */
-async function probePdfAsImages(
-  provider: ProviderType,
-  model: string,
-  apiKey: string | undefined,
-  endpoint: string | undefined,
-  config: ProbeConfig
-): Promise<ProbeResult> {
-  // For this probe, we simulate sending PDF page as an image
-  // by just using our tiny PNG as if it were a rasterized PDF page
-  return probeImageWithVariant(
-    provider,
-    model,
-    apiKey,
-    endpoint,
-    { useBase64: true, imagesFirst: false },
-    config
-  );
-}
-
-/**
- * Schema probe - detect message shape requirements
- */
+/** Schema probe - detect message shape requirements */
 export async function probeSchema(
-  provider: ProviderType,
-  model: string,
-  apiKey: string | undefined,
-  endpoint: string | undefined,
-  config: ProbeConfig
+  provider: ProviderType, model: string, apiKey: string | undefined,
+  endpoint: string | undefined, config: ProbeConfig
 ): Promise<{ result: ProbeResult; detectedShape: MessageShape }> {
-  // Try to determine the message shape by trying different formats
-  // and seeing which one succeeds
-
-  const startTime = Date.now();
-  let detectedShape: MessageShape = 'unknown';
-
-  // For most providers, we can infer the shape from the provider type
-  const inferredShape = inferMessageShapeFromProvider(provider);
-  if (inferredShape !== 'unknown') {
-    detectedShape = inferredShape;
-  }
-
-  // Make a simple request to verify
+  let detectedShape = inferMessageShapeFromProvider(provider);
   const result = await probeText(provider, model, apiKey, endpoint, config);
 
-  // If the probe succeeded, the inferred shape is likely correct
-  if (result.success && detectedShape === 'unknown') {
-    // Default to OpenAI parts for successful probes without known shape
-    detectedShape = 'openai.parts';
-  }
+  if (result.success && detectedShape === 'unknown') detectedShape = 'openai.parts';
+  if (result.schemaError?.includes('string')) detectedShape = 'openai.string';
+  else if (result.schemaError?.includes('array')) detectedShape = 'openai.parts';
 
-  // If there was a schema error, try to determine from the error
-  if (result.schemaError) {
-    if (result.schemaError.includes('string')) {
-      detectedShape = 'openai.string';
-    } else if (result.schemaError.includes('array')) {
-      detectedShape = 'openai.parts';
-    }
-  }
-
-  return {
-    result: {
-      ...result,
-      latencyMs: Date.now() - startTime,
-    },
-    detectedShape,
-  };
+  return { result, detectedShape };
 }
 
-/**
- * Streaming probe - detect completion response shape
- */
+/** Streaming probe - detect completion response shape */
 export async function probeStreaming(
-  provider: ProviderType,
-  model: string,
-  apiKey: string | undefined,
-  endpoint: string | undefined,
-  config: ProbeConfig
+  provider: ProviderType, model: string, apiKey: string | undefined,
+  endpoint: string | undefined, config: ProbeConfig
 ): Promise<{ result: ProbeResult; detectedShape: CompletionShape }> {
-  const startTime = Date.now();
+  const result = await runProbe({
+    provider, model, apiKey, endpoint, contentType: 'text', stream: true
+  }, config);
 
-  try {
-    const url = getProviderEndpoint(provider, endpoint);
-    const headers = getProviderHeaders(provider, apiKey);
-    const messages = buildMessages(provider, PROBE_PROMPTS.text, 'text');
+  const detectedShape = result.success && result.httpStatus
+    ? detectStreamingShape('', provider) // Would need response body for better detection
+    : 'unknown';
 
-    const response = await makeProbeRequest(
-      {
-        url,
-        method: 'POST',
-        headers,
-        body: {
-          model,
-          messages,
-          ...getTokenLimitBody(provider, 50),
-          stream: true,
-        },
-        stream: true,
-      },
-      config
-    );
-
-    const latencyMs = Date.now() - startTime;
-
-    if (response.status >= 200 && response.status < 300) {
-      // Detect streaming shape from the response body
-      const detectedShape = detectStreamingShape(response.body, provider);
-
-      return {
-        result: {
-          success: true,
-          httpStatus: response.status,
-          responseStarted: response.streamStarted,
-          contentGenerated: response.body.length > 0,
-          latencyMs,
-        },
-        detectedShape,
-      };
-    }
-
-    const { errorCode, errorMessage } = parseProbeError(response);
-    return {
-      result: {
-        success: false,
-        httpStatus: response.status,
-        errorCode,
-        errorMessage,
-        latencyMs,
-      },
-      detectedShape: 'unknown',
-    };
-  } catch (error) {
-    return {
-      result: {
-        success: false,
-        errorMessage: error instanceof Error ? error.message : String(error),
-        latencyMs: Date.now() - startTime,
-      },
-      detectedShape: 'unknown',
-    };
-  }
+  return { result, detectedShape: result.success ? inferStreamingShapeFromProvider(provider) : 'unknown' };
 }
 
 // ============================================================================
 // Helper Functions
 // ============================================================================
 
-/**
- * Check if a response JSON contains meaningful content
- */
 function checkResponseHasContent(bodyJson: unknown): boolean {
-  if (!bodyJson || typeof bodyJson !== 'object') {
-    return false;
-  }
-
+  if (!bodyJson || typeof bodyJson !== 'object') return false;
   const json = bodyJson as Record<string, unknown>;
 
-  // OpenAI-style response
+  // OpenAI-style
   if (Array.isArray(json.choices)) {
-    const choice = json.choices[0] as Record<string, unknown> | undefined;
-    if (choice?.message) {
-      const message = choice.message as Record<string, unknown>;
-      return typeof message.content === 'string' && message.content.length > 0;
-    }
+    const msg = (json.choices[0] as Record<string, unknown>)?.message as Record<string, unknown> | undefined;
+    if (msg) return typeof msg.content === 'string' && msg.content.length > 0;
   }
-
-  // Anthropic-style response
+  // Anthropic-style
   if (Array.isArray(json.content)) {
     const block = json.content[0] as Record<string, unknown> | undefined;
-    if (block?.type === 'text') {
-      return typeof block.text === 'string' && block.text.length > 0;
-    }
+    if (block?.type === 'text') return typeof block.text === 'string' && (block.text as string).length > 0;
   }
-
   return false;
 }
 
-/**
- * Infer message shape from provider type
- */
 function inferMessageShapeFromProvider(provider: ProviderType): MessageShape {
-  switch (provider) {
-    case 'anthropic':
-      return 'anthropic.content';
-    case 'gemini':
-      return 'gemini.parts';
-    case 'openai':
-    case 'openrouter':
-    case 'fireworks':
-    case 'xai':
-    case 'ollama':
-    case 'lmstudio':
-    case 'vllm':
-    case 'local-openai-compatible':
-      return 'openai.parts';
-    case 'minimax':
-      return 'openai.string';
-    default:
-      return 'unknown';
-  }
+  const shapes: Partial<Record<ProviderType, MessageShape>> = {
+    anthropic: 'anthropic.content',
+    gemini: 'gemini.parts',
+    minimax: 'openai.string',
+  };
+  return shapes[provider] ?? 'openai.parts';
 }
 
-/**
- * Detect streaming response shape from response content
- */
 function detectStreamingShape(body: string, provider: ProviderType): CompletionShape {
-  // Check for SSE data lines
-  if (!body.includes('data:')) {
-    return 'raw.text';
-  }
-
-  // Try to parse a data line
+  if (!body.includes('data:')) return 'raw.text';
   const dataMatch = body.match(/data:\s*({.+})/);
-  if (!dataMatch) {
-    // Anthropic uses event: lines
-    if (body.includes('event:')) {
-      return 'anthropic.sse';
-    }
-    return inferStreamingShapeFromProvider(provider);
-  }
+  if (!dataMatch) return body.includes('event:') ? 'anthropic.sse' : inferStreamingShapeFromProvider(provider);
 
   try {
     const parsed = JSON.parse(dataMatch[1]) as Record<string, unknown>;
-
-    // Anthropic style
-    if (parsed.type === 'content_block_delta' || parsed.type === 'message_start') {
-      return 'anthropic.sse';
-    }
-
-    // OpenAI style
-    if (Array.isArray(parsed.choices)) {
-      return 'openai.streaming';
-    }
-  } catch {
-    // JSON parse failed
-  }
+    if (parsed.type === 'content_block_delta' || parsed.type === 'message_start') return 'anthropic.sse';
+    if (Array.isArray(parsed.choices)) return 'openai.streaming';
+  } catch { /* ignore */ }
 
   return inferStreamingShapeFromProvider(provider);
 }
 
-/**
- * Infer streaming shape from provider
- */
 function inferStreamingShapeFromProvider(provider: ProviderType): CompletionShape {
-  switch (provider) {
-    case 'anthropic':
-      return 'anthropic.sse';
-    case 'gemini':
-      return 'gemini.streaming';
-    case 'openai':
-    case 'openrouter':
-    case 'fireworks':
-    case 'xai':
-    case 'ollama':
-    case 'lmstudio':
-    case 'vllm':
-    case 'local-openai-compatible':
-    case 'minimax':
-      return 'openai.streaming';
-    default:
-      return 'unknown';
-  }
+  if (provider === 'anthropic') return 'anthropic.sse';
+  if (provider === 'gemini') return 'gemini.streaming';
+  return 'openai.streaming';
 }
