@@ -10,6 +10,10 @@
     discoveredModels,
     type QuickSwitchModel
   } from '../../stores/config.js';
+  import {
+    modelCapabilities,
+    isCapabilityStale as isCapabilityStaleCached,
+  } from '../../stores/capabilities.js';
   import { showModelSelectionWarning } from '../../stores/ui.js';
   import type { ProviderType } from '../../../types';
 
@@ -45,7 +49,25 @@
       ? models[selectedIndex]
       : null
   );
+  const capabilitiesMap = $derived($modelCapabilities);
   const isEmpty = $derived(models.length === 0);
+
+  function describeCapabilities(model: QuickSwitchModel): string {
+    const entry = capabilitiesMap.get(`${model.provider}:${model.model}`);
+    if (!entry) return 'Probing...';
+    const caps = entry.capabilities;
+    const parts = [];
+    parts.push(caps.supportsVision ? 'vision' : 'text-only');
+    if (caps.supportsPdfNative) {
+      parts.push('pdf');
+    } else if (caps.supportsPdfAsImages) {
+      parts.push('pdf→images');
+    }
+    if (caps.requiresBase64Images) parts.push('base64');
+    if (caps.requiresImagesFirst) parts.push('img-first');
+    if (isCapabilityStaleCached(entry)) parts.push('stale');
+    return parts.join(' · ') || 'unknown';
+  }
 
   function handleSelect(index: number) {
     selectedQuickSwitchIndex.set(index);
@@ -176,9 +198,10 @@
               type="button"
               class="item-content"
               onclick={() => handleSelect(index)}
-              title={formatQuickSwitchModel(model)}
+              title={`${formatQuickSwitchModel(model)}\n${describeCapabilities(model)}`}
             >
-              {formatQuickSwitchModelTruncated(model, 40)}
+              <span class="model-label">{formatQuickSwitchModelTruncated(model, 40)}</span>
+              <span class="capability-badges">{describeCapabilities(model)}</span>
             </button>
             <button
               type="button"
@@ -338,8 +361,10 @@
     text-align: left;
     cursor: pointer;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.15rem;
   }
 
   .item-content:hover {
@@ -388,5 +413,14 @@
     font-size: 0.6rem;
     color: #4ec9b0;
     white-space: nowrap;
+  }
+
+  .capability-badges {
+    font-size: 0.6rem;
+    color: #9aa0a6;
+  }
+
+  .model-label {
+    font-weight: 600;
   }
 </style>
