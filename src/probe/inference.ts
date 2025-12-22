@@ -192,8 +192,15 @@ export interface ProbeProgress {
 
 export type ProgressCallback = (progress: ProbeProgress) => void;
 
+/** Minimum time per round to avoid rate limiting (ms) */
+const MIN_ROUND_TIME_MS = 5000;
+
 /**
- * Probe multiple models with progress reporting
+ * Probe multiple models with round-robin scheduling to avoid rate limits.
+ *
+ * Models are grouped by provider, and in each round we probe one model
+ * from each provider. This spaces out requests to the same provider.
+ * Each round takes at least MIN_ROUND_TIME_MS to complete.
  */
 export async function probeModels(
   models: Array<{ provider: ProviderType; model: string }>,
@@ -202,62 +209,94 @@ export async function probeModels(
   config: ProbeConfig,
   onProgress?: ProgressCallback
 ): Promise<ModelProbeResult[]> {
-  const results: ModelProbeResult[] = [];
+  // Group models by provider for round-robin scheduling
+  const providerQueues = new Map<ProviderType, Array<{ model: string; index: number }>>();
+  models.forEach(({ provider, model }, index) => {
+    if (!providerQueues.has(provider)) {
+      providerQueues.set(provider, []);
+    }
+    providerQueues.get(provider)!.push({ model, index });
+  });
 
-  for (let i = 0; i < models.length; i++) {
-    const { provider, model } = models[i];
+  const results: ModelProbeResult[] = new Array(models.length);
+  let completedCount = 0;
 
-    onProgress?.({
-      current: i + 1,
-      total: models.length,
-      model,
-      provider,
-      status: 'probing',
-    });
+  // Process in rounds - one model per provider per round
+  while (completedCount < models.length) {
+    const roundStartTime = Date.now();
+    const roundTasks: Array<{ provider: ProviderType; model: string; index: number }> = [];
 
-    try {
-      const apiKey = getApiKey(provider);
-      const endpoint = getEndpoint(provider);
-      const result = await probeModel(provider, model, apiKey, endpoint, config);
-      results.push(result);
+    // Collect one model from each provider with remaining models
+    for (const [provider, queue] of providerQueues) {
+      if (queue.length > 0) {
+        const { model, index } = queue.shift()!;
+        roundTasks.push({ provider, model, index });
+      }
+    }
+
+    // Process this round's tasks sequentially (safer for rate limits)
+    for (const { provider, model, index } of roundTasks) {
+      completedCount++;
 
       onProgress?.({
-        current: i + 1,
+        current: completedCount,
         total: models.length,
         model,
         provider,
-        status: 'done',
-      });
-    } catch (error) {
-      // Create a failed result
-      results.push({
-        provider,
-        model,
-        probedAt: Date.now(),
-        textProbe: {
-          success: false,
-          errorMessage: error instanceof Error ? error.message : String(error),
-        },
-        imageProbe: {
-          primaryResult: { success: false, errorMessage: 'Probe error' },
-          finalSuccess: false,
-        },
-        pdfProbe: {
-          primaryResult: { success: false, errorMessage: 'Probe error' },
-          finalSuccess: false,
-        },
-        capabilities: getDefaultCapabilities(),
-        probeVersion: PROBE_VERSION,
-        totalProbeTimeMs: 0,
+        status: 'probing',
       });
 
-      onProgress?.({
-        current: i + 1,
-        total: models.length,
-        model,
-        provider,
-        status: 'error',
-      });
+      try {
+        const apiKey = getApiKey(provider);
+        const endpoint = getEndpoint(provider);
+        const result = await probeModel(provider, model, apiKey, endpoint, config);
+        results[index] = result;
+
+        onProgress?.({
+          current: completedCount,
+          total: models.length,
+          model,
+          provider,
+          status: 'done',
+        });
+      } catch (error) {
+        results[index] = {
+          provider,
+          model,
+          probedAt: Date.now(),
+          textProbe: {
+            success: false,
+            errorMessage: error instanceof Error ? error.message : String(error),
+          },
+          imageProbe: {
+            primaryResult: { success: false, errorMessage: 'Probe error' },
+            finalSuccess: false,
+          },
+          pdfProbe: {
+            primaryResult: { success: false, errorMessage: 'Probe error' },
+            finalSuccess: false,
+          },
+          capabilities: getDefaultCapabilities(),
+          probeVersion: PROBE_VERSION,
+          totalProbeTimeMs: 0,
+        };
+
+        onProgress?.({
+          current: completedCount,
+          total: models.length,
+          model,
+          provider,
+          status: 'error',
+        });
+      }
+    }
+
+    // Pad round to minimum time if there are more models to process
+    if (completedCount < models.length) {
+      const roundElapsed = Date.now() - roundStartTime;
+      if (roundElapsed < MIN_ROUND_TIME_MS) {
+        await new Promise(resolve => setTimeout(resolve, MIN_ROUND_TIME_MS - roundElapsed));
+      }
     }
   }
 
