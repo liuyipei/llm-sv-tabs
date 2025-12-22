@@ -17,29 +17,29 @@
  *   ~/.llm-tabs/keys.json
  */
 
-import type { ProviderType } from '../types';
+import type { ProviderType } from '../types.js';
 import type {
   QuickListModel,
   ProbeConfig,
   ModelProbeResult,
   ProbeTableRow,
   OutputFormat,
-} from './types';
-import { DEFAULT_PROBE_CONFIG } from './types';
-import { probeModels, summarizeProbeResult } from './inference';
+} from './types.js';
+import { DEFAULT_PROBE_CONFIG } from './types.js';
+import { probeModels, summarizeProbeResult } from './inference.js';
 import {
   getApiKeyFromEnv,
   loadApiKeysFromFile,
   providerRequiresApiKey,
-} from './provider-adapters';
+} from './provider-adapters.js';
 import {
   loadCacheFromFile,
   saveCacheToFile,
   updateCacheFromProbeResults,
   getDefaultCachePath,
-} from './cache';
-import { getFixtureStats } from './fixtures';
-import { loadQuickListFromFile, getQuickListPath } from './quick-list-file';
+} from './cache.js';
+import { getFixtureStats } from './fixtures/index.js';
+import { loadQuickListFromFile, getQuickListPath } from './quick-list-file.js';
 
 // ============================================================================
 // CLI Arguments
