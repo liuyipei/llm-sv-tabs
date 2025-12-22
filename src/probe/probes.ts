@@ -30,6 +30,24 @@ import {
 import { getProviderEndpoint, getProviderHeaders, buildMessages } from './provider-adapters';
 
 /**
+ * Get the correct token limit field name for a provider.
+ * OpenAI's newer models require max_completion_tokens instead of max_tokens.
+ */
+function getTokenLimitBody(provider: ProviderType, limit: number): Record<string, number> {
+  // OpenAI and OpenAI-compatible providers (except anthropic/gemini) should use max_completion_tokens
+  // for newer models. Using max_completion_tokens is safe for all current OpenAI models.
+  if (provider === 'openai') {
+    return { max_completion_tokens: limit };
+  }
+  // Anthropic uses max_tokens
+  if (provider === 'anthropic') {
+    return { max_tokens: limit };
+  }
+  // Other OpenAI-compatible providers typically use max_tokens
+  return { max_tokens: limit };
+}
+
+/**
  * Text sanity probe - tests basic text completion
  */
 export async function probeText(
@@ -54,7 +72,7 @@ export async function probeText(
         body: {
           model,
           messages,
-          max_tokens: 50,
+          ...getTokenLimitBody(provider, 50),
           stream: false,
         },
       },
@@ -196,7 +214,7 @@ async function probeImageWithVariant(
         body: {
           model,
           messages,
-          max_tokens: 50,
+          ...getTokenLimitBody(provider, 50),
           stream: false,
         },
       },
@@ -317,7 +335,7 @@ async function probePdfNative(
         body: {
           model,
           messages,
-          max_tokens: 50,
+          ...getTokenLimitBody(provider, 50),
           stream: false,
         },
       },
@@ -451,7 +469,7 @@ export async function probeStreaming(
         body: {
           model,
           messages,
-          max_tokens: 50,
+          ...getTokenLimitBody(provider, 50),
           stream: true,
         },
         stream: true,
