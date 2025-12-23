@@ -180,6 +180,7 @@ npm run probe:quicklist -- --json
 - The browser writes the quick list to `~/.llm-tabs/quick-list.json` so `npm run probe:quicklist` sees the same model set.
 - When API keys or endpoints change in the browser, it forces a fresh probe of quick-list models so cached capability flags stay in sync with the CLI results.
 - Probing remains debounced (500 ms) to avoid excessive writes/requests while still ensuring new credentials/endpoint settings immediately refresh capability data.
+- The main process prints a CLI-style summary line for each browser-triggered probe (matching quick list additions) so you can compare app results with `npm run probe:quicklist`.
 
 ### API Key Sources
 1. Environment variables: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, etc.
