@@ -11,6 +11,13 @@ This design system documents the visual language of the LLM Browser. It provides
 
 **Important:** This is a *post-hoc* design system—extracted from existing code rather than defined upfront. As such, there are inconsistencies in the current implementation (e.g., hardcoded colors instead of CSS variables, non-uniform spacing). Future work should migrate components to use these standardized values.
 
+### Relationship to Other Design Docs
+
+- **[Visual Layout Architecture](./02-visual-layout.md)**: Describes *layout structure* (sidebar width, content areas, hybrid rendering). This document describes *visual styling* (colors, fonts, spacing).
+- **[User Experience & Context Management](./04-user-experience-and-context-management.md)**: Describes *interaction patterns* and workflows. This document describes *visual design tokens*.
+
+**Note on CSS Variables:** The visual-layout.md document shows aspirational CSS variable definitions (`:root { --bg-primary: ... }`). However, these variables are **not currently defined** in any global stylesheet. Some components use `var(--variable-name, fallback)` syntax expecting variables to exist, but fall back to hardcoded values. A future migration should create a `src/ui/styles/tokens.css` file with actual variable definitions.
+
 ---
 
 ## Color Palette
@@ -574,50 +581,63 @@ Used on resizable dividers, buttons, inputs when focused via keyboard.
 
 ## Design Tokens (Future CSS Variables)
 
-**Note:** Current implementation uses hardcoded colors. Future refactoring should convert to CSS custom properties:
+**Note:** Current implementation uses hardcoded colors. Future refactoring should convert to CSS custom properties.
+
+**Naming Convention Decision Needed:** The visual-layout.md doc proposes simpler names (`--bg-primary`, `--text-primary`), while this document uses more descriptive names (`--color-bg-primary`, `--color-text-primary`). Recommendation: **Use simpler names** for brevity, matching visual-layout.md.
+
+### Proposed CSS Variable Definitions
 
 ```css
 :root {
-  /* Colors */
-  --color-bg-primary: #1e1e1e;
-  --color-bg-surface-1: #252526;
-  --color-bg-surface-2: #2d2d30;
-  --color-bg-input: #3c3c3c;
+  /* Layout Constants (from visual-layout.md) */
+  --sidebar-width: 350px;
+  --header-height: 53px;
 
-  --color-text-primary: #d4d4d4;
-  --color-text-secondary: #8c8c8c;
-  --color-text-bright: #ffffff;
+  /* Background Colors */
+  --bg-primary: #1e1e1e;        /* Darkest - main background */
+  --bg-secondary: #252526;      /* Raised surfaces (sidebar, modals) */
+  --bg-tertiary: #2d2d30;       /* Elevated elements (tables, tab items) */
+  --bg-input: #3c3c3c;          /* Input backgrounds */
+  --bg-hover: #3e3e42;          /* Hover states */
+  --bg-active: #094771;         /* Active tab background (alternative: #2a2d2e from visual-layout.md) */
 
-  --color-accent-blue: #007acc;
-  --color-accent-blue-hover: #005a9e;
+  /* Text Colors */
+  --text-primary: #d4d4d4;      /* Primary body text (alternative: #cccccc from visual-layout.md) */
+  --text-secondary: #8c8c8c;    /* Muted/secondary text (alternative: #888888) */
+  --text-bright: #ffffff;       /* Headings */
+  --text-disabled: #606060;     /* Disabled states */
 
-  --color-border-default: #3e3e42;
-  --color-border-focus: #007acc;
+  /* Accent Colors */
+  --accent-color: #007acc;      /* Primary interactive (from visual-layout.md) */
+  --accent-hover: #005a9e;      /* Hover state */
+  --accent-bg: rgba(0, 122, 204, 0.1);  /* Accent background (from visual-layout.md) */
 
-  /* ... etc ... */
+  /* Semantic Colors (VSCode-inspired) */
+  --semantic-purple: #c586c0;   /* Context sections */
+  --semantic-cyan: #4ec9b0;     /* Responses, success */
+  --semantic-sky: #9cdcfe;      /* Metadata labels */
+  --semantic-yellow: #dcdcaa;   /* Metadata values */
 
-  /* Spacing */
-  --space-1: 2px;
-  --space-2: 4px;
-  --space-4: 8px;
-  --space-6: 12px;
-  --space-8: 16px;
-  --space-10: 24px;
+  /* Feedback Colors */
+  --error-text: #f48771;
+  --error-bg: #5a1d1d;
+  --danger-red: #e81123;
+  --success-green: #10b981;
+  --warning-orange: #f59e0b;
+
+  /* Borders */
+  --border-color: #3e3e42;      /* Default borders (from visual-layout.md as #3e3e3e) */
+  --border-radius: 4px;         /* Default radius (from visual-layout.md) */
+
+  /* Spacing (from visual-layout.md) */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
 
   /* Typography */
   --font-system: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', system-ui, sans-serif;
   --font-mono: 'Consolas', 'Monaco', 'Courier New', monospace;
-
-  --text-xs: 10px;
-  --text-sm: 12px;
-  --text-base: 14px;
-  --text-lg: 16px;
-
-  /* Radius */
-  --radius-sm: 2px;
-  --radius-default: 3px;
-  --radius-md: 4px;
-  --radius-lg: 6px;
 
   /* Shadows */
   --shadow-sm: 0 4px 6px rgba(0, 0, 0, 0.3);
@@ -629,6 +649,11 @@ Used on resizable dividers, buttons, inputs when focused via keyboard.
   --z-toast: 10000;
 }
 ```
+
+**Conflicts with visual-layout.md to resolve:**
+- `--bg-active`: This doc uses `#094771`, visual-layout.md suggests `#2a2d2e` (choose one)
+- `--text-primary`: This doc uses `#d4d4d4`, visual-layout.md uses `#cccccc` (very similar, pick one)
+- `--border-color`: This doc uses `#3e3e42`, visual-layout.md uses `#3e3e3e` (nearly identical, standardize)
 
 ---
 

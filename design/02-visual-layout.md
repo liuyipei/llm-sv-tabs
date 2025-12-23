@@ -441,7 +441,9 @@ mainWindow = new BrowserWindow({
 
 ## Color Scheme & Theming
 
-### CSS Variables
+**Note:** This section shows **aspirational** CSS variable definitions. These variables are **not yet implemented** in the codebase—colors are currently hardcoded. For the complete design system including all actual color values used throughout the application, see **[Design System](./13-design-system.md)**.
+
+### CSS Variables (Proposed)
 
 ```css
 :root {
@@ -469,6 +471,8 @@ mainWindow = new BrowserWindow({
   --border-color: #3e3e3e;
 }
 ```
+
+**Current State:** Some components use `var(--variable, fallback)` syntax expecting these variables, but since they're not defined in a `:root` block, the fallback values are always used. See [Design System](./13-design-system.md) for migration strategy.
 
 ### Dark Mode Only
 
