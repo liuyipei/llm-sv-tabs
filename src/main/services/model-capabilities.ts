@@ -83,7 +83,7 @@ async function runProbe(
       DEFAULT_PROBE_CONFIG
     );
 
-    logProbeSummary(provider, model, result);
+    logProbeSummary(result);
     updateCacheFromProbeResult(result);
     await saveCacheToFile();
     return result;
@@ -128,11 +128,7 @@ export async function resolveModelCapabilities(
   return resolveCachedCapabilities(provider, model);
 }
 
-function logProbeSummary(
-  provider: ProviderType,
-  model: string,
-  result: ModelProbeResult
-): void {
+function logProbeSummary(result: ModelProbeResult): void {
   if (!probeLogHeaderPrinted) {
     const headerLines = renderTable(PROBE_TABLE_HEADERS, [formatProbeTableRow(result, 50)]).slice(0, 2);
     console.log();

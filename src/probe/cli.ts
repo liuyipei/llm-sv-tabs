@@ -22,7 +22,6 @@ import type {
   QuickListModel,
   ProbeConfig,
   ModelProbeResult,
-  ProbeTableRow,
   OutputFormat,
 } from './types.js';
 import { DEFAULT_PROBE_CONFIG } from './types.js';
@@ -42,7 +41,6 @@ import { getFixtureStats } from './fixtures/index.js';
 import { loadQuickListFromFile, getQuickListPath } from './quick-list-file.js';
 import {
   PROBE_TABLE_HEADERS,
-  computeColumnWidths,
   formatProbeTableRow,
   renderTable,
 } from './output-format.js';

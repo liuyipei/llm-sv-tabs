@@ -40,7 +40,10 @@ export function computeColumnWidths(rows: ProbeTableRow[], headers = PROBE_TABLE
   });
 }
 
-export function renderTable(headers: readonly string[], rows: ProbeTableRow[]): string[] {
+export function renderTable(
+  headers: readonly string[] = PROBE_TABLE_HEADERS,
+  rows: ProbeTableRow[]
+): string[] {
   const widths = computeColumnWidths(rows, headers as string[]);
   const headerLine = headers.map((h, i) => h.padEnd(widths[i])).join(' | ');
   const sepLine = widths.map(w => '-'.repeat(w)).join('-+-');
