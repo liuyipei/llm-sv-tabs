@@ -1,48 +1,7 @@
-import { get, writable, type Writable } from 'svelte/store';
+import { get } from 'svelte/store';
 import type { ProviderType, LLMModel } from '../../types';
+import { createPersistedStore } from '../utils/persisted-store';
 import { loadCapabilitiesFromCache, probeAndStoreCapabilities, getCapabilities as getCachedCapabilities, isCapabilityStale as isCapabilityStaleCached } from './capabilities.js';
-
-// Create a persisted store that syncs with localStorage
-// Uses the custom store pattern to avoid subscribing during module init
-function createPersistedStore<T>(key: string, initial: T): Writable<T> {
-  const isBrowser = typeof window !== 'undefined' && typeof localStorage !== 'undefined';
-
-  // 1. Load initial value from localStorage
-  let initialValue = initial;
-  if (isBrowser) {
-    const stored = localStorage.getItem(key);
-    if (stored) {
-      try {
-        initialValue = JSON.parse(stored);
-      } catch (e) {
-        console.warn(`Failed to parse stored value for ${key}`, e);
-      }
-    }
-  }
-
-  // 2. Create the base writable store
-  const { subscribe, set, update } = writable<T>(initialValue);
-
-  // 3. Return a custom store object that persists on set/update
-  return {
-    subscribe,
-    set: (value: T) => {
-      if (isBrowser) {
-        localStorage.setItem(key, JSON.stringify(value));
-      }
-      set(value);
-    },
-    update: (fn: (value: T) => T) => {
-      update((current) => {
-        const newValue = fn(current);
-        if (isBrowser) {
-          localStorage.setItem(key, JSON.stringify(newValue));
-        }
-        return newValue;
-      });
-    }
-  };
-}
 
 // Configuration stores
 export const provider = createPersistedStore<ProviderType>('provider', 'openai');
@@ -98,23 +57,12 @@ function scheduleQuickListSync(triggeredForceProbe = false): void {
   }, QUICK_LIST_SYNC_MS);
 }
 
+// Subscribe to changes and sync to file
+quickSwitchModels.subscribe(() => scheduleQuickListSync());
+
+// Load capabilities from cache on startup
 if (typeof window !== 'undefined') {
-  void loadCapabilitiesFromCache();
-
-  quickSwitchModels.subscribe(() => {
-    // Debounce sync/probe to avoid excessive writes
-    scheduleQuickListSync(false);
-  });
-
-  apiKeys.subscribe(() => {
-    // Re-probe with new credentials so browser matches CLI results
-    scheduleQuickListSync(true);
-  });
-
-  endpoint.subscribe(() => {
-    // Endpoint changes should force refresh of probe results
-    scheduleQuickListSync(true);
-  });
+  loadCapabilitiesFromCache();
 }
 
 // Model history stores
@@ -278,4 +226,9 @@ export function formatQuickSwitchModel(item: QuickSwitchModel): string {
 export function formatQuickSwitchModelTruncated(item: QuickSwitchModel, maxModelLen: number = 40): string {
   const truncatedModel = truncateModelName(item.model, maxModelLen);
   return `${item.provider}:${truncatedModel}`;
+}
+
+// Trigger a re-probe of all models in the quick list (e.g. after API key change)
+export function triggerQuickListProbe(): void {
+  scheduleQuickListSync(true);
 }

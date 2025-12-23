@@ -1,48 +1,8 @@
-import { writable, type Writable } from 'svelte/store';
+import type { Writable } from 'svelte/store';
 import type { Bookmark } from '../../types';
 import { upsertBookmark, type BookmarkInput } from '../../utils/bookmark-utils';
 import { normalizeUrl } from '../../utils/url-normalization';
-
-// Create a persisted store that syncs with localStorage
-function createPersistedStore<T>(key: string, initial: T): Writable<T> {
-  const isBrowser = typeof window !== 'undefined' && typeof localStorage !== 'undefined';
-
-  // Load initial value from localStorage
-  let initialValue = initial;
-  if (isBrowser) {
-    const stored = localStorage.getItem(key);
-    if (stored) {
-      try {
-        initialValue = JSON.parse(stored);
-      } catch (e) {
-        console.warn(`Failed to parse stored value for ${key}`, e);
-      }
-    }
-  }
-
-  // Create the base writable store
-  const { subscribe, set, update } = writable<T>(initialValue);
-
-  // Return a custom store object that persists on set/update
-  return {
-    subscribe,
-    set: (value: T) => {
-      if (isBrowser) {
-        localStorage.setItem(key, JSON.stringify(value));
-      }
-      set(value);
-    },
-    update: (fn: (value: T) => T) => {
-      update((current) => {
-        const newValue = fn(current);
-        if (isBrowser) {
-          localStorage.setItem(key, JSON.stringify(newValue));
-        }
-        return newValue;
-      });
-    }
-  };
-}
+import { createPersistedStore } from '../utils/persisted-store';
 
 // Bookmarks store with localStorage persistence
 export const bookmarks: Writable<Bookmark[]> = createPersistedStore<Bookmark[]>('bookmarks', []);
