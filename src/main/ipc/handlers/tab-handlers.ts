@@ -1,6 +1,5 @@
 import { ipcMain } from 'electron';
 import type TabManager from '../../tab-manager.js';
-import type { MainProcessContext } from '../register-ipc-handlers.js';
 
 type HandlerError = { success: false; error: string };
 
