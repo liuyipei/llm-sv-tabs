@@ -8,7 +8,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
-import type { ProviderType } from '../types.js';
+import type { ProviderType } from '../types';
 
 export interface QuickListEntry {
   provider: ProviderType;

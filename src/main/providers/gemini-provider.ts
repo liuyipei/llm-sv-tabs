@@ -4,7 +4,6 @@
 
 import { BaseProvider, type ProviderCapabilities } from './base-provider.js';
 import type { LLMModel, LLMResponse, QueryOptions, MessageContent } from '../../types';
-import { buildCapabilityAwareMessage } from './message-builder.js';
 import { fetchModelsWithFallback, readSSEStream, validateWithApiKey } from './provider-helpers.js';
 
 export class GeminiProvider extends BaseProvider {
@@ -103,15 +102,7 @@ export class GeminiProvider extends BaseProvider {
       const contents = [];
       let systemInstruction = '';
 
-      const capabilities = await this.getModelCapabilities(model);
-      const adaptedMessages = messages.map((msg) => ({
-        role: msg.role,
-        content: buildCapabilityAwareMessage(msg.content, capabilities),
-      }));
-
-      await this.rateLimitDelay();
-
-      for (const message of adaptedMessages) {
+      for (const message of messages) {
         if (message.role === 'system') {
           systemInstruction = this.convertToString(message.content);
         } else {
@@ -183,15 +174,7 @@ export class GeminiProvider extends BaseProvider {
       const contents = [];
       let systemInstruction = '';
 
-      const capabilities = await this.getModelCapabilities(model);
-      const adaptedMessages = messages.map((msg) => ({
-        role: msg.role,
-        content: buildCapabilityAwareMessage(msg.content, capabilities),
-      }));
-
-      await this.rateLimitDelay();
-
-      for (const message of adaptedMessages) {
+      for (const message of messages) {
         if (message.role === 'system') {
           systemInstruction = this.convertToString(message.content);
         } else {

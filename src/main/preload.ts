@@ -221,15 +221,6 @@ const electronAPI = {
   // Quick list sync for CLI probe tool
   syncQuickList: (models: Array<{ provider: ProviderType; model: string }>): Promise<IPCResponse> =>
     ipcRenderer.invoke('sync-quick-list', models),
-
-  // Capability probing
-  probeModel: (
-    provider: ProviderType,
-    model: string,
-    apiKey?: string,
-    endpoint?: string,
-  ) => ipcRenderer.invoke('probe-model', provider, model, apiKey, endpoint),
-  loadCapabilityCache: (): Promise<any> => ipcRenderer.invoke('load-capability-cache'),
 };
 
 // Diagnostic: log every tab-updated payload to trace streaming completion signals
