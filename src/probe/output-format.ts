@@ -33,7 +33,7 @@ export function formatProbeTableRow(result: ModelProbeResult, maxModelLen: numbe
   };
 }
 
-export function computeColumnWidths(rows: ProbeTableRow[], headers = PROBE_TABLE_HEADERS): number[] {
+export function computeColumnWidths(rows: ProbeTableRow[], headers: ReadonlyArray<string> = PROBE_TABLE_HEADERS): number[] {
   return headers.map((h, i) => {
     const values = [h, ...rows.map(r => Object.values(r)[i] as string)];
     return Math.max(...values.map(v => v.length));
@@ -42,9 +42,9 @@ export function computeColumnWidths(rows: ProbeTableRow[], headers = PROBE_TABLE
 
 export function renderTable(
   rows: ProbeTableRow[],
-  headers: typeof PROBE_TABLE_HEADERS = PROBE_TABLE_HEADERS
+  headers: ReadonlyArray<string> = PROBE_TABLE_HEADERS
 ): string[] {
-  const widths = computeColumnWidths(rows, headers as unknown as string[]);
+  const widths = computeColumnWidths(rows, headers);
   const headerLine = headers.map((h, i) => h.padEnd(widths[i])).join(' | ');
   const sepLine = widths.map(w => '-'.repeat(w)).join('-+-');
   const rowLines = rows.map(r => Object.values(r).map((v, i) => (v as string).padEnd(widths[i])).join(' | '));

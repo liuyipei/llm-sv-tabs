@@ -237,7 +237,7 @@ async function loadApiKeys(args: CliArgs): Promise<Record<ProviderType, string |
 function printTable(results: ModelProbeResult[]): void {
   const maxModelLen = Math.min(50, Math.max(...results.map(r => r.model.length)));
   const rows = results.map(r => formatProbeTableRow(r, maxModelLen));
-  const lines = renderTable(PROBE_TABLE_HEADERS, rows);
+  const lines = renderTable(rows, PROBE_TABLE_HEADERS);
   console.log();
   lines.forEach(line => console.log(line));
   console.log();
