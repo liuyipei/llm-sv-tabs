@@ -20,9 +20,14 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(__dirname, '..');
 
 const os = platform();
+const isWindows = os === 'win32';
 
 // Pass through arguments like --smoke-test
 const appArgs = process.argv.slice(2);
+
+// On Windows, npm bin stubs use .cmd extension
+const electronBin = isWindows ? 'electron.cmd' : 'electron';
+const electronPath = join(projectRoot, 'node_modules', '.bin', electronBin);
 
 function hasXvfb() {
   try {
@@ -34,7 +39,6 @@ function hasXvfb() {
 }
 
 function runElectron(electronArgs = []) {
-  const electronPath = join(projectRoot, 'node_modules', '.bin', 'electron');
   const child = spawn(electronPath, ['.', ...electronArgs, ...appArgs], {
     cwd: projectRoot,
     stdio: 'inherit',
@@ -53,10 +57,7 @@ function runElectron(electronArgs = []) {
 
 function runWithXvfb(electronArgs = []) {
   const allArgs = [...electronArgs, ...appArgs];
-  const argsStr = allArgs.length > 0 ? ` -- ${allArgs.join(' ')}` : '';
 
-  // Run electron directly with xvfb-run instead of npm
-  const electronPath = join(projectRoot, 'node_modules', '.bin', 'electron');
   const child = spawn('xvfb-run', [
     '--auto-servernum',
     '--server-args=-screen 0 1280x720x24',
