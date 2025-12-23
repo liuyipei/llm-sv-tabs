@@ -26,7 +26,7 @@ import type {
   OutputFormat,
 } from './types.js';
 import { DEFAULT_PROBE_CONFIG } from './types.js';
-import { probeModels, summarizeProbeResult } from './inference.js';
+import { probeModels } from './inference.js';
 import {
   getApiKeyFromEnv,
   loadApiKeysFromFile,
@@ -40,6 +40,12 @@ import {
 } from './cache.js';
 import { getFixtureStats } from './fixtures/index.js';
 import { loadQuickListFromFile, getQuickListPath } from './quick-list-file.js';
+import {
+  PROBE_TABLE_HEADERS,
+  computeColumnWidths,
+  formatProbeTableRow,
+  renderTable,
+} from './output-format.js';
 
 // ============================================================================
 // CLI Arguments
@@ -229,48 +235,12 @@ async function loadApiKeys(args: CliArgs): Promise<Record<ProviderType, string |
   return keys as Record<ProviderType, string | undefined>;
 }
 
-// ============================================================================
-// Output Formatting
-// ============================================================================
-
-function truncateModel(model: string, maxLen: number): string {
-  if (model.length <= maxLen) return model;
-  return '...' + model.slice(-(maxLen - 3));
-}
-
-function formatTableRow(result: ModelProbeResult, maxModelLen: number): ProbeTableRow {
-  const summary = summarizeProbeResult(result);
-  const caps = result.capabilities;
-  const textFailed = !result.textProbe.success;
-
-  return {
-    provider: result.provider,
-    model: truncateModel(result.model, maxModelLen),
-    vision: textFailed ? '-' : summary.vision === 'yes' ? '\u2713' : summary.vision === 'partial' ? '~' : '\u2717',
-    pdfNative: textFailed ? '-' : caps.supportsPdfNative ? '\u2713' : '\u2717',
-    pdfImages: textFailed ? '-' : caps.supportsPdfAsImages ? '\u2713' : '\u2717',
-    base64Req: textFailed ? '-' : caps.requiresBase64Images ? '\u2713' : '-',
-    imgFirst: textFailed ? '-' : caps.requiresImagesFirst ? '\u2713' : '-',
-    msgShape: textFailed ? '-' : caps.messageShape.replace('openai.', 'oai.').replace('anthropic.', 'ant.').replace('gemini.', 'gem.'),
-  };
-}
-
 function printTable(results: ModelProbeResult[]): void {
   const maxModelLen = Math.min(50, Math.max(...results.map(r => r.model.length)));
-  const rows = results.map(r => formatTableRow(r, maxModelLen));
-  const headers = ['Provider', 'Model', 'Vision', 'PDF', 'PDF-Img', 'Base64', 'ImgFirst', 'Shape'];
-
-  const widths = headers.map((h, i) => {
-    const values = [h, ...rows.map(r => Object.values(r)[i] as string)];
-    return Math.max(...values.map(v => v.length));
-  });
-
+  const rows = results.map(r => formatProbeTableRow(r, maxModelLen));
+  const lines = renderTable(PROBE_TABLE_HEADERS, rows);
   console.log();
-  console.log(headers.map((h, i) => h.padEnd(widths[i])).join(' | '));
-  console.log(widths.map(w => '-'.repeat(w)).join('-+-'));
-  for (const row of rows) {
-    console.log(Object.values(row).map((v, i) => (v as string).padEnd(widths[i])).join(' | '));
-  }
+  lines.forEach(line => console.log(line));
   console.log();
 }
 
@@ -318,7 +288,11 @@ function printProgress(
   status: string
 ): void {
   const progress = `[${current}/${total}]`;
-  const modelStr = truncateModel(`${provider}:${model}`, 55);
+  const maxLen = 55;
+  const modelStr =
+    `${provider}:${model}`.length <= maxLen
+      ? `${provider}:${model}`
+      : '...' + `${provider}:${model}`.slice(-(maxLen - 3));
   const statusStr = status === 'probing' ? '   ' :
                     status === 'done' ? ' \u2713 ' : ' \u2717 ';
 
