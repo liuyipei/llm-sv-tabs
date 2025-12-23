@@ -19,6 +19,8 @@
   import { loadCapabilitiesFromCache } from '$stores/capabilities';
   import { handleBookmarkResponse } from '$lib/bookmark-results';
   import { initKeyboardShortcuts } from '$utils/keyboard-shortcuts';
+  import { handleDragOver, handleDrop } from '$utils/file-drop-handler';
+  import { setupElectronListeners } from '$utils/electron-listeners';
 
   // Import styles for markdown rendering
   import '~/highlight.js/styles/github-dark.css';
@@ -255,77 +257,15 @@
     focusWebContentsView();
   }
 
-  // Global drag and drop handler to open files in tabs
-  function handleGlobalDragOver(event: DragEvent): void {
-    event.preventDefault();
-    event.stopPropagation();
-  }
-
-  async function handleGlobalDrop(event: DragEvent): Promise<void> {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const files = event.dataTransfer?.files;
-    if (!files || files.length === 0) return;
-
-    // Process all files in parallel
-    const fileArray = Array.from(files);
-    const promises = fileArray.map(file => processDroppedFile(file));
-
-    try {
-      await Promise.all(promises);
-    } catch (error) {
-      console.error('Error processing dropped files:', error);
-    }
-  }
-
-  async function processDroppedFile(file: File): Promise<void> {
-    const fileType = detectFileType(file);
-    const filePath = ipc?.getPathForFile?.(file);
-    const reader = new FileReader();
-
-    reader.onload = async (e) => {
-      const content = e.target?.result as string;
-      if (ipc) {
-        try {
-          await ipc.openNoteTab(Date.now(), file.name, content, fileType, filePath);
-        } catch (error) {
-          console.error('Failed to create tab for dropped file:', error);
-        }
-      }
-    };
-
-    if (fileType === 'image' || fileType === 'pdf') {
-      reader.readAsDataURL(file);
-    } else {
-      reader.readAsText(file);
-    }
-  }
-
-  function detectFileType(file: File): 'text' | 'pdf' | 'image' {
-    const mimeType = file.type.toLowerCase();
-    const fileName = file.name.toLowerCase();
-
-    if (mimeType.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|bmp|svg|ico)$/i.test(fileName)) {
-      return 'image';
-    }
-
-    if (mimeType === 'application/pdf' || fileName.endsWith('.pdf')) {
-      return 'pdf';
-    }
-
-    return 'text';
-  }
-
-  // Initialize keyboard shortcuts on mount
+  // Initialize keyboard shortcuts and IPC listeners on mount
   onMount(() => {
+    // Load capabilities when window gains focus
     const handleFocus = () => {
       void loadCapabilitiesFromCache();
     };
-
     window.addEventListener('focus', handleFocus);
 
-    const cleanup = initKeyboardShortcuts({
+    const keyboardCleanup = initKeyboardShortcuts({
       focusUrlInput,
       focusLLMInput,
       closeActiveTab,
@@ -339,63 +279,28 @@
       previousTab: navigateToPreviousTab,
     });
 
-    // Set up IPC listener for focus-url-bar event (triggered by global shortcut)
-    if (typeof window !== 'undefined' && window.electronAPI) {
-      window.electronAPI.onFocusUrlBar(() => {
-        focusUrlInput();
-      });
-
-      // Set up IPC listener for focus-search-bar event (triggered by Ctrl+F global shortcut)
-      window.electronAPI.onFocusSearchBar(() => {
-        showSearchBar();
-      });
-
-      if (window.electronAPI.onFocusLLMInput) {
-        window.electronAPI.onFocusLLMInput(() => {
-          focusLLMInput();
-        });
-      }
-
-
-      // Set up IPC listeners for tab navigation using sorted order
-      if (window.electronAPI.onNavigateNextTab) {
-        window.electronAPI.onNavigateNextTab(() => {
-          navigateToNextTab();
-        });
-      }
-
-      if (window.electronAPI.onNavigatePreviousTab) {
-        window.electronAPI.onNavigatePreviousTab(() => {
-          navigateToPreviousTab();
-        });
-      }
-
-      // Handle bookmark shortcut from browser view
-      if (window.electronAPI.onBookmarkTab) {
-        window.electronAPI.onBookmarkTab(() => {
-          bookmarkActiveTab();
-        });
-      }
-
-      // Handle screenshot shortcut from browser view
-      if (window.electronAPI.onTriggerScreenshot) {
-        window.electronAPI.onTriggerScreenshot(() => {
-          ipc.triggerScreenshot();
-        });
-      }
-    }
+    const electronCleanup = setupElectronListeners({
+      focusUrlInput,
+      focusLLMInput,
+      showSearchBar,
+      navigateToNextTab,
+      navigateToPreviousTab,
+      bookmarkActiveTab,
+      triggerScreenshot,
+    });
 
     // Cleanup on unmount
     return () => {
       window.removeEventListener('focus', handleFocus);
-      cleanup();
+      keyboardCleanup();
+      electronCleanup();
     };
   });
 </script>
 
 <svelte:window on:keydown={handleGlobalKeydown} />
 
-<main class="app-container" ondragover={handleGlobalDragOver} ondrop={handleGlobalDrop}>
+<main class="app-container" ondragover={handleDragOver} ondrop={(e) => handleDrop(e, ipc)}>
   <div class="app-content">
     <aside class="sidebar">
       <div class="sidebar-nav">
