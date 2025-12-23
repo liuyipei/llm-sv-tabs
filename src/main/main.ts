@@ -15,6 +15,7 @@ const __dirname = dirname(__filename);
 
 // Check for smoke test mode (used in CI to verify app starts correctly)
 const isSmokeTest = process.argv.includes('--smoke-test');
+const SMOKE_TEST_FORCE_EXIT_MS = 5000;
 
 let mainWindow: BrowserWindow | null = null;
 const appContext: MainProcessContext = {
@@ -51,8 +52,16 @@ async function createWindow(): Promise<void> {
   if (isSmokeTest) {
     mainWindow.webContents.once('did-finish-load', () => {
       console.log('Smoke test passed: window loaded successfully');
-      // Use app.exit() for immediate termination - more reliable than process.exit() in Electron
-      app.exit(0);
+
+      const forceExitTimer = setTimeout(() => {
+        console.warn('Smoke test: forcing process exit after timeout');
+        process.exit(0);
+      }, SMOKE_TEST_FORCE_EXIT_MS);
+
+      app.once('will-quit', () => clearTimeout(forceExitTimer));
+
+      shutdownManager.performCleanup();
+      app.quit();
     });
   }
 
