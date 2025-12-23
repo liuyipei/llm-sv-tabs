@@ -217,7 +217,7 @@ export interface StaticCapabilityOverride {
 export interface ProbeTableRow {
   provider: string;
   model: string;
-  vision: string;     // ✓, ~, ✗, or -
+  vision: string;     // Y, ~, N, or -
   pdfNative: string;
   pdfImages: string;
   base64Req: string;

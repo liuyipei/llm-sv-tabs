@@ -293,7 +293,7 @@ function printProgress(
       ? `${provider}:${model}`
       : '...' + `${provider}:${model}`.slice(-(maxLen - 3));
   const statusStr = status === 'probing' ? '   ' :
-                    status === 'done' ? ' \u2713 ' : ' \u2717 ';
+                    status === 'done' ? ' Y ' : ' N ';
 
   // Clear entire line and print (use ANSI escape for clean output)
   process.stdout.write(`\x1b[2K\r${progress} ${modelStr.padEnd(55)}${statusStr}`);
