@@ -5,7 +5,7 @@
  * Designed for headless (non-Electron) operation.
  */
 
-import type { ProbeConfig, ProbeResult } from './types';
+import type { ProbeConfig, ProbeResult } from './types.js';
 
 /**
  * HTTP response for probe analysis

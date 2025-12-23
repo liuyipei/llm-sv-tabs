@@ -5,7 +5,7 @@
  * LLM model capabilities (vision, PDF support, message formats, etc.)
  */
 
-import type { ProviderType } from '../types';
+import type { ProviderType } from '../types.js';
 
 // ============================================================================
 // Core Capability Flags
