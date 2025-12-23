@@ -129,14 +129,15 @@ export async function resolveModelCapabilities(
 }
 
 function logProbeSummary(result: ModelProbeResult): void {
+  // Use fixed widths for streaming output (rows arrive one at a time)
   if (!probeLogHeaderPrinted) {
-    const headerLines = renderTable([formatProbeTableRow(result, 50)], PROBE_TABLE_HEADERS).slice(0, 2);
+    const headerLines = renderTable([formatProbeTableRow(result, 50)], PROBE_TABLE_HEADERS, true).slice(0, 2);
     console.log();
     headerLines.forEach(line => console.log(line));
     probeLogHeaderPrinted = true;
   }
 
   const row = formatProbeTableRow(result, 50);
-  const dataLine = renderTable([row], PROBE_TABLE_HEADERS)[2];
+  const dataLine = renderTable([row], PROBE_TABLE_HEADERS, true)[2];
   console.log(dataLine);
 }

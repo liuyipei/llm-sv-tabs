@@ -46,11 +46,16 @@ export function computeColumnWidths(rows: ProbeTableRow[], headers: ReadonlyArra
   });
 }
 
+// Fixed column widths for streaming output (when rows arrive one at a time)
+// Provider: 10 (openrouter), Model: 50, Vision/PDF/etc: header width, Shape: 11 (ant.content)
+const FIXED_WIDTHS = [10, 50, 6, 3, 7, 6, 8, 11];
+
 export function renderTable(
   rows: ProbeTableRow[],
-  headers: ReadonlyArray<string> = PROBE_TABLE_HEADERS
+  headers: ReadonlyArray<string> = PROBE_TABLE_HEADERS,
+  useFixedWidths = false
 ): string[] {
-  const widths = computeColumnWidths(rows, headers);
+  const widths = useFixedWidths ? FIXED_WIDTHS : computeColumnWidths(rows, headers);
   const headerLine = headers.map((h, i) => h.padEnd(widths[i])).join(' | ');
   const sepLine = widths.map(w => '-'.repeat(w)).join('-+-');
   const rowLines = rows.map(r => Object.values(r).map((v, i) => (v as string).padEnd(widths[i])).join(' | '));
