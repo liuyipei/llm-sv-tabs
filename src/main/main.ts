@@ -51,7 +51,8 @@ async function createWindow(): Promise<void> {
   if (isSmokeTest) {
     mainWindow.webContents.once('did-finish-load', () => {
       console.log('Smoke test passed: window loaded successfully');
-      app.quit();
+      // Use process.exit() to bypass shutdown manager cleanup which can hang in CI
+      process.exit(0);
     });
   }
 
