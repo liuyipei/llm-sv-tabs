@@ -1,5 +1,6 @@
-import { writable, type Writable } from 'svelte/store';
+import { get, writable, type Writable } from 'svelte/store';
 import type { ProviderType, LLMModel } from '../../types';
+import { loadCapabilitiesFromCache, probeAndStoreCapabilities, getCapabilities as getCachedCapabilities, isCapabilityStale as isCapabilityStaleCached } from './capabilities.js';
 
 // Create a persisted store that syncs with localStorage
 // Uses the custom store pattern to avoid subscribing during module init
@@ -63,18 +64,56 @@ export const selectedQuickSwitchIndex = createPersistedStore<number | null>('sel
 // Auto-sync quick list to file for CLI probe tool
 // This runs on any change to the quick switch models (debounced)
 let syncTimeout: ReturnType<typeof setTimeout> | null = null;
-if (typeof window !== 'undefined') {
-  quickSwitchModels.subscribe((models) => {
-    // Debounce sync to avoid excessive writes
-    if (syncTimeout) clearTimeout(syncTimeout);
-    syncTimeout = setTimeout(() => {
-      const electronAPI = (window as any).electronAPI;
-      if (electronAPI?.syncQuickList) {
-        electronAPI.syncQuickList(models).catch((err: Error) => {
-          console.warn('Failed to sync quick list to file:', err);
-        });
+let forceProbe = false;
+const QUICK_LIST_SYNC_MS = 500;
+
+function scheduleQuickListSync(triggeredForceProbe = false): void {
+  if (triggeredForceProbe) {
+    forceProbe = true;
+  }
+
+  if (syncTimeout) clearTimeout(syncTimeout);
+  syncTimeout = setTimeout(() => {
+    const electronAPI = (window as any).electronAPI;
+    const models = get(quickSwitchModels);
+    const keys = get(apiKeys);
+    const endpointUrl = get(endpoint);
+
+    if (electronAPI?.syncQuickList) {
+      electronAPI.syncQuickList(models).catch((err: Error) => {
+        console.warn('Failed to sync quick list to file:', err);
+      });
+    }
+
+    if (electronAPI?.probeModel) {
+      for (const { provider, model } of models) {
+        const existing = getCachedCapabilities(provider, model);
+        if (forceProbe || !existing || isCapabilityStaleCached(existing)) {
+          void probeAndStoreCapabilities(provider, model, keys[provider], endpointUrl, forceProbe);
+        }
       }
-    }, 500);
+    }
+
+    forceProbe = false;
+  }, QUICK_LIST_SYNC_MS);
+}
+
+if (typeof window !== 'undefined') {
+  void loadCapabilitiesFromCache();
+
+  quickSwitchModels.subscribe(() => {
+    // Debounce sync/probe to avoid excessive writes
+    scheduleQuickListSync(false);
+  });
+
+  apiKeys.subscribe(() => {
+    // Re-probe with new credentials so browser matches CLI results
+    scheduleQuickListSync(true);
+  });
+
+  endpoint.subscribe(() => {
+    // Endpoint changes should force refresh of probe results
+    scheduleQuickListSync(true);
   });
 }
 

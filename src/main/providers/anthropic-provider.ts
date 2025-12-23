@@ -4,6 +4,7 @@
 
 import { BaseProvider, type ProviderCapabilities } from './base-provider.js';
 import type { LLMModel, LLMResponse, QueryOptions, MessageContent } from '../../types';
+import { buildCapabilityAwareMessage } from './message-builder.js';
 import { fetchModelsWithFallback, readSSEStream, validateWithApiKey } from './provider-helpers.js';
 
 export class AnthropicProvider extends BaseProvider {
@@ -76,9 +77,17 @@ export class AnthropicProvider extends BaseProvider {
     const maxTokens = options?.maxTokens ?? 4096;
 
     try {
+      const capabilities = await this.getModelCapabilities(model);
+      const adaptedMessages = messages.map((msg) => ({
+        role: msg.role,
+        content: buildCapabilityAwareMessage(msg.content, capabilities),
+      }));
+
+      await this.rateLimitDelay();
+
       // Anthropic API expects system messages separately
-      const systemMessages = messages.filter(m => m.role === 'system');
-      const userMessages = messages.filter(m => m.role !== 'system');
+      const systemMessages = adaptedMessages.filter(m => m.role === 'system');
+      const userMessages = adaptedMessages.filter(m => m.role !== 'system');
 
       const response = await this.makeRequest(`${AnthropicProvider.API_BASE}/messages`, {
         method: 'POST',
@@ -132,9 +141,17 @@ export class AnthropicProvider extends BaseProvider {
     const maxTokens = options?.maxTokens ?? 4096;
 
     try {
+      const capabilities = await this.getModelCapabilities(model);
+      const adaptedMessages = messages.map((msg) => ({
+        role: msg.role,
+        content: buildCapabilityAwareMessage(msg.content, capabilities),
+      }));
+
+      await this.rateLimitDelay();
+
       // Anthropic API expects system messages separately
-      const systemMessages = messages.filter(m => m.role === 'system');
-      const userMessages = messages.filter(m => m.role !== 'system');
+      const systemMessages = adaptedMessages.filter(m => m.role === 'system');
+      const userMessages = adaptedMessages.filter(m => m.role !== 'system');
 
       const response = await fetch(`${AnthropicProvider.API_BASE}/messages`, {
         method: 'POST',

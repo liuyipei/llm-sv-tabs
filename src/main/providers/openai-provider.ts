@@ -4,6 +4,7 @@
 
 import { BaseProvider, type ProviderCapabilities } from './base-provider.js';
 import type { LLMModel, LLMResponse, QueryOptions, MessageContent } from '../../types';
+import { buildCapabilityAwareMessage } from './message-builder.js';
 import { buildOpenAIChatBody, buildOpenAIHeaders, parseOpenAIStream } from './openai-helpers.js';
 
 export class OpenAIProvider extends BaseProvider {
@@ -71,11 +72,19 @@ export class OpenAIProvider extends BaseProvider {
     const maxTokens = options?.maxTokens ?? 4096;
 
     try {
+      const capabilities = await this.getModelCapabilities(model);
+      const adaptedMessages = messages.map((msg) => ({
+        role: msg.role,
+        content: buildCapabilityAwareMessage(msg.content, capabilities),
+      }));
+
+      await this.rateLimitDelay();
+
       const response = await this.makeRequest(`${OpenAIProvider.API_BASE}/chat/completions`, {
         method: 'POST',
         headers: buildOpenAIHeaders(apiKey),
         body: JSON.stringify(
-          buildOpenAIChatBody(messages, model, maxTokens, 'max_completion_tokens'),
+          buildOpenAIChatBody(adaptedMessages, model, maxTokens, 'max_completion_tokens'),
         ),
       });
 
@@ -117,11 +126,19 @@ export class OpenAIProvider extends BaseProvider {
     const maxTokens = options?.maxTokens ?? 4096;
 
     try {
+      const capabilities = await this.getModelCapabilities(model);
+      const adaptedMessages = messages.map((msg) => ({
+        role: msg.role,
+        content: buildCapabilityAwareMessage(msg.content, capabilities),
+      }));
+
+      await this.rateLimitDelay();
+
       const response = await fetch(`${OpenAIProvider.API_BASE}/chat/completions`, {
         method: 'POST',
         headers: buildOpenAIHeaders(apiKey, {}, true),
         body: JSON.stringify(
-          buildOpenAIChatBody(messages, model, maxTokens, 'max_completion_tokens', {
+          buildOpenAIChatBody(adaptedMessages, model, maxTokens, 'max_completion_tokens', {
             stream: true,
             stream_options: { include_usage: true },
           }),

@@ -5,6 +5,7 @@
 import { BaseProvider, type ProviderCapabilities } from './base-provider.js';
 import type { LLMModel, LLMResponse, QueryOptions, MessageContent } from '../../types';
 import { convertToOpenAIContent } from './openai-helpers.js';
+import { buildCapabilityAwareMessage } from './message-builder.js';
 
 export class OllamaProvider extends BaseProvider {
   private static readonly DEFAULT_ENDPOINT = 'http://localhost:11434';
@@ -59,8 +60,16 @@ export class OllamaProvider extends BaseProvider {
     const model = options?.model || this.model || 'llama3.2';
 
     try {
+      const capabilities = await this.getModelCapabilities(model);
+      const adaptedMessages = messages.map((msg) => ({
+        role: msg.role,
+        content: buildCapabilityAwareMessage(msg.content, capabilities),
+      }));
+
+      await this.rateLimitDelay();
+
       // Convert messages to OpenAI format
-      const openAIMessages = messages.map(msg => ({
+      const openAIMessages = adaptedMessages.map(msg => ({
         role: msg.role,
         content: convertToOpenAIContent(msg.content)
       }));
@@ -105,8 +114,16 @@ export class OllamaProvider extends BaseProvider {
     const model = options?.model || this.model || 'llama3.2';
 
     try {
+      const capabilities = await this.getModelCapabilities(model);
+      const adaptedMessages = messages.map((msg) => ({
+        role: msg.role,
+        content: buildCapabilityAwareMessage(msg.content, capabilities),
+      }));
+
+      await this.rateLimitDelay();
+
       // Convert messages to OpenAI format
-      const openAIMessages = messages.map(msg => ({
+      const openAIMessages = adaptedMessages.map(msg => ({
         role: msg.role,
         content: convertToOpenAIContent(msg.content)
       }));
