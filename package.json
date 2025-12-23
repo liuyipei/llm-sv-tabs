@@ -14,6 +14,7 @@
     "preview": "vite preview",
     "electron:dev": "electron .",
     "start": "npm run build && electron .",
+    "start:headless": "npm run build && node scripts/start-headless.js",
     "dist": "npm run build && electron-builder",
     "dist:mac": "npm run build && electron-builder --mac",
     "dist:win": "npm run build && electron-builder --win",
@@ -23,6 +24,7 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
+    "test:smoke": "npm run build && node scripts/start-headless.js --smoke-test",
     "typecheck": "tsc --noEmit",
     "probe:quicklist": "npx tsx src/probe/cli.ts"
   },
