@@ -8,12 +8,18 @@ export function truncateModel(model: string, maxLen: number): string {
   return '...' + model.slice(-(maxLen - 3));
 }
 
+// ASCII-safe symbols for cross-platform compatibility (Unicode causes encoding issues on Windows Electron)
+const SYM_YES = 'Y';
+const SYM_NO = 'N';
+const SYM_PARTIAL = '~';
+const SYM_NA = '-';
+
 /**
  * Convert a probe result into the row format used by CLI/main logging.
  * Symbols:
- *  - ✓ supported
+ *  - Y supported
  *  - ~ partially supported (vision with quirks)
- *  - ✗ not supported
+ *  - N not supported
  *  - - not applicable/unknown (text probe failed)
  */
 export function formatProbeTableRow(result: ModelProbeResult, maxModelLen: number): ProbeTableRow {
@@ -24,12 +30,12 @@ export function formatProbeTableRow(result: ModelProbeResult, maxModelLen: numbe
   return {
     provider: result.provider,
     model: truncateModel(result.model, maxModelLen),
-    vision: textFailed ? '-' : summary.vision === 'yes' ? '\u2713' : summary.vision === 'partial' ? '~' : '\u2717',
-    pdfNative: textFailed ? '-' : caps.supportsPdfNative ? '\u2713' : '\u2717',
-    pdfImages: textFailed ? '-' : caps.supportsPdfAsImages ? '\u2713' : '\u2717',
-    base64Req: textFailed ? '-' : caps.requiresBase64Images ? '\u2713' : '-',
-    imgFirst: textFailed ? '-' : caps.requiresImagesFirst ? '\u2713' : '-',
-    msgShape: textFailed ? '-' : caps.messageShape.replace('openai.', 'oai.').replace('anthropic.', 'ant.').replace('gemini.', 'gem.'),
+    vision: textFailed ? SYM_NA : summary.vision === 'yes' ? SYM_YES : summary.vision === 'partial' ? SYM_PARTIAL : SYM_NO,
+    pdfNative: textFailed ? SYM_NA : caps.supportsPdfNative ? SYM_YES : SYM_NO,
+    pdfImages: textFailed ? SYM_NA : caps.supportsPdfAsImages ? SYM_YES : SYM_NO,
+    base64Req: textFailed ? SYM_NA : caps.requiresBase64Images ? SYM_YES : SYM_NA,
+    imgFirst: textFailed ? SYM_NA : caps.requiresImagesFirst ? SYM_YES : SYM_NA,
+    msgShape: textFailed ? SYM_NA : caps.messageShape.replace('openai.', 'oai.').replace('anthropic.', 'ant.').replace('gemini.', 'gem.'),
   };
 }
 
