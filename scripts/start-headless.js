@@ -42,6 +42,8 @@ function runElectron(electronArgs = []) {
   const child = spawn(electronPath, ['.', ...electronArgs, ...appArgs], {
     cwd: projectRoot,
     stdio: 'inherit',
+    // Windows requires shell:true to run .cmd files
+    shell: isWindows,
     env: {
       ...process.env,
       ELECTRON_ENABLE_LOGGING: '1',
@@ -87,13 +89,17 @@ if (appArgs.length > 0) {
 }
 
 if (os === 'linux') {
+  // --no-sandbox required for CI environments (GitHub Actions, Docker, etc.)
+  // where the SUID sandbox helper is not configured
+  const linuxArgs = ['--no-sandbox'];
+
   if (hasXvfb()) {
     console.log('Using xvfb-run for virtual framebuffer');
-    runWithXvfb();
+    runWithXvfb(linuxArgs);
   } else {
     console.log('xvfb-run not found, trying offscreen rendering');
     console.log('For better results: sudo apt-get install xvfb');
-    runElectron(['--enable-features=UseOzonePlatform', '--ozone-platform=headless']);
+    runElectron([...linuxArgs, '--enable-features=UseOzonePlatform', '--ozone-platform=headless']);
   }
 } else {
   // macOS and Windows: use offscreen rendering
