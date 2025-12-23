@@ -7,7 +7,6 @@ import { BookmarkManager } from '../services/bookmark-manager.js';
 import { ScreenshotService } from '../services/screenshot-service.js';
 import { normalizeWhitespace } from '../utils/text-normalizer.js';
 import { formatSerializedDOM } from '../utils/dom-formatter.js';
-import { loadCapabilityCacheFromDisk, probeAndCacheModel } from '../services/model-capabilities.js';
 import type {
   QueryOptions,
   LLMResponse,
@@ -605,27 +604,14 @@ ${formattedContent}
     async (
       _event,
       models: Array<{ provider: ProviderType; model: string }>
-      ) =>
-        handleSafely(async () => {
-          const { saveQuickListToFile } = await import(
-            '../../probe/quick-list-file.js'
-          );
-          await saveQuickListToFile(models);
-          return { success: true };
-        })
-  );
-
-  ipcMain.handle('probe-model', async (_event, provider: ProviderType, model: string, apiKey?: string, endpoint?: string) =>
-    handleSafely(async () => {
-      const result = await probeAndCacheModel(provider, model, apiKey, endpoint);
-      return result;
-    })
-  );
-
-  ipcMain.handle('load-capability-cache', async () =>
-    handleSafely(async () => {
-      const cache = await loadCapabilityCacheFromDisk();
-      return cache;
-    })
+    ) =>
+      handleSafely(async () => {
+        const { saveQuickListToFile } = await import(
+          '../../probe/quick-list-file.js'
+        );
+        await saveQuickListToFile(models);
+        return { success: true };
+      })
   );
 }
+

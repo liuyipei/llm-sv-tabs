@@ -22,9 +22,6 @@
  * ```
  */
 
-// NOTE: The .js extensions below are intentional even though the source files are TypeScript.
-// They ensure the emitted ESM in dist-main resolves correctly when loaded by Electron/Node.
-
 // Types
 export type {
   ProbedCapabilities,
@@ -42,9 +39,9 @@ export type {
   StaticCapabilityOverride,
   ProbeTableRow,
   OutputFormat,
-} from './types.js';
+} from './types';
 
-export { DEFAULT_PROBE_CONFIG } from './types.js';
+export { DEFAULT_PROBE_CONFIG } from './types';
 
 // Inference
 export {
@@ -54,7 +51,7 @@ export {
   summarizeProbeResult,
   type ProgressCallback,
   type ProbeProgress,
-} from './inference.js';
+} from './inference';
 
 // Cache
 export {
@@ -77,7 +74,7 @@ export {
   parseCacheKey,
   getStaticOverride,
   getProviderDefaults,
-} from './cache.js';
+} from './cache';
 
 // Provider adapters
 export {
@@ -88,7 +85,7 @@ export {
   loadApiKeysFromFile,
   providerRequiresApiKey,
   providerRequiresEndpoint,
-} from './provider-adapters.js';
+} from './provider-adapters';
 
 // Fixtures
 export {
@@ -100,7 +97,7 @@ export {
   getTinyPdfDataUrl,
   PROBE_PROMPTS,
   getFixtureStats,
-} from './fixtures/index.js';
+} from './fixtures';
 
 // Individual probes (for advanced use)
 export {
@@ -109,7 +106,7 @@ export {
   probePdf,
   probeSchema,
   probeStreaming,
-} from './probes.js';
+} from './probes';
 
 // Quick list file (shared between browser and CLI)
 export {
@@ -119,4 +116,4 @@ export {
   quickListFileExists,
   type QuickListEntry,
   type QuickListFile,
-} from './quick-list-file.js';
+} from './quick-list-file';

@@ -11,14 +11,15 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
-import type { ProviderType } from '../types.js';
+import type { ProviderType } from '../types';
 import type {
   ProbedCapabilities,
+  CachedModelCapabilities,
   ModelCapabilitiesCache,
   ModelProbeResult,
   StaticCapabilityOverride,
-} from './types.js';
-import { getDefaultCapabilities } from './inference.js';
+} from './types';
+import { getDefaultCapabilities } from './inference';
 
 const CACHE_VERSION = '1.0.0';
 const CACHE_FILE_NAME = 'model-capabilities.probed.json';

@@ -4,7 +4,7 @@
  * Each probe tests a specific capability of an LLM model.
  */
 
-import type { ProviderType } from '../types.js';
+import type { ProviderType } from '../types';
 import type {
   ProbeConfig,
   ProbeResult,
@@ -12,22 +12,22 @@ import type {
   ProbeVariant,
   MessageShape,
   CompletionShape,
-} from './types.js';
+} from './types';
 import {
   makeProbeRequest,
   parseProbeError,
   detectSchemaError,
   isFeatureNotSupportedError,
   sleep,
-} from './probe-client.js';
+} from './probe-client';
 import {
   TINY_PNG_BASE64,
   TINY_PNG_MIME_TYPE,
   TINY_PDF_BASE64,
   TINY_PDF_MIME_TYPE,
   PROBE_PROMPTS,
-} from './fixtures/index.js';
-import { getProviderEndpoint, getProviderHeaders, buildMessages } from './provider-adapters.js';
+} from './fixtures';
+import { getProviderEndpoint, getProviderHeaders, buildMessages } from './provider-adapters';
 
 // ============================================================================
 // Unified Probe Runner (Single Source of Truth)
@@ -229,6 +229,10 @@ export async function probeStreaming(
     provider, model, apiKey, endpoint, contentType: 'text', stream: true
   }, config);
 
+  const detectedShape = result.success && result.httpStatus
+    ? detectStreamingShape('', provider) // Would need response body for better detection
+    : 'unknown';
+
   return { result, detectedShape: result.success ? inferStreamingShapeFromProvider(provider) : 'unknown' };
 }
 
@@ -260,6 +264,20 @@ function inferMessageShapeFromProvider(provider: ProviderType): MessageShape {
     minimax: 'openai.string',
   };
   return shapes[provider] ?? 'openai.parts';
+}
+
+function detectStreamingShape(body: string, provider: ProviderType): CompletionShape {
+  if (!body.includes('data:')) return 'raw.text';
+  const dataMatch = body.match(/data:\s*({.+})/);
+  if (!dataMatch) return body.includes('event:') ? 'anthropic.sse' : inferStreamingShapeFromProvider(provider);
+
+  try {
+    const parsed = JSON.parse(dataMatch[1]) as Record<string, unknown>;
+    if (parsed.type === 'content_block_delta' || parsed.type === 'message_start') return 'anthropic.sse';
+    if (Array.isArray(parsed.choices)) return 'openai.streaming';
+  } catch { /* ignore */ }
+
+  return inferStreamingShapeFromProvider(provider);
 }
 
 function inferStreamingShapeFromProvider(provider: ProviderType): CompletionShape {

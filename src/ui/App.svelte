@@ -16,7 +16,6 @@
   import { activeSidebarView, sidebarTabsHeightPercent } from '$stores/ui';
   import { activeTabId, activeTabs, sortedTabs } from '$stores/tabs';
   import { toastStore } from '$stores/toast';
-  import { loadCapabilitiesFromCache } from '$stores/capabilities';
   import { handleBookmarkResponse } from '$lib/bookmark-results';
   import { initKeyboardShortcuts } from '$utils/keyboard-shortcuts';
 
@@ -319,12 +318,6 @@
 
   // Initialize keyboard shortcuts on mount
   onMount(() => {
-    const handleFocus = () => {
-      void loadCapabilitiesFromCache();
-    };
-
-    window.addEventListener('focus', handleFocus);
-
     const cleanup = initKeyboardShortcuts({
       focusUrlInput,
       focusLLMInput,
@@ -386,10 +379,7 @@
     }
 
     // Cleanup on unmount
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-      cleanup();
-    };
+    return cleanup;
   });
 </script>
 

@@ -58,8 +58,6 @@ export interface IPCBridgeAPI {
     callback: (payload: { id: string; canGoBack: boolean; canGoForward: boolean }) => void,
   ): void;
   getPathForFile?(file: File): string;
-  probeModel?(provider: ProviderType, model: string, apiKey?: string, endpoint?: string): Promise<any>;
-  loadCapabilityCache?(): Promise<any>;
 }
 
 /**

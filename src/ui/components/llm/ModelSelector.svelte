@@ -14,10 +14,6 @@
     selectedQuickSwitchIndex,
     truncateModelName
   } from '../../stores/config.js';
-  import {
-    modelCapabilities,
-    isCapabilityStale as isCapabilityStaleCached,
-  } from '../../stores/capabilities.js';
   import { onMount, getContext } from 'svelte';
   import type { IPCBridgeAPI } from '$lib/ipc-bridge';
   import type { ProviderType } from '../../../types';
@@ -31,7 +27,6 @@
   let copySuccess = $state(false);
   let modelsSource = $state<'cached' | 'api' | 'default'>('default');
   let addMessage = $state<string | null>(null);
-  const capabilitiesMap = $derived($modelCapabilities);
 
   let filteredModels = $derived(
     searchQuery
@@ -156,40 +151,22 @@
     if (!modelName) return;
 
     const result = addQuickSwitchModel(providerName, modelName);
-    const capabilityDescription = describeCapabilities(providerName, modelName);
 
     if (result.movedToTop) {
-      addMessage = `Moved to top of list • ${capabilityDescription}`;
+      addMessage = 'Moved to top of list';
       // Select the model (now at index 0)
       selectedQuickSwitchIndex.set(0);
     } else if (result.added) {
-      addMessage = `Added to quick list • ${capabilityDescription}`;
+      addMessage = 'Added to quick list';
       // Select the newly added model (at index 0)
       selectedQuickSwitchIndex.set(0);
     } else {
-      addMessage = `Already at top • ${capabilityDescription}`;
+      addMessage = 'Already at top';
     }
 
     setTimeout(() => {
       addMessage = null;
     }, 2000);
-  }
-
-  function describeCapabilities(provider: ProviderType, model: string): string {
-    const entry = capabilitiesMap.get(`${provider}:${model}`);
-    if (!entry) return 'probing...';
-    const caps = entry.capabilities;
-    const parts = [];
-    parts.push(caps.supportsVision ? 'vision' : 'text-only');
-    if (caps.supportsPdfNative) {
-      parts.push('pdf');
-    } else if (caps.supportsPdfAsImages) {
-      parts.push('pdf→images');
-    }
-    if (caps.requiresBase64Images) parts.push('base64');
-    if (caps.requiresImagesFirst) parts.push('img-first');
-    if (isCapabilityStaleCached(entry)) parts.push('stale');
-    return parts.join(' · ') || 'unknown';
   }
 </script>
 

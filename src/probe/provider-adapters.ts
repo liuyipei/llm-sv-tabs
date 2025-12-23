@@ -6,7 +6,7 @@
  */
 
 import * as fs from 'fs/promises';
-import type { ProviderType } from '../types.js';
+import type { ProviderType } from '../types';
 
 // ============================================================================
 // Provider Endpoints

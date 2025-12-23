@@ -1,6 +1,5 @@
 import { writable, type Writable } from 'svelte/store';
 import type { ProviderType, LLMModel } from '../../types';
-import { loadCapabilitiesFromCache, probeAndStoreCapabilities, getCapabilities as getCachedCapabilities, isCapabilityStale as isCapabilityStaleCached } from './capabilities.js';
 
 // Create a persisted store that syncs with localStorage
 // Uses the custom store pattern to avoid subscribing during module init
@@ -65,8 +64,6 @@ export const selectedQuickSwitchIndex = createPersistedStore<number | null>('sel
 // This runs on any change to the quick switch models (debounced)
 let syncTimeout: ReturnType<typeof setTimeout> | null = null;
 if (typeof window !== 'undefined') {
-  void loadCapabilitiesFromCache();
-
   quickSwitchModels.subscribe((models) => {
     // Debounce sync to avoid excessive writes
     if (syncTimeout) clearTimeout(syncTimeout);
@@ -76,16 +73,6 @@ if (typeof window !== 'undefined') {
         electronAPI.syncQuickList(models).catch((err: Error) => {
           console.warn('Failed to sync quick list to file:', err);
         });
-      }
-
-      // Probe newly added models in background
-      if (electronAPI?.probeModel) {
-        for (const { provider, model } of models) {
-          const existing = getCachedCapabilities(provider, model);
-          if (!existing || isCapabilityStaleCached(existing)) {
-            void probeAndStoreCapabilities(provider, model, undefined, undefined, false);
-          }
-        }
       }
     }, 500);
   });
