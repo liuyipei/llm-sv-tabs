@@ -130,13 +130,13 @@ export async function resolveModelCapabilities(
 
 function logProbeSummary(result: ModelProbeResult): void {
   if (!probeLogHeaderPrinted) {
-    const headerLines = renderTable(PROBE_TABLE_HEADERS, [formatProbeTableRow(result, 50)]).slice(0, 2);
+    const headerLines = renderTable([formatProbeTableRow(result, 50)], PROBE_TABLE_HEADERS).slice(0, 2);
     console.log();
     headerLines.forEach(line => console.log(line));
     probeLogHeaderPrinted = true;
   }
 
   const row = formatProbeTableRow(result, 50);
-  const dataLine = renderTable(PROBE_TABLE_HEADERS, [row])[2];
+  const dataLine = renderTable([row], PROBE_TABLE_HEADERS)[2];
   console.log(dataLine);
 }

@@ -41,10 +41,10 @@ export function computeColumnWidths(rows: ProbeTableRow[], headers = PROBE_TABLE
 }
 
 export function renderTable(
-  headers: readonly string[] = PROBE_TABLE_HEADERS,
-  rows: ProbeTableRow[]
+  rows: ProbeTableRow[],
+  headers: typeof PROBE_TABLE_HEADERS = PROBE_TABLE_HEADERS
 ): string[] {
-  const widths = computeColumnWidths(rows, headers as string[]);
+  const widths = computeColumnWidths(rows, headers as unknown as string[]);
   const headerLine = headers.map((h, i) => h.padEnd(widths[i])).join(' | ');
   const sepLine = widths.map(w => '-'.repeat(w)).join('-+-');
   const rowLines = rows.map(r => Object.values(r).map((v, i) => (v as string).padEnd(widths[i])).join(' | '));

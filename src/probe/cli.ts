@@ -39,6 +39,7 @@ import {
 } from './cache.js';
 import { getFixtureStats } from './fixtures/index.js';
 import { loadQuickListFromFile, getQuickListPath } from './quick-list-file.js';
+import { summarizeProbeResult } from './inference.js';
 import {
   PROBE_TABLE_HEADERS,
   formatProbeTableRow,
