@@ -33,9 +33,9 @@ describe('fixtures', () => {
       expect(buffer[3]).toBe(0x47); // G
     });
 
-    it('should be small (under 100 bytes)', () => {
+    it('should be small (under 150 bytes)', () => {
       const buffer = Buffer.from(TINY_PNG_BASE64, 'base64');
-      expect(buffer.length).toBeLessThan(100);
+      expect(buffer.length).toBeLessThan(150);
     });
   });
 
@@ -108,7 +108,7 @@ describe('fixtures', () => {
       const stats = getFixtureStats();
       expect(stats.pngSizeBytes).toBeGreaterThan(0);
       expect(stats.pdfSizeBytes).toBeGreaterThan(0);
-      expect(stats.pngSizeBytes).toBeLessThan(100);
+      expect(stats.pngSizeBytes).toBeLessThan(150);
       expect(stats.pdfSizeBytes).toBeLessThan(500);
     });
   });

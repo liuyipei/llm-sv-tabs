@@ -6,11 +6,10 @@
  */
 
 /**
- * Minimal 1x1 red PNG image (67 bytes)
- * This is the smallest valid PNG that can test vision capabilities
+ * 56x56 red PNG (121 bytes). Meets Qwen VL minimum requirements (56x56).
  */
 export const TINY_PNG_BASE64 =
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==';
+  'iVBORw0KGgoAAAANSUhEUgAAADgAAAA4CAIAAAAn5KxJAAAAQElEQVR42u3OQQkAAAgAsetfWh+mEAYLsKZeSFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRU9CwicjR1t9nCvQAAAABJRU5ErkJggg==';
 
 export const TINY_PNG_MIME_TYPE = 'image/png';
 
