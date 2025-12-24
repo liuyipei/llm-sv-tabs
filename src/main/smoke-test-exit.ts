@@ -11,7 +11,8 @@ export function initSmokeTestExit(app: App, shutdownManager: ShutdownManager): S
   const forceExitTimer = setTimeout(() => {
     console.error('Smoke test: forcing process exit after timeout');
     process.exit(0);
-  }, SMOKE_TEST_FORCE_EXIT_MS).unref?.();
+  }, SMOKE_TEST_FORCE_EXIT_MS);
+  forceExitTimer.unref?.();
 
   app.on('window-all-closed', () => {
     console.log('Smoke test: window-all-closed, quitting');
@@ -20,6 +21,7 @@ export function initSmokeTestExit(app: App, shutdownManager: ShutdownManager): S
 
   app.once('will-quit', () => {
     console.log('Smoke test: will-quit, forcing immediate exit');
+    clearTimeout(forceExitTimer);
     setTimeout(() => process.exit(0), 0).unref?.();
   });
 
