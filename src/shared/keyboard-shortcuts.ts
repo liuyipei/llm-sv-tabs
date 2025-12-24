@@ -2,6 +2,7 @@ export type ShortcutPlatform = 'mac' | 'windows' | 'linux';
 
 export type ShortcutActionId =
   | 'focusUrlInput'
+  | 'focusUrlInputFromNewTab'
   | 'focusLLMInput'
   | 'closeActiveTab'
   | 'bookmarkActiveTab'
@@ -32,12 +33,15 @@ export interface ShortcutDefinition {
 export const shortcutDefinitions: ShortcutDefinition[] = [
   {
     id: 'focusUrlInput',
-    description: 'Focus URL bar / new tab',
+    description: 'Focus URL bar',
     category: 'Focus',
-    chords: [
-      { key: 'l', ctrl: true },
-      { key: 't', ctrl: true },
-    ],
+    chords: [{ key: 'l', ctrl: true }],
+  },
+  {
+    id: 'focusUrlInputFromNewTab',
+    description: 'Open new tab (focus URL bar)',
+    category: 'Focus',
+    chords: [{ key: 't', ctrl: true }],
   },
   {
     id: 'focusLLMInput',

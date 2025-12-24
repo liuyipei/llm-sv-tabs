@@ -135,7 +135,8 @@ The source of truth is `src/shared/keyboard-shortcuts.ts`. Both the renderer and
 
 | Action | Windows / Linux | macOS |
 | --- | --- | --- |
-| Focus URL bar / new tab | `Ctrl+L` or `Ctrl+T` | `Cmd+L` or `Cmd+T` |
+| Focus URL bar | `Ctrl+L` | `Cmd+L` |
+| Open new tab (focus URL bar) | `Ctrl+T` | `Cmd+T` |
 | Focus LLM input | `Ctrl+.` | `Cmd+.` |
 | Find in page | `Ctrl+F` | `Cmd+F` |
 

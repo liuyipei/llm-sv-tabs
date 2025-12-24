@@ -270,6 +270,7 @@
 
     const keyboardCleanup = initKeyboardShortcuts({
       focusUrlInput,
+      focusUrlInputFromNewTab: focusUrlInput,
       focusLLMInput,
       closeActiveTab,
       bookmarkActiveTab,

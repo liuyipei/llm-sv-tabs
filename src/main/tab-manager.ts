@@ -194,6 +194,7 @@ class TabManager {
 
     const handlers: Record<ShortcutActionId, () => void> = {
       focusUrlInput: () => this.sendFocusEvent('focus-url-bar', windowId),
+      focusUrlInputFromNewTab: () => this.sendFocusEvent('focus-url-bar', windowId),
       focusLLMInput: () => this.sendFocusEvent('focus-llm-input', windowId),
       closeActiveTab: () => {
         const activeTabId = this.getActiveTabs(windowId).activeTabId;
