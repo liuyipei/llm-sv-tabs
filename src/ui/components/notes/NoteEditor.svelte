@@ -17,17 +17,20 @@
   // Local state for editing
   let title = $state('');
   let content = $state('');
-  let isInitialized = $state(false);
+  let currentTabId = $state<string | undefined>(undefined);
   let contentSaveTimeout: ReturnType<typeof setTimeout> | null = null;
   let titleSaveTimeout: ReturnType<typeof setTimeout> | null = null;
   let textareaElement: HTMLTextAreaElement | null = $state(null);
 
-  // Initialize content and title from tab metadata
+  // Initialize content and title from tab metadata when tabId changes
   $effect(() => {
-    if (tab && !isInitialized) {
-      title = tab.title || '';
-      content = tab.metadata?.noteContent || '';
-      isInitialized = true;
+    // When tabId changes (switching tabs), reload content
+    if (tabId !== currentTabId) {
+      currentTabId = tabId;
+      if (tab) {
+        title = tab.title || '';
+        content = tab.metadata?.noteContent || '';
+      }
     }
   });
 
