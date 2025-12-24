@@ -4,6 +4,8 @@
 
 The tab system is designed to handle heterogeneous content types within a unified interface. Unlike traditional browsers that only handle URLs, this system supports webpages, files, text, LLM responses, and custom content types—each with appropriate rendering strategies.
 
+**Update (multi-window):** The single-window assumptions in this document have been superseded by the new multi-window Tab Registry and Window Controller architecture described in [Design 14: Multi-Window Tab Registry](./14-multi-window-tab-registry.md). Treat this document as the content-type primer; defer to Design 14 for ownership, window routing, and lifecycle rules.
+
 ## Tab Types
 
 ### Type Taxonomy

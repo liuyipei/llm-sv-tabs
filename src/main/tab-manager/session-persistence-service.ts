@@ -8,10 +8,11 @@ interface SessionPersistenceServiceDeps {
   tabs: Map<string, TabWithView>;
   createTabId: () => string;
   getTabData: (tabId: string) => TabData | null;
-  sendToRenderer: (channel: string, payload: any) => void;
-  openUrl: (url: string, autoSelect: boolean) => { tabId: string; tab: TabData };
-  createView: () => any; // WebContentsView factory
+  sendToRenderer: (channel: string, payload: any, windowId?: string) => void;
+  openUrl: (url: string, autoSelect: boolean, windowId?: string) => { tabId: string; tab: TabData };
+  createView: (windowId?: string) => any; // WebContentsView factory
   createNoteHTML: (title: string, content: string, fileType: string) => string;
+  setTabOwner: (tabId: string, windowId: string) => void;
 }
 
 /**
@@ -71,25 +72,25 @@ export class SessionPersistenceService {
    * Restore a single tab based on its type and component.
    * Returns the new tab ID, or null if the tab type is unknown.
    */
-  restoreTab(tabData: TabData): string | null {
+  restoreTab(tabData: TabData, windowId?: string): string | null {
     // LLM Response tabs
     if (tabData.component === 'llm-response' && tabData.metadata?.isLLMResponse) {
-      return this.restoreLLMResponseTab(tabData);
+      return this.restoreLLMResponseTab(tabData, windowId);
     }
 
     // File tabs with a file path (images, PDFs, text files from uploads)
     if (tabData.metadata?.filePath && tabData.metadata?.fileType) {
-      return this.restoreFileTab(tabData);
+      return this.restoreFileTab(tabData, windowId);
     }
 
     // Text note tabs (manually created notes without file path)
     if (tabData.component === 'note' && tabData.type === 'notes') {
-      return this.restoreNoteTab(tabData);
+      return this.restoreNoteTab(tabData, windowId);
     }
 
     // Regular webpage tabs
     if (tabData.type === 'webpage') {
-      return this.restoreWebpageTab(tabData);
+      return this.restoreWebpageTab(tabData, windowId);
     }
 
     // Unknown tab type - skip
@@ -100,8 +101,8 @@ export class SessionPersistenceService {
   /**
    * Restore a webpage tab by reloading from URL.
    */
-  private restoreWebpageTab(tabData: TabData): string {
-    const { tabId } = this.deps.openUrl(tabData.url, false);
+  private restoreWebpageTab(tabData: TabData, windowId?: string): string {
+    const { tabId } = this.deps.openUrl(tabData.url, false, windowId);
     const tab = this.deps.tabs.get(tabId);
     if (tab && tabData.title !== 'Loading...') {
       tab.title = tabData.title;
@@ -112,7 +113,7 @@ export class SessionPersistenceService {
   /**
    * Restore an LLM response tab with its full metadata.
    */
-  private restoreLLMResponseTab(tabData: TabData): string {
+  private restoreLLMResponseTab(tabData: TabData, windowId?: string): string {
     const tabId = this.deps.createTabId();
     const metadata = tabData.metadata || {};
 
@@ -143,7 +144,12 @@ export class SessionPersistenceService {
     };
 
     this.deps.tabs.set(tabId, tab);
-    this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) });
+
+    if (windowId) {
+      this.deps.setTabOwner(tabId, windowId);
+    }
+
+    this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) }, windowId);
 
     return tabId;
   }
@@ -151,7 +157,7 @@ export class SessionPersistenceService {
   /**
    * Restore a text note tab with its content.
    */
-  private restoreNoteTab(tabData: TabData): string {
+  private restoreNoteTab(tabData: TabData, windowId?: string): string {
     const tabId = this.deps.createTabId();
     const metadata = tabData.metadata || {};
 
@@ -171,7 +177,12 @@ export class SessionPersistenceService {
     };
 
     this.deps.tabs.set(tabId, tab);
-    this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) });
+
+    if (windowId) {
+      this.deps.setTabOwner(tabId, windowId);
+    }
+
+    this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) }, windowId);
 
     return tabId;
   }
@@ -180,7 +191,7 @@ export class SessionPersistenceService {
    * Restore a file tab by reloading from the original file path.
    * If the file no longer exists, creates a tab with an error state.
    */
-  private restoreFileTab(tabData: TabData): string {
+  private restoreFileTab(tabData: TabData, windowId?: string): string {
     const tabId = this.deps.createTabId();
     const metadata = tabData.metadata || {};
     const filePath = metadata.filePath!;
@@ -191,7 +202,7 @@ export class SessionPersistenceService {
     if (!existsSync(filePath)) {
       // File no longer exists - create tab with error state
       console.warn(`File no longer exists: ${filePath}`);
-      return this.createErrorFileTab(tabId, tabData, `File not found: ${filePath}`);
+      return this.createErrorFileTab(tabId, tabData, `File not found: ${filePath}`, windowId);
     }
 
     try {
@@ -220,7 +231,12 @@ export class SessionPersistenceService {
         };
 
         this.deps.tabs.set(tabId, tab);
-        this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) });
+
+        if (windowId) {
+          this.deps.setTabOwner(tabId, windowId);
+        }
+
+        this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) }, windowId);
         return tabId;
       } else {
         // Read binary file (image or PDF) as base64
@@ -233,7 +249,7 @@ export class SessionPersistenceService {
           title,
           url: `note://${Date.now()}`,
           type: 'notes' as TabType,
-          view: this.deps.createView(),
+          view: this.deps.createView(windowId),
           created: tabData.created || Date.now(),
           lastViewed: tabData.lastViewed || Date.now(),
           metadata: {
@@ -247,6 +263,10 @@ export class SessionPersistenceService {
 
         this.deps.tabs.set(tabId, tab);
 
+        if (windowId) {
+          this.deps.setTabOwner(tabId, windowId);
+        }
+
         // Write to temp file and load via file:// protocol
         // This avoids Chromium's ~2MB data URL limit that causes large files to fail
         if (tab.view) {
@@ -254,21 +274,21 @@ export class SessionPersistenceService {
           tab.view.webContents.loadURL(fileUrl);
         }
 
-        this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) });
+        this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) }, windowId);
         return tabId;
       }
     } catch (error) {
       // Error reading file - create tab with error state
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(`Failed to read file ${filePath}:`, errorMessage);
-      return this.createErrorFileTab(tabId, tabData, `Failed to read file: ${errorMessage}`);
+      return this.createErrorFileTab(tabId, tabData, `Failed to read file: ${errorMessage}`, windowId);
     }
   }
 
   /**
    * Create a tab with an error state when file cannot be loaded.
    */
-  private createErrorFileTab(tabId: string, tabData: TabData, errorMessage: string): string {
+  private createErrorFileTab(tabId: string, tabData: TabData, errorMessage: string, windowId?: string): string {
     const metadata = tabData.metadata || {};
     const fileType = metadata.fileType as 'text' | 'pdf' | 'image';
 
@@ -291,7 +311,12 @@ export class SessionPersistenceService {
       };
 
       this.deps.tabs.set(tabId, tab);
-      this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) });
+
+      if (windowId) {
+        this.deps.setTabOwner(tabId, windowId);
+      }
+
+      this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) }, windowId);
     } else {
       // For images/PDFs, create a view with error message
       const tab: TabWithView = {
@@ -299,7 +324,7 @@ export class SessionPersistenceService {
         title: tabData.title,
         url: `note://error`,
         type: 'notes' as TabType,
-        view: this.deps.createView(),
+        view: this.deps.createView(windowId),
         created: tabData.created || Date.now(),
         lastViewed: tabData.lastViewed || Date.now(),
         metadata: {
@@ -311,6 +336,10 @@ export class SessionPersistenceService {
 
       this.deps.tabs.set(tabId, tab);
 
+      if (windowId) {
+        this.deps.setTabOwner(tabId, windowId);
+      }
+
       // Load error HTML into WebContentsView
       if (tab.view) {
         const errorHtml = createFileErrorHTML(tabData.title, errorMessage, metadata.filePath!);
@@ -318,7 +347,7 @@ export class SessionPersistenceService {
         tab.view.webContents.loadURL(dataUrl);
       }
 
-      this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) });
+      this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) }, windowId);
     }
 
     return tabId;
