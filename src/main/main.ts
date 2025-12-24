@@ -9,6 +9,8 @@ import { tempFileService } from './services/temp-file-service.js';
 import { configureSessionSecurity } from './session-security.js';
 import { registerIpcHandlers } from './ipc/register-ipc-handlers.js';
 import type { MainProcessContext } from './ipc/register-ipc-handlers.js';
+import { initSmokeTestExit } from './smoke-test-exit.js';
+import type { SmokeTestExitControls } from './smoke-test-exit.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -23,6 +25,7 @@ const appContext: MainProcessContext = {
   screenshotService: null,
 };
 let sessionSecurityConfigured = false;
+let smokeTestExit: SmokeTestExitControls | null = null;
 
 async function createWindow(): Promise<void> {
   const preloadPath = join(__dirname, 'preload.js');
@@ -50,9 +53,7 @@ async function createWindow(): Promise<void> {
   // In smoke test mode, exit after window loads successfully
   if (isSmokeTest) {
     mainWindow.webContents.once('did-finish-load', () => {
-      console.log('Smoke test passed: window loaded successfully');
-      // Use app.exit() for immediate termination - more reliable than process.exit() in Electron
-      app.exit(0);
+      smokeTestExit?.handleWindowLoaded();
     });
   }
 
@@ -151,6 +152,10 @@ app.commandLine.appendSwitch('disable-features', 'UserAgentClientHint');
 app.whenReady().then(async () => {
   // Setup shutdown handlers first to catch early termination
   shutdownManager.setup();
+
+  if (isSmokeTest) {
+    smokeTestExit = initSmokeTestExit(app, shutdownManager);
+  }
 
   // Register temp file cleanup on shutdown
   shutdownManager.registerCleanup('temp-files', () => tempFileService.cleanupAll());

@@ -28,6 +28,13 @@ const appArgs = process.argv.slice(2);
 // On Windows, npm bin stubs use .cmd extension
 const electronBin = isWindows ? 'electron.cmd' : 'electron';
 const electronPath = join(projectRoot, 'node_modules', '.bin', electronBin);
+const headlessArgs = [
+  '--enable-logging',
+  '--disable-gpu',
+  '--disable-software-rasterizer',
+  '--disable-dev-shm-usage',
+  '--no-sandbox'
+];
 
 function hasXvfb() {
   try {
@@ -91,7 +98,7 @@ if (appArgs.length > 0) {
 if (os === 'linux') {
   // --no-sandbox required for CI environments (GitHub Actions, Docker, etc.)
   // where the SUID sandbox helper is not configured
-  const linuxArgs = ['--no-sandbox'];
+  const linuxArgs = ['--no-sandbox', ...headlessArgs.filter(arg => arg !== '--no-sandbox')];
 
   if (hasXvfb()) {
     console.log('Using xvfb-run for virtual framebuffer');
@@ -103,5 +110,5 @@ if (os === 'linux') {
   }
 } else {
   // macOS and Windows: use offscreen rendering
-  runElectron(['--enable-logging', '--disable-gpu']);
+  runElectron(headlessArgs);
 }
