@@ -134,19 +134,19 @@
           {:else}
             <ul>
               {#each windowSnapshot.tabIds as tabId (tabId)}
-                {#if tabsById.get(tabId)}
-                  {#if tabsById.get(tabId) as tab}
-                    <li>
-                      <span class="icon" aria-hidden="true">{tabIcon(tab)}</span>
-                      <div class="tab-info">
-                        <div class="tab-title">{tab.title || tab.url}</div>
-                        <div class="tab-meta">{tab.type}{tab.component === 'llm-response' ? ' • conversation' : ''}</div>
-                      </div>
-                      <button class="close-btn" title="Close tab" onclick={() => closeTab(tab.id)}>
-                        ×
-                      </button>
-                    </li>
-                  {/if}
+                {#if (tabsById.get(tabId) ?? null) as tab}
+                  <li>
+                    <span class="icon" aria-hidden="true">{tabIcon(tab)}</span>
+                    <div class="tab-info">
+                      <div class="tab-title">{tab.title || tab.url}</div>
+                      <div class="tab-meta">{tab.type}{tab.component === 'llm-response' ? ' • conversation' : ''}</div>
+                    </div>
+                    <button class="close-btn" title="Close tab" onclick={() => closeTab(tab.id)}>
+                      ×
+                    </button>
+                  </li>
+                {:else}
+                  <li class="state subtle">Tab data unavailable</li>
                 {/if}
               {/each}
             </ul>
