@@ -27,158 +27,110 @@
     }))
     .filter(({ items }) => items.length > 0);
 
-  function formatChords(definition: ShortcutDefinition): string {
-    return formatShortcut(definition, platform).join(' / ');
-  }
+  const fontSizeClass = 'compact-font';
 </script>
 
-<section class="shortcuts-panel">
+<section class="shortcuts-panel {fontSizeClass}">
   <header class="panel-header">
-    <div>
-      <p class="eyebrow">Keyboard shortcuts</p>
-      <h2>Stay fast on {platformLabel}</h2>
-      <p class="description">
-        Generated from the shared shortcut registry, so the UI, docs, and runtime all stay in sync.
-      </p>
-    </div>
-    <div class="platform-chip">{platformLabel}</div>
+    <h2>{platformLabel} shortcuts</h2>
+    <p class="description">
+      Live from the shared registry. Scroll to see everything.
+    </p>
   </header>
 
-  {#each groupedShortcuts as group}
-    <div class="category">
-      <div class="category-header">
-        <h3>{group.category}</h3>
-      </div>
-      <div class="category-table">
-        <div class="table-head">
-          <span>Action</span>
-          <span>Shortcut</span>
-        </div>
+  <div class="shortcuts-list" role="list">
+    {#each groupedShortcuts as group}
+      <div class="category">
+        <div class="category-title">{group.category}</div>
         {#each group.items as shortcut}
-          <div class="table-row">
-            <div class="action">
-              <div class="title">{shortcut.description}</div>
+          <div class="shortcut-row" role="listitem">
+            <div class="action-title">{shortcut.description}</div>
+            <div class="chords">
+              {#each formatShortcut(shortcut, platform) as chord}
+                <span class="chord-pill">{chord}</span>
+              {/each}
             </div>
-            <div class="shortcut">{formatChords(shortcut)}</div>
           </div>
         {/each}
       </div>
-    </div>
-  {/each}
+    {/each}
+  </div>
 </section>
 
 <style>
   .shortcuts-panel {
-    padding: var(--space-5);
+    padding: var(--space-4);
     color: var(--text-primary);
     display: flex;
     flex-direction: column;
     gap: var(--space-5);
+    height: 100%;
   }
 
   .panel-header {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-lg);
-    padding: var(--space-5);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-  }
-
-  .eyebrow {
-    text-transform: uppercase;
-    font-size: var(--text-xs);
-    letter-spacing: 0.08em;
-    color: var(--text-disabled);
-    margin: 0 0 var(--space-2) 0;
+    flex-direction: column;
+    gap: var(--space-2);
   }
 
   h2 {
     margin: 0;
-    font-size: var(--text-2xl);
+    font-size: var(--text-xl);
   }
 
   .description {
-    margin: var(--space-2) 0 0 0;
-    color: var(--text-secondary);
-  }
-
-  .platform-chip {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 999px;
-    padding: var(--space-3) var(--space-4);
-    font-weight: 600;
+    margin: 0;
     color: var(--text-secondary);
   }
 
   .category {
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-lg);
-    overflow: hidden;
-  }
-
-  .category-header {
-    padding: var(--space-4) var(--space-5);
-    border-bottom: 1px solid var(--border-color);
-    background: var(--bg-secondary);
-  }
-
-  .category-header h3 {
-    margin: 0;
-    font-size: var(--text-lg);
-  }
-
-  .category-table {
     display: flex;
     flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-2) 0;
+    border-bottom: 1px solid var(--border-color);
   }
 
-  .table-head,
-  .table-row {
-    display: grid;
-    grid-template-columns: 1.4fr 1fr;
-    gap: var(--space-4);
-    padding: var(--space-3) var(--space-5);
-  }
-
-  .table-head {
+  .category-title {
+    font-weight: 700;
     color: var(--text-secondary);
-    font-size: var(--text-sm);
-    border-bottom: 1px solid var(--border-color);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
 
-  .table-row:not(:last-child) {
-    border-bottom: 1px solid var(--border-color);
+  .shortcuts-list {
+    overflow-y: auto;
+    padding-right: var(--space-2);
+    flex: 1;
   }
 
-  .title {
+  .shortcut-row {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-1) 0;
+  }
+
+  .action-title {
     font-weight: 600;
   }
 
-  .shortcut {
+  .chords {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
     font-family: var(--font-mono);
-    text-align: right;
   }
 
-  @media (max-width: 640px) {
-    .panel-header {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: var(--space-3);
-    }
+  .chord-pill {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.1rem 0.4rem;
+  }
 
-    .table-head,
-    .table-row {
-      grid-template-columns: 1fr;
-      text-align: left;
-    }
-
-    .shortcut {
-      text-align: left;
-    }
+  .compact-font {
+    font-size: var(--text-sm);
+    line-height: 1.4;
   }
 </style>
