@@ -169,7 +169,8 @@ export class GeminiProvider extends BaseProvider {
   async queryStream(
     messages: Array<{ role: string; content: MessageContent }>,
     options: QueryOptions | undefined,
-    onChunk: (chunk: string) => void
+    onChunk: (chunk: string) => void,
+    signal?: AbortSignal
   ): Promise<LLMResponse> {
     if (!this.apiKey) {
       return { response: '', error: 'API key is required' };
@@ -222,6 +223,7 @@ export class GeminiProvider extends BaseProvider {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(requestBody),
+        signal,
       });
 
       if (!response.ok) {

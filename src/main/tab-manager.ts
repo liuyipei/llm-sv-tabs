@@ -28,6 +28,7 @@ class TabManager {
   private readonly SEARCH_BAR_HEIGHT = 45; // Height of the search bar when visible
   private lastMetadataUpdate: Map<string, number>; // Track last metadata update time per tab
   private readonly METADATA_UPDATE_THROTTLE_MS = 500; // Send metadata updates at most every 500ms
+  private abortControllers: Map<string, AbortController>; // Track active LLM streams for cancellation
   private llmTabs: LLMTabService;
   private findInPageService: FindInPageService;
   private navigation: NavigationService;
@@ -44,6 +45,7 @@ class TabManager {
     this.tabCounter = 0;
     this.sessionManager = new SessionManager();
     this.lastMetadataUpdate = new Map();
+    this.abortControllers = new Map();
 
     this.llmTabs = new LLMTabService({
       tabs: this.tabs,
@@ -568,9 +570,18 @@ class TabManager {
 
     const context = this.windowRegistry.getWindowContext(this.windowRegistry.getWindowIdForTab(tabId));
 
+    // Abort any active LLM stream for this tab
+    const controller = this.abortControllers.get(tabId);
+    if (controller) {
+      controller.abort();
+      this.abortControllers.delete(tabId);
+    }
+
     // Destroy the view
     if (tab.view) {
       try {
+        // Remove all event listeners before destroying view
+        tab.view.webContents.removeAllListeners();
         context.window.contentView.removeChildView(tab.view);
       } catch (error) {
         console.warn(`Failed to remove view for tab ${tabId} during close`, error);
@@ -847,6 +858,20 @@ class TabManager {
     const targetWindowId = windowId ?? this.inferWindowIdFromPayload(data);
     const context = this.windowRegistry.getWindowContext(targetWindowId);
     context.window.webContents.send(channel, data);
+  }
+
+  /**
+   * Register an AbortController for a tab's LLM stream
+   */
+  registerAbortController(tabId: string, controller: AbortController): void {
+    this.abortControllers.set(tabId, controller);
+  }
+
+  /**
+   * Get the AbortController for a tab's LLM stream (if any)
+   */
+  getAbortController(tabId: string): AbortController | undefined {
+    return this.abortControllers.get(tabId);
   }
 
   /**

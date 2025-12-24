@@ -239,11 +239,15 @@ export function registerQueryHandlers(
       // Add user message
       messages.push({ role: 'user', content: userMessageContent });
 
+      // Create AbortController for this stream
+      const abortController = new AbortController();
+      tabManager!.registerAbortController(tabId, abortController);
+
       // Stream response
       const response = await provider.queryStream(messages, options, (chunk) => {
         // Send chunk to renderer
         tabManager!.sendStreamChunk(tabId, chunk);
-      });
+      }, abortController.signal);
 
       // Update tab metadata after streaming completes
       const tab = tabManager.getTab(tabId);
@@ -298,6 +302,9 @@ export function registerQueryHandlers(
 
       return toLLMError(error);
     } finally {
+      // Clean up AbortController
+      tabManager.registerAbortController(tabId, undefined as any);
+
       // Ensure renderer exits streaming state even if upstream handlers throw
       const preFinishMetadata = tabManager?.getTabMetadataSnapshot(tabId);
       const preFinishTabs = tabManager?.getLLMTabsSnapshot();
