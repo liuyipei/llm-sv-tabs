@@ -12,10 +12,10 @@ This suite consists of four interconnected documents, each serving a specific pu
 
 | Document | Purpose | Audience | When to Use |
 |----------|---------|----------|-------------|
-| **RESOURCE_LIFECYCLE_DESIGN.md** | Design patterns & principles | All contributors | Writing new code, understanding architecture |
-| **RESOURCE_LIFECYCLE_AUDIT.md** | Retrospective audit template | Tech leads, auditors | Quarterly audits, investigating bugs |
-| **REFACTORING_GUIDE.md** | Step-by-step refactoring recipes | Developers | Fixing bugs, improving existing code |
-| **CODE_REVIEW_CHECKLIST.md** | Quick reference for reviews | Reviewers, authors | PR reviews, pre-commit checks |
+| **[RESOURCE_LIFECYCLE_DESIGN.md](./RESOURCE_LIFECYCLE_DESIGN.md)** | Design patterns & principles | All contributors | Writing new code, understanding architecture |
+| **[RESOURCE_LIFECYCLE_AUDIT.md](./RESOURCE_LIFECYCLE_AUDIT.md)** | Retrospective audit template | Tech leads, auditors | Quarterly audits, investigating bugs |
+| **[REFACTORING_GUIDE.md](./REFACTORING_GUIDE.md)** | Step-by-step refactoring recipes | Developers | Fixing bugs, improving existing code |
+| **[CODE_REVIEW_CHECKLIST.md](./CODE_REVIEW_CHECKLIST.md)** | Quick reference for reviews | Reviewers, authors | PR reviews, pre-commit checks |
 
 ---
 
@@ -182,8 +182,8 @@ RESOURCE_LIFECYCLE_DESIGN.md (Improved patterns)
 This adds a listener in onMount but no cleanup in onDestroy.
 This will cause a memory leak.
 
-Fix: See docs/REFACTORING_GUIDE.md#2-refactoring-recipe-component-ipc-listeners
-Pattern: docs/RESOURCE_LIFECYCLE_DESIGN.md#component-lifetime-listeners
+Fix: See [REFACTORING_GUIDE.md](./REFACTORING_GUIDE.md#2-refactoring-recipe-component-ipc-listeners)
+Pattern: [RESOURCE_LIFECYCLE_DESIGN.md](./RESOURCE_LIFECYCLE_DESIGN.md#component-lifetime-listeners)
 ```
 
 ---
@@ -359,8 +359,8 @@ Track these metrics to measure documentation effectiveness:
 - [ ] No new $effects without cleanup returns
 
 ## Related Docs
-- Design pattern: docs/RESOURCE_LIFECYCLE_DESIGN.md#[section]
-- If refactoring: Followed recipe from docs/REFACTORING_GUIDE.md#[section]
+- Design pattern: [RESOURCE_LIFECYCLE_DESIGN.md](./RESOURCE_LIFECYCLE_DESIGN.md)#[section]
+- If refactoring: Followed recipe from [REFACTORING_GUIDE.md](./REFACTORING_GUIDE.md)#[section]
 ```
 
 ### Bug Report Template (Lifecycle-related)
@@ -385,8 +385,8 @@ Track these metrics to measure documentation effectiveness:
 [What actually happens]
 
 ## Relevant Docs
-- Pattern violated: docs/RESOURCE_LIFECYCLE_DESIGN.md#[section]
-- Audit item: docs/RESOURCE_LIFECYCLE_AUDIT.md#[section]
+- Pattern violated: [RESOURCE_LIFECYCLE_DESIGN.md](./RESOURCE_LIFECYCLE_DESIGN.md)#[section]
+- Audit item: [RESOURCE_LIFECYCLE_AUDIT.md](./RESOURCE_LIFECYCLE_AUDIT.md)#[section]
 ```
 
 ---

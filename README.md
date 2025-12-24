@@ -38,6 +38,7 @@ A common workflow is opening several data sources in different tabs. These might
 For a deep dive into the architecture and design philosophy:
 
 - **[User Experience & Prompt Context Management](./design/04-user-experience-and-context-management.md)** ⭐ **Start here** - Learn about the UX design
+- **[Resource & Lifecycle Management](./docs/design/resources/README_LIFECYCLE_DOCS.md)** 🔧 - Resource ownership, cleanup patterns, and memory leak prevention
 - [Design System](./design/13-design-system.md) - Visual design tokens, color palette, typography, spacing, and component patterns
 - [Smart Content Extraction](./design/09-smart-content-extraction.md) - Context-aware DOM extraction for articles and web apps
 - [Token Streaming & API Providers](./design/01-token-streaming-and-providers.md) - Provider architecture and real-time streaming

@@ -23,7 +23,7 @@
 This adds a new `Map<string, Connection>` but I don't see where connections
 are cleaned up. Should this be in closeTab() or a separate cleanup method?
 
-See: docs/RESOURCE_LIFECYCLE_DESIGN.md#explicit-ownership
+See: [RESOURCE_LIFECYCLE_DESIGN.md](./RESOURCE_LIFECYCLE_DESIGN.md#explicit-ownership)
 ```
 
 ---
@@ -99,7 +99,7 @@ This $effect updates `count` which is watched by the same effect.
 This will cause an infinite loop.
 
 Move the computation to $derived or add a guard condition.
-See: docs/REFACTORING_GUIDE.md#4-refactoring-recipe-effect-infinite-loops
+See: [REFACTORING_GUIDE.md](./REFACTORING_GUIDE.md#4-refactoring-recipe-effect-infinite-loops)
 ```
 
 ---
@@ -348,7 +348,7 @@ test('handles errors gracefully', () => { /* ... */ });
 /**
  * Closes a tab and cleans up all associated resources.
  *
- * Lifecycle: See docs/RESOURCE_LIFECYCLE_DESIGN.md#tab-destruction-flow
+ * Lifecycle: See docs/design/resources/RESOURCE_LIFECYCLE_DESIGN.md#tab-destruction-flow
  *
  * @param tabId - Unique tab identifier
  * @param windowId - Optional window context (resolved from registry if omitted)
@@ -479,13 +479,13 @@ onDestroy(() => {
 });
 ```
 
-See: docs/REFACTORING_GUIDE.md#2-refactoring-recipe-component-ipc-listeners
+See: [REFACTORING_GUIDE.md](./REFACTORING_GUIDE.md#2-refactoring-recipe-component-ipc-listeners)
 
 ### ⚪ LOW: Consider extracted composable
 This tab update listener pattern is used in 3+ components. Consider
 extracting to `useTabUpdate()` composable.
 
-See: docs/REFACTORING_GUIDE.md#pattern-extract-lifecycle-logic-to-composables
+See: [REFACTORING_GUIDE.md](./REFACTORING_GUIDE.md#pattern-extract-lifecycle-logic-to-composables)
 
 ## Tests
 

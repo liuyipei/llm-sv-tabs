@@ -799,7 +799,7 @@ test('rapid tab switching shows correct content', async () => {
 /**
  * Closes a tab and cleans up all associated resources.
  *
- * Lifecycle: See docs/RESOURCE_LIFECYCLE_DESIGN.md#tab-destruction-flow
+ * Lifecycle: See docs/design/resources/RESOURCE_LIFECYCLE_DESIGN.md#tab-destruction-flow
  */
 async closeTab(tabId: string): Promise<void> {
   // ...
