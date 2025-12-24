@@ -45,6 +45,14 @@ export function registerTabHandlers(
     handleSafely(() => ({ success: true, data: getTabManager().getActiveTabs(resolveWindowId(event)) }))
   );
 
+  ipcMain.handle('get-tab-registry-snapshot', async () =>
+    handleSafely(() => ({ success: true, data: getTabManager().getRegistrySnapshot() }))
+  );
+
+  ipcMain.handle('open-aggregate-tab', async (event) =>
+    handleSafely(() => ({ success: true, data: getTabManager().openAggregateTab(true, resolveWindowId(event)) }))
+  );
+
   ipcMain.handle('set-active-tab', async (event, tabId: string) =>
     handleSafely(() => getTabManager().setActiveTab(tabId, resolveWindowId(event)))
   );

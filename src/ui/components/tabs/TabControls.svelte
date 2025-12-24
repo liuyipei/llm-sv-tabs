@@ -1,8 +1,11 @@
 <script lang="ts">
+  import { getContext } from 'svelte';
   import { sortMode, sortDirection } from '$stores/tabs';
   import type { SortMode } from '../../../types';
+  import type { IPCBridgeAPI } from '$lib/ipc-bridge';
 
   let { tabCount }: { tabCount: number } = $props();
+  const ipc = getContext<IPCBridgeAPI>('ipc');
 
   function setSortMode(mode: SortMode): void {
     sortMode.set(mode);
@@ -11,6 +14,15 @@
   function toggleSortDirection(): void {
     sortDirection.update((dir) => (dir === 'asc' ? 'desc' : 'asc'));
   }
+
+  async function openAggregateTab(): Promise<void> {
+    if (!ipc?.openAggregateTab) return;
+    try {
+      await ipc.openAggregateTab();
+    } catch (error) {
+      console.error('Failed to open aggregate tabs view:', error);
+    }
+  }
 </script>
 
 <div class="tab-controls">
@@ -18,6 +30,11 @@
     <div class="tabs-label" title="Ctrl+Tab: Next tab, Ctrl+Shift+Tab: Previous tab">
       <h2>Tabs</h2>
       <span class="tab-count">{tabCount}</span>
+    </div>
+    <div class="aggregate-button">
+      <button onclick={openAggregateTab} title="View all tabs across windows">
+        🗂️ All tabs
+      </button>
     </div>
     <div class="sort-buttons">
       <button
@@ -89,6 +106,10 @@
   .sort-buttons {
     display: flex;
     gap: 4px;
+  }
+
+  .aggregate-button {
+    flex-shrink: 0;
   }
 
   button {

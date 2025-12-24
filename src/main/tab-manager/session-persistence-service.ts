@@ -78,6 +78,10 @@ export class SessionPersistenceService {
       return this.restoreLLMResponseTab(tabData, windowId);
     }
 
+    if (tabData.component === 'aggregate-tabs') {
+      return this.restoreAggregateTab(tabData, windowId);
+    }
+
     // File tabs with a file path (images, PDFs, text files from uploads)
     if (tabData.metadata?.filePath && tabData.metadata?.fileType) {
       return this.restoreFileTab(tabData, windowId);
@@ -174,6 +178,33 @@ export class SessionPersistenceService {
         noteContent: metadata.noteContent || '',
         noteId: metadata.noteId,
       },
+    };
+
+    this.deps.tabs.set(tabId, tab);
+
+    if (windowId) {
+      this.deps.setTabOwner(tabId, windowId);
+    }
+
+    this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) }, windowId);
+
+    return tabId;
+  }
+
+  /**
+   * Restore an aggregate tabs view (component-backed, no WebContentsView).
+   */
+  private restoreAggregateTab(tabData: TabData, windowId?: string): string {
+    const tabId = this.deps.createTabId();
+
+    const tab: TabWithView = {
+      id: tabId,
+      title: tabData.title || 'All Windows',
+      url: tabData.url || `aggregate-tabs://${windowId ?? 'primary'}`,
+      type: 'notes' as TabType,
+      component: 'aggregate-tabs',
+      created: tabData.created || Date.now(),
+      lastViewed: tabData.lastViewed || Date.now(),
     };
 
     this.deps.tabs.set(tabId, tab);

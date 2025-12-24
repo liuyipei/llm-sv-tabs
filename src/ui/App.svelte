@@ -12,6 +12,7 @@
   import MessageStream from '$components/chat/MessageStream.svelte';
   import ApiKeyInstructionsView from '$components/llm/ApiKeyInstructionsView.svelte';
   import NoteEditor from '$components/notes/NoteEditor.svelte';
+  import AggregateTabs from '$components/tabs/AggregateTabs.svelte';
   import Toast from '$components/Toast.svelte';
   import { activeSidebarView, sidebarTabsHeightPercent } from '$stores/ui';
   import { activeTabId, activeTabs, sortedTabs } from '$stores/tabs';
@@ -31,6 +32,7 @@
   $: showSvelteContent = activeTab?.component === 'llm-response';
   $: showApiKeyInstructions = activeTab?.component === 'api-key-instructions';
   $: showNoteEditor = activeTab?.component === 'note';
+  $: showAggregateTabs = activeTab?.component === 'aggregate-tabs';
 
   // Initialize IPC and make it available to all child components
   const ipc: IPCBridgeAPI = initializeIPC();
@@ -369,6 +371,8 @@
           <ApiKeyInstructionsView />
         {:else if showNoteEditor && activeTab}
           <NoteEditor tabId={activeTab.id} />
+        {:else if showAggregateTabs}
+          <AggregateTabs />
         {:else if showSvelteContent && activeTab}
           <MessageStream tabId={activeTab.id} />
         {:else}
