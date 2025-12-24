@@ -134,7 +134,8 @@
           {:else}
             <ul>
               {#each windowSnapshot.tabIds as tabId (tabId)}
-                {#if (tabsById.get(tabId) ?? null) as tab}
+                {@const tab = tabsById.get(tabId)}
+                {#if tab}
                   <li>
                     <span class="icon" aria-hidden="true">{tabIcon(tab)}</span>
                     <div class="tab-info">
