@@ -1,29 +1,64 @@
 # Design System Implementation Plan
 
-**Status:** High-level planning (awaiting codebase refactor completion)
-**Reference:** [Design System](./13-design-system.md)
-**Last Updated:** 2025-12-23
+**Status:** In Progress (Phases 1-3, 5 complete)
+**Reference:** [Design System](../design/13-design-system.md)
+**Last Updated:** 2025-12-24
 
 ---
 
-## Current State Summary
+## Progress Summary
 
-The codebase uses a **consistent dark theme visually** but with **scattered implementation**:
+| Phase | Status | Description |
+|-------|--------|-------------|
+| 1 | ✅ Complete | Created `tokens.css` with all design tokens |
+| 2 | ✅ Complete | Fixed LLM components (5 files) |
+| 3 | ✅ Complete | Migrated high-impact components (6 files) |
+| 5 | ✅ Complete | Moved MessageStream.css to /styles/ |
+| 4 | ⏳ Pending | Normalize remaining components |
+| 6 | ⏳ Pending | Typography audit |
+| 7 | ⏳ Pending | Accessibility review |
 
-| Aspect | Current State | Target State |
-|--------|--------------|--------------|
-| Token definition | None (no `tokens.css`) | Centralized `:root` variables |
+### Files Updated
+
+**Phase 1-2:**
+- `src/ui/styles/tokens.css` (new)
+- `src/ui/index.html`
+- `src/ui/components/llm/ProviderSelector.svelte`
+- `src/ui/components/llm/ApiKeyInput.svelte`
+- `src/ui/components/llm/EndpointConfig.svelte`
+- `src/ui/components/llm/ModelSelector.svelte`
+- `src/ui/components/llm/LLMControls.svelte`
+
+**Phase 3:**
+- `src/ui/App.svelte`
+- `src/ui/components/tabs/TabItem.svelte`
+- `src/ui/components/chat/UrlBar.svelte`
+- `src/ui/components/Toast.svelte`
+- `src/ui/components/common/Modal.svelte`
+- `src/ui/components/ResizableDivider.svelte`
+
+**Phase 5:**
+- `src/ui/styles/message-stream.css` (moved from components/)
+
+---
+
+## Original Analysis (for reference)
+
+The codebase previously had:
+
+| Aspect | Before | After |
+|--------|--------|-------|
+| Token definition | None | `src/ui/styles/tokens.css` |
 | Color application | 40+ hardcoded hex values | CSS custom properties |
 | Styling approach | Svelte scoped `<style>` blocks | Scoped styles + shared tokens |
-| Global styles | Inline in `App.svelte` | Dedicated global stylesheet |
 | LLM components | CSS vars with **wrong defaults** | Fixed vars referencing tokens |
 
-### Key Inconsistencies Found
+### Issues Fixed
 
-1. **LLM config components** (`ProviderSelector`, `ApiKeyInput`, `EndpointConfig`, `ModelSelector`) use CSS variables with **light-theme fallbacks** (e.g., `var(--input-bg, white)`) that don't match the dark theme
-2. **Spacing is irregular**: values like `3px`, `15px` exist outside the design scale (2, 4, 8, 12, 16, 20, 24)
-3. **Border/hover color overlap**: `#3e3e42` is used for both borders AND hover states, creating ambiguity
-4. **Font size units mixed**: some components use `px`, others `rem`/`em`
+1. ✅ **LLM config components** now use correct dark-theme tokens
+2. ⏳ **Spacing irregularities** - some remain in components not yet migrated
+3. ✅ **Border/hover ambiguity** - now use distinct `--border-color` and `--bg-hover`
+4. ⏳ **Font size units** - migrated components use tokens; others pending
 
 ---
 
