@@ -11,11 +11,7 @@ export function initSmokeTestExit(app: App, shutdownManager: ShutdownManager): S
   const forceExitTimer = setTimeout(() => {
     console.error('Smoke test: forcing process exit after timeout');
     process.exit(0);
-  }, SMOKE_TEST_FORCE_EXIT_MS);
-
-  if (typeof forceExitTimer.unref === 'function') {
-    forceExitTimer.unref();
-  }
+  }, SMOKE_TEST_FORCE_EXIT_MS).unref?.();
 
   app.on('window-all-closed', () => {
     console.log('Smoke test: window-all-closed, quitting');
@@ -23,12 +19,8 @@ export function initSmokeTestExit(app: App, shutdownManager: ShutdownManager): S
   });
 
   app.once('will-quit', () => {
-    clearTimeout(forceExitTimer);
-
-    const immediateExit = setTimeout(() => process.exit(0), 0);
-    if (typeof immediateExit.unref === 'function') {
-      immediateExit.unref();
-    }
+    console.log('Smoke test: will-quit, forcing immediate exit');
+    setTimeout(() => process.exit(0), 0).unref?.();
   });
 
   return {
@@ -36,6 +28,7 @@ export function initSmokeTestExit(app: App, shutdownManager: ShutdownManager): S
       console.log('Smoke test passed: window loaded successfully');
       shutdownManager.performCleanup();
       app.quit();
+      setTimeout(() => process.exit(0), 2000).unref?.();
     },
   };
 }
