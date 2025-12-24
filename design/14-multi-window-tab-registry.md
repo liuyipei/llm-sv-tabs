@@ -58,7 +58,7 @@
 
 - The registry already provides the primitives to surface `{ windows: [{ id, activeTabId, tabIds }], tabs: TabData[] }` for a global tab picker/mover or the component-backed “aggregate browser multitabs” UI described in Design 03.
 - Moving a tab will be implemented by detaching its `WebContentsView` from the source window and re-attaching it to the destination, then updating `tabId -> windowId` ownership. Closing a tab from the aggregate view should call the existing `closeTab(tabId)` to keep cleanup consistent.
-- Activation commands from the aggregated view will focus the destination window before raising the tab. Stable `tabId` values from the registry should be used for all cross-window actions, and renderer consumers should be ready to refresh on snapshot changes to keep the aggregate UI live.
+- Activation commands from the aggregated view will focus the destination window before raising the tab. Stable `tabId` values from the registry should be used for all cross-window actions, and renderer consumers should be ready to refresh on snapshot changes to keep the aggregate UI live (via `get-tab-registry-snapshot` IPC or equivalent).
 
 ## Testing and Operational Considerations
 
