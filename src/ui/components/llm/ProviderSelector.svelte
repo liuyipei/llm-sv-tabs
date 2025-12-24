@@ -42,34 +42,34 @@
   .provider-selector {
     display: flex;
     flex-direction: column;
-    gap: 0.125rem;
+    gap: var(--space-1);
   }
 
   label {
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: var(--text-secondary, #666);
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+    color: var(--text-secondary);
   }
 
   .provider-select {
-    padding: 0.25rem 0.375rem;
-    border: 1px solid var(--border-color, #ddd);
-    border-radius: 4px;
-    background: var(--input-bg, white);
-    color: var(--text-primary, #333);
-    font-family: monospace;
-    font-size: 0.75rem;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
     cursor: pointer;
-    transition: border-color 0.2s;
+    transition: border-color var(--transition-fast);
   }
 
   .provider-select:hover {
-    border-color: var(--border-hover, #999);
+    border-color: var(--accent-color);
   }
 
   .provider-select:focus {
     outline: none;
-    border-color: var(--primary-color, #0066cc);
-    box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.1);
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px var(--accent-bg);
   }
 </style>

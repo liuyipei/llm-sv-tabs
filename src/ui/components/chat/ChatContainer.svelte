@@ -29,8 +29,8 @@
   .chat-container {
     flex: 0 1 auto;
     overflow-y: auto;
-    padding: 10px;
-    background-color: #1e1e1e;
+    padding: var(--space-5);
+    background-color: var(--bg-primary);
     max-height: 40%;
   }
 
@@ -41,19 +41,19 @@
 
   /* Scrollbar styling */
   .chat-container::-webkit-scrollbar {
-    width: 10px;
+    width: var(--space-5);
   }
 
   .chat-container::-webkit-scrollbar-track {
-    background: #1e1e1e;
+    background: var(--bg-primary);
   }
 
   .chat-container::-webkit-scrollbar-thumb {
-    background: #3e3e42;
-    border-radius: 5px;
+    background: var(--border-color);
+    border-radius: var(--radius-md);
   }
 
   .chat-container::-webkit-scrollbar-thumb:hover {
-    background: #4e4e52;
+    background: var(--bg-hover);
   }
 </style>

@@ -392,10 +392,9 @@
   :global(body) {
     margin: 0;
     padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
-      Ubuntu, Cantarell, sans-serif;
-    background-color: #1e1e1e;
-    color: #d4d4d4;
+    font-family: var(--font-system);
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
   }
 
   .app-container {
@@ -411,12 +410,12 @@
   }
 
   .sidebar {
-    width: 350px;
-    min-width: 350px;
-    max-width: 350px;
+    width: var(--sidebar-width);
+    min-width: var(--sidebar-width);
+    max-width: var(--sidebar-width);
     flex-shrink: 0;
-    background-color: #252526;
-    border-right: 1px solid #3e3e42;
+    background-color: var(--bg-secondary);
+    border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -424,26 +423,26 @@
 
   .sidebar-nav {
     display: flex;
-    gap: 5px;
-    padding: 10px;
-    background-color: #2d2d30;
-    border-bottom: 1px solid #3e3e42;
+    gap: var(--space-3);
+    padding: var(--space-5);
+    background-color: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-color);
   }
 
   .nav-btn {
     flex: 1;
-    background-color: #3e3e42;
-    color: #d4d4d4;
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
     border: none;
-    border-radius: 4px;
-    padding: 8px;
-    font-size: 18px;
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+    font-size: var(--text-xl);
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all var(--transition-fast);
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 36px;
+    height: 2.25rem;
   }
 
   .nav-btn:hover {
@@ -451,7 +450,7 @@
   }
 
   .nav-btn.active {
-    background-color: #007acc;
+    background-color: var(--accent-color);
     transform: scale(1.05);
   }
 
@@ -479,7 +478,7 @@
 
   .browser-view {
     flex: 1;
-    background-color: #1e1e1e;
+    background-color: var(--bg-primary);
     overflow-y: auto;
   }
 
@@ -489,17 +488,17 @@
     align-items: center;
     justify-content: center;
     height: 100%;
-    color: #808080;
+    color: var(--text-tertiary);
     text-align: center;
   }
 
   .browser-placeholder p {
-    margin: 5px 0;
-    font-size: 16px;
+    margin: var(--space-3) 0;
+    font-size: var(--text-lg);
   }
 
   .browser-placeholder .hint {
-    font-size: 14px;
-    color: #606060;
+    font-size: var(--text-base);
+    color: var(--text-disabled);
   }
 </style>

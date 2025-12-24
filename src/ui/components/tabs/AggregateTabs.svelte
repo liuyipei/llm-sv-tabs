@@ -159,53 +159,53 @@
 
 <style>
   .aggregate-tabs {
-    padding: 16px;
-    color: #e0e0e0;
+    padding: var(--space-8);
+    color: var(--text-primary);
     overflow: auto;
     height: 100%;
   }
 
   .state {
-    padding: 10px;
-    background: #2e2e32;
-    border-radius: 6px;
-    color: #c0c0c0;
+    padding: var(--space-5);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-lg);
+    color: var(--text-secondary);
   }
 
   .state.error {
-    background: #3a1f1f;
-    color: #f5cccc;
+    background: var(--error-bg);
+    color: var(--error-text);
   }
 
   .state.subtle {
-    padding: 6px 0;
+    padding: var(--space-3) 0;
     background: transparent;
-    color: #9a9a9a;
+    color: var(--text-tertiary);
   }
 
   .window-section {
-    border: 1px solid #3e3e42;
-    border-radius: 8px;
-    padding: 12px;
-    margin-bottom: 12px;
-    background: #252526;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--space-6);
+    margin-bottom: var(--space-6);
+    background: var(--bg-secondary);
   }
 
   .window-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
+    margin-bottom: var(--space-4);
   }
 
   .window-title {
-    font-weight: 600;
-    font-size: 14px;
+    font-weight: var(--font-semibold);
+    font-size: var(--text-base);
   }
 
   .window-active {
-    font-size: 12px;
-    color: #a0a0a0;
+    font-size: var(--text-sm);
+    color: var(--text-tertiary);
   }
 
   ul {
@@ -214,22 +214,22 @@
     margin: 0;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--space-3);
   }
 
   li {
     display: grid;
     grid-template-columns: auto 1fr auto;
-    gap: 10px;
+    gap: var(--space-5);
     align-items: center;
-    padding: 8px;
-    background: #2d2d30;
-    border-radius: 6px;
-    border: 1px solid #3a3a3e;
+    padding: var(--space-4);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-color);
   }
 
   .icon {
-    font-size: 16px;
+    font-size: var(--text-lg);
   }
 
   .tab-info {
@@ -237,30 +237,32 @@
   }
 
   .tab-title {
-    font-weight: 600;
-    font-size: 13px;
+    font-weight: var(--font-semibold);
+    font-size: var(--text-md);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .tab-meta {
-    font-size: 12px;
-    color: #a0a0a0;
+    font-size: var(--text-sm);
+    color: var(--text-tertiary);
   }
 
   .close-btn {
     background: transparent;
     border: none;
-    color: #c0c0c0;
-    font-size: 16px;
+    color: var(--text-secondary);
+    font-size: var(--text-lg);
     cursor: pointer;
-    padding: 4px 6px;
-    border-radius: 4px;
-    transition: background 0.2s;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    transition: background var(--transition-fast);
   }
 
-  .close-btn:hover {
-    background: #3a3a3e;
+  .close-btn:hover,
+  .close-btn:focus-visible {
+    background: var(--bg-hover);
+    outline: none;
   }
 </style>

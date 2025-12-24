@@ -17,18 +17,18 @@
   .llm-controls {
     display: flex;
     flex-direction: column;
-    padding: 0.5rem;
-    border-bottom: 1px solid var(--border-color, #ddd);
-    background: var(--bg-secondary, #f9f9f9);
+    padding: var(--space-4);
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-secondary);
     overflow-y: auto;
     height: 100%;
-    gap: 0.25rem;
+    gap: var(--space-2);
   }
 
   h3 {
-    margin: 0 0 0.25rem 0;
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--text-primary, #333);
+    margin: 0 0 var(--space-2) 0;
+    font-size: var(--text-base);
+    font-weight: var(--font-semibold);
+    color: var(--text-primary);
   }
 </style>

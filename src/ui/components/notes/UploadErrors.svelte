@@ -17,21 +17,21 @@
 <style>
   .upload-errors {
     position: fixed;
-    bottom: 20px;
-    right: 20px;
+    bottom: var(--space-9);
+    right: var(--space-9);
     max-width: 400px;
-    z-index: 1000;
+    z-index: var(--z-modal);
   }
 
   .error-message {
-    background-color: #5a1d1d;
-    border: 1px solid #be1100;
-    border-radius: 4px;
-    padding: 12px 15px;
-    margin-bottom: 10px;
-    color: #f48771;
-    font-size: 13px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    background-color: var(--error-bg);
+    border: 1px solid var(--danger-red);
+    border-radius: var(--radius-md);
+    padding: var(--space-6) var(--space-7);
+    margin-bottom: var(--space-5);
+    color: var(--error-text);
+    font-size: var(--text-md);
+    box-shadow: var(--shadow-md);
     white-space: pre-wrap;
     word-wrap: break-word;
   }

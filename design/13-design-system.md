@@ -1,22 +1,18 @@
 # Design System
 
-**Status:** Post-hoc documentation (extracted from existing codebase)
-**Compliance:** Browser does not yet fully adhere to this system—this document serves as a reference for future refactoring.
+**Status:** ✅ Implemented
+**Token File:** `src/ui/styles/tokens.css`
 
 ---
 
 ## Overview
 
-This design system documents the visual language of the LLM Browser. It provides a single source of truth for colors, typography, spacing, and other design tokens used throughout the application.
+This design system defines the visual language of the LLM Browser, providing a single source of truth for colors, typography, spacing, and other design tokens. All tokens are defined in `src/ui/styles/tokens.css` and used across components via CSS custom properties.
 
-**Important:** This is a *post-hoc* design system—extracted from existing code rather than defined upfront. As such, there are inconsistencies in the current implementation (e.g., hardcoded colors instead of CSS variables, non-uniform spacing). Future work should migrate components to use these standardized values.
+### Related Docs
 
-### Relationship to Other Design Docs
-
-- **[Visual Layout Architecture](./02-visual-layout.md)**: Describes *layout structure* (sidebar width, content areas, hybrid rendering). This document describes *visual styling* (colors, fonts, spacing).
-- **[User Experience & Context Management](./04-user-experience-and-context-management.md)**: Describes *interaction patterns* and workflows. This document describes *visual design tokens*.
-
-**Note on CSS Variables:** The visual-layout.md document shows aspirational CSS variable definitions (`:root { --bg-primary: ... }`). However, these variables are **not currently defined** in any global stylesheet. Some components use `var(--variable-name, fallback)` syntax expecting variables to exist, but fall back to hardcoded values. A future migration should create a `src/ui/styles/tokens.css` file with actual variable definitions.
+- **[Visual Layout Architecture](./02-visual-layout.md)**: Layout structure (sidebar, content areas)
+- **[User Experience](./04-user-experience-and-context-management.md)**: Interaction patterns
 
 ---
 
@@ -579,13 +575,9 @@ Used on resizable dividers, buttons, inputs when focused via keyboard.
 
 ---
 
-## Design Tokens (Future CSS Variables)
+## CSS Variable Definitions
 
-**Note:** Current implementation uses hardcoded colors. Future refactoring should convert to CSS custom properties.
-
-**Naming Convention Decision Needed:** The visual-layout.md doc proposes simpler names (`--bg-primary`, `--text-primary`), while this document uses more descriptive names (`--color-bg-primary`, `--color-text-primary`). Recommendation: **Use simpler names** for brevity, matching visual-layout.md.
-
-### Proposed CSS Variable Definitions
+All tokens are defined in `src/ui/styles/tokens.css`. Naming uses simple prefixes (`--bg-`, `--text-`, etc.) for brevity.
 
 ```css
 :root {
@@ -650,38 +642,12 @@ Used on resizable dividers, buttons, inputs when focused via keyboard.
 }
 ```
 
-**Conflicts with visual-layout.md to resolve:**
-- `--bg-active`: This doc uses `#094771`, visual-layout.md suggests `#2a2d2e` (choose one)
-- `--text-primary`: This doc uses `#d4d4d4`, visual-layout.md uses `#cccccc` (very similar, pick one)
-- `--border-color`: This doc uses `#3e3e42`, visual-layout.md uses `#3e3e3e` (nearly identical, standardize)
-
----
-
-## Known Inconsistencies
-
-These issues should be addressed in future refactoring:
-
-1. **Hardcoded colors:** Most components use inline hex values instead of CSS variables
-2. **Spacing irregularities:** 3px, 15px, and other non-scale values exist
-3. **Font size mixing:** Some components use `px`, others use `rem` or `em`
-4. **Multiple primary backgrounds:** Both `#1e1e1e` and `#252526` are used as "main" backgrounds in different contexts
-5. **Button styles:** Not all buttons follow the same base pattern (icon buttons vs. primary vs. navigation)
-6. **Border colors:** `#3e3e42` is used for both borders and hover backgrounds, creating ambiguity
-
----
-
-## Migration Strategy (Recommended)
-
-To bring the codebase into alignment with this design system:
-
-1. **Phase 1:** Create CSS variable definitions in a `styles/tokens.css` file
-2. **Phase 2:** Refactor high-impact components first:
-   - Button variants (primary, secondary, icon, danger)
-   - Input components (text, textarea)
-   - Card/section wrappers
-3. **Phase 3:** Normalize spacing across all components
-4. **Phase 4:** Create component base classes (e.g., `.btn-primary`, `.card`, `.input`)
-5. **Phase 5:** Audit for accessibility and color contrast compliance
+**Design Decisions (Resolved):**
+- `--bg-active`: Uses `#094771` (VSCode active tab blue)
+- `--text-primary`: Uses `#d4d4d4` (VSCode standard text)
+- `--border-color`: Uses `#3e3e42` (consistent with hover backgrounds)
+- **Spacing units**: rem-based for scalability
+- **Gradients**: Component-specific (not tokenized)
 
 ---
 
@@ -704,5 +670,5 @@ This design system is inspired by:
 - **GitHub Dark Theme** (markdown rendering)
 - **Tailwind CSS** (spacing scale philosophy)
 
-**Last Updated:** 2025-12-23
-**Version:** 1.0.0 (Initial post-hoc documentation)
+**Last Updated:** 2025-12-24
+**Version:** 2.0.0 (Fully implemented)

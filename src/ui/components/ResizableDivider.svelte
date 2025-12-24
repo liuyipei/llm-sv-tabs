@@ -104,33 +104,33 @@
     position: relative;
     flex-shrink: 0;
     user-select: none;
-    transition: background-color 0.2s;
+    transition: background-color var(--transition-fast);
   }
 
   .resizable-divider.horizontal {
     height: 4px;
     cursor: ns-resize;
-    background-color: #3e3e42;
+    background-color: var(--border-color);
   }
 
   .resizable-divider.vertical {
     width: 4px;
     cursor: ew-resize;
-    background-color: #3e3e42;
+    background-color: var(--border-color);
   }
 
   .resizable-divider:hover,
   .resizable-divider.dragging {
-    background-color: #007acc;
+    background-color: var(--accent-color);
   }
 
   .resizable-divider:focus {
-    outline: 2px solid #007acc;
+    outline: 2px solid var(--accent-color);
     outline-offset: -2px;
   }
 
   /* Visual indicator when dragging */
   .resizable-divider.dragging {
-    z-index: 1000;
+    z-index: var(--z-divider-dragging);
   }
 </style>

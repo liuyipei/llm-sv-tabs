@@ -161,8 +161,8 @@
     width: 100%;
     height: 100%;
     overflow-y: auto;
-    background-color: #1e1e1e;
-    color: #d4d4d4;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
     padding: 2rem;
   }
 
@@ -172,23 +172,23 @@
   }
 
   h1 {
-    margin: 0 0 1rem 0;
+    margin: 0 0 var(--space-8) 0;
     font-size: 1.75rem;
-    font-weight: 600;
-    color: #d4d4d4;
+    font-weight: var(--font-semibold);
+    color: var(--text-primary);
   }
 
   .description {
-    margin: 0 0 0.5rem 0;
+    margin: 0 0 var(--space-4) 0;
     font-size: 0.95rem;
-    color: #cccccc;
-    line-height: 1.5;
+    color: var(--text-primary);
+    line-height: var(--leading-relaxed);
   }
 
   .note {
-    margin: 0 0 1.5rem 0;
-    font-size: 0.85rem;
-    color: #999999;
+    margin: 0 0 var(--space-10) 0;
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
     font-style: italic;
   }
 
@@ -196,25 +196,25 @@
     width: 100%;
     border-collapse: collapse;
     font-size: 0.9rem;
-    background-color: #252526;
-    border: 1px solid #3e3e42;
-    border-radius: 6px;
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
     overflow: hidden;
   }
 
   .providers-table th {
     text-align: left;
-    padding: 0.875rem;
-    border-bottom: 2px solid #3e3e42;
-    font-weight: 600;
-    color: #cccccc;
-    background: #2d2d30;
+    padding: var(--space-6);
+    border-bottom: 2px solid var(--border-color);
+    font-weight: var(--font-semibold);
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
   }
 
   .providers-table td {
-    padding: 0.875rem;
-    border-bottom: 1px solid #3e3e42;
-    color: #d4d4d4;
+    padding: var(--space-6);
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
   }
 
   .providers-table tbody tr:last-child td {
@@ -222,43 +222,42 @@
   }
 
   .providers-table tbody tr:hover {
-    background: #2d2d30;
+    background: var(--bg-tertiary);
   }
 
   .providers-table a {
-    color: #4fc3f7;
+    color: var(--link-color);
     text-decoration: none;
   }
 
   .providers-table a:hover {
     text-decoration: underline;
-    color: #81d4fa;
   }
 
   .search-link {
     display: inline-flex;
     align-items: center;
-    gap: 0.375rem;
-    padding: 0.375rem 0.75rem;
-    border-radius: 4px;
-    background-color: #007acc;
-    color: white !important;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-6);
+    border-radius: var(--radius-md);
+    background-color: var(--accent-color);
+    color: var(--text-bright) !important;
     text-decoration: none !important;
-    transition: background-color 0.2s;
-    font-weight: 500;
+    transition: background-color var(--transition-fast);
+    font-weight: var(--font-medium);
   }
 
   .search-link:hover {
-    background-color: #005a9e !important;
+    background-color: var(--accent-hover) !important;
     text-decoration: none !important;
   }
 
   .vision-badge {
     display: inline-block;
-    padding: 0.1875rem 0.5rem;
-    border-radius: 3px;
-    font-size: 0.75rem;
-    font-weight: 600;
+    padding: var(--space-1) var(--space-4);
+    border-radius: var(--radius-default);
+    font-size: var(--text-sm);
+    font-weight: var(--font-semibold);
     text-transform: uppercase;
     letter-spacing: 0.025em;
   }
@@ -279,24 +278,24 @@
   }
 
   .vision-note {
-    margin-top: 0.375rem;
-    font-size: 0.8rem;
-    color: #999999;
+    margin-top: var(--space-3);
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
     font-style: italic;
   }
 
   /* Search highlight styles */
   :global(.api-key-instructions-page .dom-search-highlight) {
-    background-color: #5a4d00;
-    color: #fff;
-    border-radius: 2px;
+    background-color: var(--search-highlight-inactive);
+    color: var(--text-bright);
+    border-radius: var(--radius-sm);
     padding: 0 1px;
   }
 
   :global(.api-key-instructions-page .dom-search-highlight-active) {
-    background-color: #ff9632;
-    color: #000;
-    outline: 2px solid #ff9632;
+    background-color: var(--search-highlight-active);
+    color: var(--search-highlight-active-text);
+    outline: 2px solid var(--search-highlight-active);
     outline-offset: 1px;
   }
 </style>

@@ -67,8 +67,8 @@
 
 <style>
   .tab-controls {
-    padding: 8px 10px;
-    border-bottom: 1px solid #3e3e42;
+    padding: var(--space-4) var(--space-5);
+    border-bottom: 1px solid var(--border-color);
     flex-shrink: 0;
   }
 
@@ -76,36 +76,36 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 10px;
+    gap: var(--space-5);
   }
 
   .tabs-label {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-4);
     flex-shrink: 0;
   }
 
   h2 {
     margin: 0;
-    font-size: 12px;
-    font-weight: 600;
+    font-size: var(--text-sm);
+    font-weight: var(--font-semibold);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: #cccccc;
+    color: var(--text-primary);
   }
 
   .tab-count {
-    background-color: #3e3e42;
-    color: #d4d4d4;
-    padding: 2px 6px;
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+    padding: var(--space-1) var(--space-3);
     border-radius: 10px;
-    font-size: 11px;
+    font-size: 0.6875rem;
   }
 
   .sort-buttons {
     display: flex;
-    gap: 4px;
+    gap: var(--space-2);
   }
 
   .aggregate-button {
@@ -113,23 +113,25 @@
   }
 
   button {
-    background-color: #3e3e42;
-    color: #d4d4d4;
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
     border: none;
-    padding: 5px 10px;
-    border-radius: 3px;
-    font-size: 11px;
+    padding: var(--space-2) var(--space-5);
+    border-radius: var(--radius-default);
+    font-size: 0.6875rem;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: background-color var(--transition-fast);
   }
 
-  button:hover {
-    background-color: #4e4e52;
+  button:hover,
+  button:focus-visible {
+    background-color: var(--bg-input);
+    outline: none;
   }
 
   button.active {
-    background-color: #007acc;
-    color: white;
+    background-color: var(--accent-color);
+    color: var(--text-bright);
   }
 
   button:last-child {
