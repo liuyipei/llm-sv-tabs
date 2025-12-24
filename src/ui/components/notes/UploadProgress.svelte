@@ -21,28 +21,28 @@
 <style>
   .upload-progress {
     position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background-color: #252526;
-    border: 1px solid #007acc;
-    border-radius: 6px;
-    padding: 15px 20px;
+    bottom: var(--space-9);
+    right: var(--space-9);
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--accent-color);
+    border-radius: var(--radius-lg);
+    padding: var(--space-7) var(--space-9);
     min-width: 300px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-    z-index: 1000;
+    box-shadow: var(--shadow-lg);
+    z-index: var(--z-modal);
   }
 
   .progress-text {
-    color: #cccccc;
-    font-size: 14px;
-    font-weight: 600;
-    margin-bottom: 5px;
+    color: var(--text-primary);
+    font-size: var(--text-base);
+    font-weight: var(--font-semibold);
+    margin-bottom: var(--space-2);
   }
 
   .progress-filename {
-    color: #808080;
-    font-size: 12px;
-    margin-bottom: 10px;
+    color: var(--text-tertiary);
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-5);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -50,15 +50,15 @@
 
   .progress-bar {
     width: 100%;
-    height: 8px;
-    background-color: #3e3e42;
-    border-radius: 4px;
+    height: var(--space-4);
+    background-color: var(--border-color);
+    border-radius: var(--radius-md);
     overflow: hidden;
   }
 
   .progress-fill {
     height: 100%;
-    background-color: #007acc;
-    transition: width 0.3s ease;
+    background-color: var(--accent-color);
+    transition: width var(--transition-medium);
   }
 </style>

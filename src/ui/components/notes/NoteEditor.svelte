@@ -121,13 +121,13 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    background-color: #1e1e1e;
-    color: #d4d4d4;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
   }
 
   .note-header {
-    padding: 40px 40px 20px 40px;
-    border-bottom: 2px solid #007acc;
+    padding: 40px 40px var(--space-9) 40px;
+    border-bottom: 2px solid var(--accent-color);
     max-width: 800px;
     margin: 0 auto;
     width: 100%;
@@ -136,39 +136,39 @@
 
   .note-title-input {
     width: 100%;
-    font-size: 24px;
-    font-weight: 600;
-    color: #ffffff;
+    font-size: var(--text-2xl);
+    font-weight: var(--font-semibold);
+    color: var(--text-bright);
     background-color: transparent;
     border: none;
     border-bottom: 2px solid transparent;
-    padding: 0 0 8px 0;
-    margin: 0 0 10px 0;
+    padding: 0 0 var(--space-4) 0;
+    margin: 0 0 var(--space-5) 0;
     outline: none;
-    transition: border-color 0.2s;
+    transition: border-color var(--transition-fast);
   }
 
   .note-title-input:hover {
-    border-bottom-color: #3e3e42;
+    border-bottom-color: var(--border-color);
   }
 
   .note-title-input:focus {
-    border-bottom-color: #007acc;
+    border-bottom-color: var(--accent-color);
   }
 
   .note-title-input::placeholder {
-    color: #606060;
+    color: var(--text-disabled);
   }
 
   .note-hint {
-    font-size: 13px;
-    color: #808080;
+    font-size: var(--text-md);
+    color: var(--text-tertiary);
     margin: 0;
   }
 
   .note-content {
     flex: 1;
-    padding: 20px 40px 40px 40px;
+    padding: var(--space-9) 40px 40px 40px;
     max-width: 800px;
     margin: 0 auto;
     width: 100%;
@@ -180,25 +180,25 @@
   .note-textarea {
     flex: 1;
     width: 100%;
-    background-color: #2d2d30;
-    color: #d4d4d4;
-    border: 1px solid #3e3e42;
-    border-radius: 6px;
-    padding: 20px;
-    font-family: 'Courier New', Consolas, monospace;
-    font-size: 14px;
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--space-9);
+    font-family: var(--font-mono);
+    font-size: var(--text-base);
     line-height: 1.6;
     resize: none;
     outline: none;
-    transition: border-color 0.2s;
+    transition: border-color var(--transition-fast);
   }
 
   .note-textarea:focus {
-    border-color: #007acc;
+    border-color: var(--accent-color);
   }
 
   .note-textarea::placeholder {
-    color: #606060;
+    color: var(--text-disabled);
   }
 
   /* Error state styles */
@@ -214,30 +214,30 @@
 
   .error-icon {
     font-size: 48px;
-    margin-bottom: 20px;
+    margin-bottom: var(--space-9);
   }
 
   .error-title {
-    font-size: 18px;
-    font-weight: 600;
-    margin-bottom: 10px;
-    color: #f48771;
+    font-size: var(--text-xl);
+    font-weight: var(--font-semibold);
+    margin-bottom: var(--space-5);
+    color: var(--error-text);
   }
 
   .error-message {
-    font-size: 14px;
-    color: #999;
-    margin-bottom: 15px;
+    font-size: var(--text-base);
+    color: var(--text-secondary);
+    margin-bottom: var(--space-7);
     max-width: 400px;
   }
 
   .file-path {
-    font-size: 12px;
-    color: #666;
+    font-size: var(--text-sm);
+    color: var(--text-tertiary);
     word-break: break-all;
-    background: #2d2d2d;
-    padding: 8px 12px;
-    border-radius: 4px;
+    background: var(--bg-tertiary);
+    padding: var(--space-4) var(--space-6);
+    border-radius: var(--radius-md);
     max-width: 500px;
   }
 </style>
