@@ -90,16 +90,22 @@ async closeTab(tabId: string, windowId?: WindowId): Promise<void> {
 
 ## Known Issues
 
-### 1. LLM Streams Not Abortable (Critical)
+### 1. LLM Streams Not Abortable (Critical) - ✅ FIXED
 
 **Problem:** Streams continue after tab close, wasting API quota.
 
-**Files:**
-- `src/main/providers/openai-provider.ts:137`
-- `src/main/providers/anthropic-provider.ts:156`
-- `src/main/providers/ollama-provider.ts:131`
+**Providers Updated (9 total):**
+- `openai-provider.ts` - Direct implementation
+- `anthropic-provider.ts` - Direct implementation
+- `ollama-provider.ts` - Direct implementation
+- `gemini-provider.ts` - Direct implementation
+- `openai-compatible-provider.ts` - Base class (inherited by 4 providers below)
+  - `fireworks-provider.ts` (inherits)
+  - `xai-provider.ts` (inherits)
+  - `minimax-provider.ts` (inherits)
+  - `openrouter-provider.ts` (inherits)
 
-**Fix needed:**
+**Fix applied:**
 ```typescript
 // Store in TabManager
 private abortControllers = new Map<string, AbortController>();
@@ -121,13 +127,13 @@ if (controller) {
 }
 ```
 
-### 2. WebContents Listener Cleanup (High)
+### 2. WebContents Listener Cleanup (High) - ✅ FIXED
 
 **Problem:** Event listeners rely on implicit cleanup when view is destroyed.
 
-**Current:** `src/main/tab-manager.ts:239-347` - 6 listeners per tab, no explicit cleanup
+**Current:** `src/main/tab-manager.ts:239-347` - 6 listeners per tab
 
-**Fix needed:**
+**Fix applied:**
 ```typescript
 // In closeTab(), before removeChildView()
 if (tab.view) {
@@ -136,13 +142,15 @@ if (tab.view) {
 }
 ```
 
-### 3. IPC Listener Leak in electron-listeners.ts (Medium)
+### 3. IPC Listener Leak in electron-listeners.ts (Medium) - ⚠️ LOW PRIORITY
 
 **Problem:** `setupElectronListeners()` doesn't return actual cleanup functions.
 
 **File:** `src/ui/utils/electron-listeners.ts:72`
 
-**Fix needed:**
+**Impact:** Low - these are app-lifetime listeners, acceptable to not clean up.
+
+**Optional fix:**
 ```typescript
 export function setupElectronListeners() {
   const cleanups = [
