@@ -16,6 +16,18 @@ const __dirname = dirname(__filename);
 // Check for smoke test mode (used in CI to verify app starts correctly)
 const isSmokeTest = process.argv.includes('--smoke-test');
 const SMOKE_TEST_FORCE_EXIT_MS = 5000;
+const forceExitTimer = isSmokeTest
+  ? (() => {
+      const timer = setTimeout(() => {
+        console.error('Smoke test: forcing process exit after timeout');
+        process.exit(0);
+      }, SMOKE_TEST_FORCE_EXIT_MS);
+      if (typeof timer.unref === 'function') {
+        timer.unref();
+      }
+      return timer;
+    })()
+  : null;
 
 let mainWindow: BrowserWindow | null = null;
 const appContext: MainProcessContext = {
@@ -52,14 +64,6 @@ async function createWindow(): Promise<void> {
   if (isSmokeTest) {
     mainWindow.webContents.once('did-finish-load', () => {
       console.log('Smoke test passed: window loaded successfully');
-
-      const forceExitTimer = setTimeout(() => {
-        console.warn('Smoke test: forcing process exit after timeout');
-        process.exit(0);
-      }, SMOKE_TEST_FORCE_EXIT_MS);
-
-      app.once('will-quit', () => clearTimeout(forceExitTimer));
-
       shutdownManager.performCleanup();
       app.quit();
     });
@@ -160,6 +164,24 @@ app.commandLine.appendSwitch('disable-features', 'UserAgentClientHint');
 app.whenReady().then(async () => {
   // Setup shutdown handlers first to catch early termination
   shutdownManager.setup();
+
+  if (isSmokeTest) {
+    app.on('window-all-closed', () => {
+      console.log('Smoke test: window-all-closed, quitting');
+      app.quit();
+    });
+
+    app.once('will-quit', () => {
+      if (forceExitTimer) {
+        clearTimeout(forceExitTimer);
+      }
+
+      const immediateExit = setTimeout(() => process.exit(0), 0);
+      if (typeof immediateExit.unref === 'function') {
+        immediateExit.unref();
+      }
+    });
+  }
 
   // Register temp file cleanup on shutdown
   shutdownManager.registerCleanup('temp-files', () => tempFileService.cleanupAll());
