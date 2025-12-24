@@ -144,5 +144,191 @@ This wasn't the actual bug causing rendering failure, but it's worth documenting
 
 ---
 
+## Bug #3: Component Reuse with Boolean Initialization Guards
+
+### Symptoms
+- Switching between tabs of the same type (e.g., Notes → Notes) fails to update the UI
+- The component shows stale content from the previous tab
+- First tab switch works, but subsequent switches to the same component type show old data
+- Other transition types work correctly (Notes → Webpage, Notes → LLM Response, etc.)
+- Bug specific to **component reuse** scenarios
+
+### Example Bug
+Found in `NoteEditor.svelte` (fixed in commit `92faddc`):
+
+```javascript
+// ❌ BUGGY: Boolean initialization guard
+let title = $state('');
+let content = $state('');
+let isInitialized = $state(false);
+
+$effect(() => {
+  if (tab && !isInitialized) {  // ❌ Only runs once!
+    title = tab.title || '';
+    content = tab.metadata?.noteContent || '';
+    isInitialized = true;  // ❌ Never resets when tabId changes
+  }
+});
+```
+
+**What happens:**
+1. User switches to Notes Tab A → `isInitialized = false`, content loads ✓
+2. `isInitialized` becomes `true`
+3. User switches to Notes Tab B → component reused, `isInitialized` still `true` ✗
+4. Effect condition `!isInitialized` is false → content never updates ✗
+5. UI still shows Notes Tab A's content
+
+### Root Cause
+
+**Component reuse + lifecycle-based guard = stale state**
+
+When Svelte switches between tabs with the **same component type**, it reuses the component instance rather than destroying and recreating it. The `isInitialized` flag persists across tab switches, blocking re-initialization.
+
+### The Fix
+
+**Track the data source, not initialization state:**
+
+```javascript
+// ✅ CORRECT: Track current tabId
+let title = $state('');
+let content = $state('');
+let currentTabId = $state<string | undefined>(undefined);
+
+$effect(() => {
+  // When tabId changes (switching tabs), reload content
+  if (tabId !== currentTabId) {  // ✅ Detects tab change
+    currentTabId = tabId;
+    if (tab) {
+      title = tab.title || '';
+      content = tab.metadata?.noteContent || '';
+    }
+  }
+});
+```
+
+**What changed:**
+- Replaced boolean `isInitialized` with **value tracking** (`currentTabId`)
+- Effect condition checks **"Did the source change?"** not **"Have I run before?"**
+- Works correctly for all transitions, including component reuse
+
+### Alternative Pattern: Use $derived
+
+For purely reactive data, avoid effects entirely:
+
+```javascript
+// ✅ BEST: Fully reactive with $derived
+const tab = $derived($activeTabs.get(tabId));
+const metadata = $derived(tab?.metadata);
+const title = $derived(tab?.title || '');
+const content = $derived(metadata?.noteContent || '');
+
+// No effect needed - automatically updates when tabId changes
+```
+
+**When to use `$derived` vs effects:**
+- **`$derived`**: When you're computing/extracting values (read-only)
+- **`$effect`**: When you need side effects or need to update local state
+
+### Why This Was Tricky
+
+1. **Bug only manifests with component reuse**: Notes → Notes, LLM → LLM
+2. **Other transitions work fine**: Notes → Webpage, Notes → LLM (different components)
+3. **Mental model mismatch**: Developers expect components to "reset" on tab change
+4. **The guard pattern seems correct**: "Initialize once" is a common pattern in other frameworks
+
+### Pattern Comparison Table
+
+| Feature | Boolean Flag (Buggy) | Value Tracking (Fixed) |
+|---------|---------------------|----------------------|
+| **Logic Type** | Lifecycle-based<br/>"Did I run once?" | Data-based<br/>"Did the source change?" |
+| **Tab Switching** | ❌ Fails. Shows old data | ✅ Succeeds. Updates on change |
+| **Reactivity** | Static after first load | Dynamic, responds to prop changes |
+| **Mental Model** | Constructor (run once) | Synchronization (keep in sync) |
+| **Svelte 5 Idiom** | Anti-pattern | Best practice |
+
+### When Component Reuse Happens
+
+Svelte reuses components when:
+1. **Same component type** in conditional rendering
+2. **Props change** but component identity remains
+3. **Parent re-renders** but child component type unchanged
+
+Example from `App.svelte`:
+```svelte
+{#if showNoteEditor && activeTab}
+  <NoteEditor tabId={activeTab.id} />  <!-- ⚠️ Reused when switching notes tabs -->
+{:else if showSvelteContent && activeTab}
+  <MessageStream tabId={activeTab.id} />  <!-- ⚠️ Reused when switching LLM tabs -->
+{/if}
+```
+
+When user switches from Notes Tab 1 → Notes Tab 2:
+- `showNoteEditor` remains `true`
+- `NoteEditor` component is **reused**
+- Only `tabId` prop changes
+- Component must detect the prop change to update
+
+### Prevention Checklist
+
+When writing components that receive tab/item IDs:
+
+- [ ] **Never use boolean initialization guards** (`isInitialized`, `hasLoaded`, `ready`)
+- [ ] **Always track the source ID** (compare `tabId !== currentTabId`)
+- [ ] **Prefer `$derived`** for reactive values when possible
+- [ ] **Test component reuse**: Switch between multiple items of the same type
+- [ ] **Watch for this pattern**: `if (data && !hasLoaded)` → ❌ Bug likely!
+
+### Safe Patterns in the Codebase
+
+**MessageStream.svelte** (already correct):
+```javascript
+// ✅ Uses $derived for reactive data
+const tab = $derived($activeTabs.get(tabId));
+const metadata = $derived(tab?.metadata);
+
+// ✅ Uses content-based guard, not initialization guard
+let lastAppliedMetadataResponse = $state('');
+$effect(() => {
+  const metadataResponse = metadata?.response || '';
+  if (metadataResponse && metadataResponse !== lastAppliedMetadataResponse) {
+    fullText = metadataResponse;
+    lastAppliedMetadataResponse = metadataResponse;  // ✅ Tracks value, not state
+  }
+});
+```
+
+### Codebase Audit Results
+
+**Components with tabId/itemId props:**
+- ✅ `MessageStream.svelte`: Uses `$derived` + content tracking - Safe
+- ✅ `NoteEditor.svelte`: Fixed in commit `92faddc` - Safe
+- ✅ `ApiKeyInstructionsView.svelte`: No props, static content - Safe
+- ✅ `AggregateTabs.svelte`: No tab-specific props - Safe
+
+**Note:** `MessageStream.svelte` has `hasLoadedInitialData` flag but it's **not used as a guard** in effects, only set for internal tracking. Safe but could be removed as dead code.
+
+### Key Lesson
+
+**In Svelte 5 with component reuse: Track what changed, not whether you've run.**
+
+Boolean initialization guards (`isInitialized`) represent a **lifecycle-based mental model** ("Has this component initialized?") which conflicts with Svelte's **reactive mental model** ("What is the current state?").
+
+Use **value tracking** (`currentTabId !== tabId`) or **`$derived`** to stay synchronized with prop changes.
+
+### Related Svelte 5 Patterns
+
+- `$derived`: Reactive computed values that auto-update
+- `$effect`: Side effects that re-run when dependencies change
+- Component reuse: Svelte optimizes by reusing components when possible
+
+### References
+
+- [Svelte 5 Runes: $derived](https://svelte.dev/docs/svelte/$derived)
+- [Svelte 5 Runes: $effect](https://svelte.dev/docs/svelte/$effect)
+- Fixed in: `src/ui/components/notes/NoteEditor.svelte` (commit `92faddc`)
+- Related: [design/07-store-synchronization-across-processes.md](design/07-store-synchronization-across-processes.md)
+
+---
+
 *Document created: 2025-11-20*
-*Last updated: 2025-11-20*
+*Last updated: 2025-12-24*
