@@ -2,7 +2,7 @@ import { writable, type Writable } from 'svelte/store';
 import type { ChatMessage } from '../../types';
 
 type ModalType = 'recently-closed' | 'settings' | null;
-type SidebarView = 'chat' | 'settings' | 'bookmarks' | 'notes';
+type SidebarView = 'chat' | 'settings' | 'bookmarks' | 'notes' | 'shortcuts';
 
 // UI state stores
 export const isLoading: Writable<boolean> = writable(false);

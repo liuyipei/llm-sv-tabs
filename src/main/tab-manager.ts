@@ -12,6 +12,11 @@ import { createConfiguredView } from './tab-manager/web-contents-view-factory.js
 import { NoteTabService } from './tab-manager/note-tab-service.js';
 import { WindowRegistry, type WindowContext, type WindowId } from './tab-manager/window-registry.js';
 import { AggregateTabService } from './tab-manager/aggregate-tab-service.js';
+import {
+  matchesInputShortcut,
+  shortcutDefinitions,
+  type ShortcutActionId,
+} from '../shared/keyboard-shortcuts.js';
 
 class TabManager {
   private windowRegistry: WindowRegistry;
@@ -185,129 +190,64 @@ class TabManager {
    * allowing shortcuts to work when the browser content is focused.
    */
   private setupViewKeyboardShortcuts(view: WebContentsView, windowId?: WindowId): void {
-    const isMac = process.platform === 'darwin';
+    const platform = process.platform;
 
-    view.webContents.on('before-input-event', (event, input) => {
-      // Only handle keyDown events
-      if (input.type !== 'keyDown') return;
-
-      const ctrl = isMac ? input.meta : input.control;
-      const key = input.key.toLowerCase();
-
-      // Ctrl/Cmd+W: Close active tab
-      if (ctrl && key === 'w') {
-        event.preventDefault();
+    const handlers: Record<ShortcutActionId, () => void> = {
+      focusUrlInput: () => this.sendFocusEvent('focus-url-bar', windowId),
+      focusUrlInputFromNewTab: () => this.sendFocusEvent('focus-url-bar', windowId),
+      focusLLMInput: () => this.sendFocusEvent('focus-llm-input', windowId),
+      closeActiveTab: () => {
         const activeTabId = this.getActiveTabs(windowId).activeTabId;
         if (activeTabId) {
           this.closeTab(activeTabId);
         }
-        return;
-      }
-
-      // Ctrl/Cmd+T: New tab (focus URL bar)
-      if (ctrl && key === 't') {
-        event.preventDefault();
-        this.sendFocusEvent('focus-url-bar', windowId);
-        return;
-      }
-
-      // Ctrl/Cmd+R: Reload current tab
-      if (ctrl && key === 'r') {
-        event.preventDefault();
+      },
+      bookmarkActiveTab: () => this.sendFocusEvent('bookmark-tab', windowId),
+      toggleSearchBar: () => this.sendFocusEvent('focus-search-bar', windowId),
+      reloadActiveTab: () => {
         const activeTabId = this.getActiveTabs(windowId).activeTabId;
         if (activeTabId) {
           this.reloadTab(activeTabId);
         }
-        return;
-      }
-
-      // Ctrl/Cmd+L: Focus URL bar
-      if (ctrl && key === 'l') {
-        event.preventDefault();
-        this.sendFocusEvent('focus-url-bar', windowId);
-        return;
-      }
-
-      // Ctrl/Cmd+F: Find in page
-      if (ctrl && key === 'f') {
-        event.preventDefault();
-        this.sendFocusEvent('focus-search-bar', windowId);
-        return;
-      }
-
-      // Ctrl/Cmd+.: Focus LLM input
-      if (ctrl && key === '.') {
-        event.preventDefault();
-        this.sendFocusEvent('focus-llm-input', windowId);
-        return;
-      }
-
-      // Ctrl/Cmd+D: Bookmark current tab
-      if (ctrl && key === 'd') {
-        event.preventDefault();
-        this.sendFocusEvent('bookmark-tab', windowId);
-        return;
-      }
-
-      // Ctrl/Cmd+Alt+S: Screenshot
-      if (ctrl && input.alt && key === 's') {
-        event.preventDefault();
+      },
+      triggerScreenshot: () => {
         const targetWindow = this.windowRegistry.getWindowContext(windowId).window;
         targetWindow.webContents.send('trigger-screenshot');
-        return;
-      }
-
-      // Alt+Left or Cmd+[: Go back
-      if ((input.alt && key === 'arrowleft') || (isMac && input.meta && key === '[')) {
-        event.preventDefault();
+      },
+      goBack: () => {
         const activeTabId = this.getActiveTabs(windowId).activeTabId;
         if (activeTabId) {
           this.goBack(activeTabId);
         }
-        return;
-      }
-
-      // Alt+Right or Cmd+]: Go forward
-      if ((input.alt && key === 'arrowright') || (isMac && input.meta && key === ']')) {
-        event.preventDefault();
+      },
+      goForward: () => {
         const activeTabId = this.getActiveTabs(windowId).activeTabId;
         if (activeTabId) {
           this.goForward(activeTabId);
         }
-        return;
-      }
-
-      // Ctrl+Tab: Next tab
-      if (input.control && key === 'tab' && !input.shift) {
-        event.preventDefault();
+      },
+      nextTab: () => {
         const targetWindow = this.windowRegistry.getWindowContext(windowId).window;
         targetWindow.webContents.send('navigate-next-tab');
-        return;
-      }
-
-      // Ctrl+Shift+Tab: Previous tab
-      if (input.control && key === 'tab' && input.shift) {
-        event.preventDefault();
+      },
+      previousTab: () => {
         const targetWindow = this.windowRegistry.getWindowContext(windowId).window;
         targetWindow.webContents.send('navigate-previous-tab');
-        return;
-      }
+      },
+    };
 
-      // Mac: Cmd+Alt+Right: Next tab
-      if (isMac && input.meta && input.alt && key === 'arrowright') {
-        event.preventDefault();
-        const targetWindow = this.windowRegistry.getWindowContext(windowId).window;
-        targetWindow.webContents.send('navigate-next-tab');
-        return;
-      }
+    view.webContents.on('before-input-event', (event, input) => {
+      const matched = shortcutDefinitions.find((definition) =>
+        matchesInputShortcut(input, definition, platform)
+      );
 
-      // Mac: Cmd+Alt+Left: Previous tab
-      if (isMac && input.meta && input.alt && key === 'arrowleft') {
-        event.preventDefault();
-        const targetWindow = this.windowRegistry.getWindowContext(windowId).window;
-        targetWindow.webContents.send('navigate-previous-tab');
-        return;
-      }
+      if (!matched) return;
+
+      const handler = handlers[matched.id];
+      if (!handler) return;
+
+      event.preventDefault();
+      handler();
     });
   }
 

@@ -2,9 +2,66 @@
 
 ## Overview
 
-Browser-style keyboard shortcuts (Ctrl+L, Ctrl+W, etc.) in Electron applications using WebContentsView require careful focus management. This document explains the architecture and key learnings from implementing keyboard shortcuts.
+Browser-style keyboard shortcuts (Ctrl+L, Ctrl+W, etc.) in Electron applications using WebContentsView require careful focus management *and* a single source of truth so Windows/Linux and macOS mappings stay aligned. This document captures the shared registry, how both processes consume it, and how we surface the live list in the UI.
 
-**Key Insight**: Electron has a three-level focus hierarchy that must be managed explicitly when transferring focus between WebContentsView content and the UI.
+**Key Insight**: Electron has a three-level focus hierarchy that must be managed explicitly when transferring focus between WebContentsView content and the UI. We now combine that with a canonical shortcut registry to avoid drift between platforms, handlers, and documentation.
+
+---
+
+## Canonical shortcut registry
+
+All shortcut definitions live in `src/shared/keyboard-shortcuts.ts`. Each entry contains an action id, a category, and one or more platform-aware chords. The same data powers the renderer, main process, and UI help surface.
+
+```typescript
+export const shortcutDefinitions: ShortcutDefinition[] = [
+  {
+    id: 'focusUrlInput',
+    description: 'Focus URL bar / new tab',
+    category: 'Focus',
+    chords: [
+      { key: 'l', ctrl: true },
+      { key: 't', ctrl: true },
+    ],
+  },
+  {
+    id: 'triggerScreenshot',
+    description: 'Capture screenshot',
+    category: 'Actions',
+    chords: [{ key: 's', ctrl: true, alt: true }],
+  },
+  {
+    id: 'previousTab',
+    description: 'Previous tab',
+    category: 'Tab Management',
+    chords: [
+      { key: 'tab', ctrl: true, shift: true },
+      { key: 'arrowleft', meta: true, alt: true, platform: 'mac' },
+    ],
+  },
+  // ...
+];
+```
+
+Supporting helpers keep platform rules consistent:
+- `resolvePlatform()` normalizes Windows/Linux/macOS detection for both renderer and main.
+- `matchesKeyboardShortcut()` and `matchesInputShortcut()` convert `Ctrl → Cmd` on macOS (while still respecting a physical Ctrl key) and ensure extra modifiers don’t leak through.
+- `formatShortcut()` and `formatChord()` render platform-aware labels (Ctrl/Cmd, Alt/Option, Meta/Win).
+
+---
+
+## Where the registry is consumed
+
+- **Renderer key handling (`src/ui/utils/keyboard-shortcuts.ts`)**  
+  Iterates `shortcutDefinitions`, calls `matchesKeyboardShortcut`, and dispatches to the action map. No duplicate per-platform lists are required.
+
+- **WebContentsView handling (`src/main/tab-manager.ts`)**  
+  Uses the same definitions with `matchesInputShortcut` inside `before-input-event`, so browser-focused content honors the same chords as the UI panel. Action handlers (close tab, navigate, bookmark, screenshot, etc.) are keyed by the shared action id.
+
+- **UI help surface (`src/ui/components/common/KeyboardShortcutsPanel.svelte`)**  
+  Renders the live registry grouped by category. The panel is reachable from the sidebar and always reflects the runtime config, including platform-specific alternates like `Cmd+Option+Left/Right` for tab switching on macOS.
+
+- **Documentation (`design/08-keyboard-shortcuts.md`)**  
+  This document references the shared registry and explains how mappings are generated; no separate markdown file is needed.
 
 ---
 
@@ -41,253 +98,65 @@ setTimeout(() => {
 
 ---
 
-## Architecture: Two-Layer Shortcut Handling
+## Architecture: Two-layer handling, one registry
 
-Shortcuts are handled by two complementary mechanisms:
+Shortcuts still flow through two layers—renderer handlers when the UI panel is focused, and `before-input-event` when the browser content is focused. The difference is that both layers now import the same registry and helpers, so platform translation (`Ctrl → Cmd`, `Alt → Option`, meta handling) and the set of actions cannot drift.
 
-1. **Renderer-level handlers** (`keyboard-shortcuts.ts`) - When UI panel is focused
-2. **`before-input-event` handlers** (`tab-manager.ts`) - When browser content is focused
+### Why not `globalShortcut`?
 
-### Why Two Layers?
-
-The application has two separate webContents:
-- **UI Panel** (renderer) - Svelte app with tabs, URL bar, LLM input
-- **Browser Content** (WebContentsView) - Embedded web pages
-
-Keyboard events only go to the focused webContents. When the browser view is focused, the renderer never sees the events. The `before-input-event` handler intercepts events before they reach the page.
-
-### Architecture Choice: `before-input-event` vs `globalShortcut`
-
-We chose `before-input-event` over Electron's `globalShortcut` API:
-
-**`before-input-event` (current approach):**
-- Intercepts keyboard events on each WebContentsView before the page receives them
-- Only active when the app window is focused (no OS-level interception)
-- Requires registering handler on each view, but we centralize this in `createView()`
-- More explicit: shortcuts only work within the app context
-
-**`globalShortcut` (previous approach, now disabled):**
-- Captures shortcuts at OS level before any window receives them
-- Required register/unregister on window focus/blur to avoid stealing OS shortcuts
-- Single registration point, but more "magical" behavior
-- Code preserved in `main.ts` comments for reference if needed
+We continue to prefer `before-input-event` over `globalShortcut`:
+- Only active when the app window is focused (no OS-level interception).
+- Lets us keep focus-aware behaviors (e.g., returning to the URL bar) without stealing system shortcuts.
+- Works uniformly with the shared registry and platform helpers.
 
 ---
 
-## Implementation: Browser View Shortcuts
+## UI and documentation surfaces
 
-**File:** `src/main/tab-manager.ts`
+- **Help panel**: The sidebar’s ⌨️ view renders `shortcutDefinitions` grouped by category with platform-aware labels.
+- **Docs**: Tables in this document are derived from the canonical registry (Windows/Linux vs macOS columns) and point back to `src/shared/keyboard-shortcuts.ts`.
 
-```typescript
-private setupViewKeyboardShortcuts(view: WebContentsView): void {
-  const isMac = process.platform === 'darwin';
+These surfaces ensure engineers and users see the same chords the runtime enforces.
 
-  view.webContents.on('before-input-event', (event, input) => {
-    if (input.type !== 'keyDown') return;
+### Timing considerations
 
-    const ctrl = isMac ? input.meta : input.control;
-    const key = input.key.toLowerCase();
+- **Main process (10ms delay in `sendFocusEvent`)**: lets `BrowserWindow.focus()` and `webContents.focus()` settle before IPC targets elements.
+- **Renderer**: call `element.focus()` only after confirming the UI webContents is focused.
 
-    // Ctrl/Cmd+L: Focus URL bar
-    if (ctrl && key === 'l') {
-      event.preventDefault();
-      this.sendFocusEvent('focus-url-bar');
-      return;
-    }
-
-    // Ctrl/Cmd+D: Bookmark current tab
-    if (ctrl && key === 'd') {
-      event.preventDefault();
-      this.sendFocusEvent('bookmark-tab');
-      return;
-    }
-
-    // ... other shortcuts
-  });
-}
-
-private sendFocusEvent(eventName: string): void {
-  this.mainWindow.show();
-  this.mainWindow.focus();
-  this.mainWindow.webContents.focus();
-  setTimeout(() => {
-    this.mainWindow.webContents.send(eventName);
-  }, 10);
-}
-```
-
-## Implementation: Renderer Shortcuts
-
-**File:** `src/ui/utils/keyboard-shortcuts.ts`
-
-```typescript
-export function initKeyboardShortcuts(actions: ShortcutAction): () => void {
-  const handleKeyDown = (event: KeyboardEvent): void => {
-    for (const shortcut of shortcuts) {
-      if (matchesShortcut(event, shortcut)) {
-        event.preventDefault();
-        event.stopPropagation();
-        const action = actions[shortcut.action as keyof ShortcutAction];
-        if (action) action();
-        break;
-      }
-    }
-  };
-
-  window.addEventListener('keydown', handleKeyDown);
-  return () => window.removeEventListener('keydown', handleKeyDown);
-}
-```
-
-**File:** `src/ui/config/shortcuts.ts`
-
-```typescript
-export const shortcuts: ShortcutConfig[] = [
-  // Focus shortcuts
-  { key: 'l', ctrl: true, description: 'Focus URL input', action: 'focusUrlInput' },
-  { key: 't', ctrl: true, description: 'New tab (focus URL bar)', action: 'focusUrlInput' },
-  { key: '.', ctrl: true, description: 'Focus LLM input', action: 'focusLLMInput' },
-  // Tab management
-  { key: 'w', ctrl: true, description: 'Close active tab', action: 'closeActiveTab' },
-  { key: 'd', ctrl: true, description: 'Bookmark current tab', action: 'bookmarkActiveTab' },
-  { key: 'r', ctrl: true, description: 'Reload current tab', action: 'reloadActiveTab' },
-  { key: 'f', ctrl: true, description: 'Find in page', action: 'toggleSearchBar' },
-  // Screenshot
-  { key: 's', ctrl: true, alt: true, description: 'Capture screenshot', action: 'triggerScreenshot' },
-  // Navigation
-  { key: 'ArrowLeft', alt: true, description: 'Go back', action: 'goBack' },
-  { key: 'ArrowRight', alt: true, description: 'Go forward', action: 'goForward' },
-  // Tab switching
-  { key: 'Tab', ctrl: true, description: 'Next tab', action: 'nextTab' },
-  { key: 'Tab', ctrl: true, shift: true, description: 'Previous tab', action: 'previousTab' },
-];
-```
+If shortcuts stop working, log each step (intercepted → focus chain → IPC → renderer focus) to spot which hop failed.
 
 ---
 
-## IPC Bridge
+## Current shortcuts and platform mapping
 
-**File:** `src/main/preload.ts`
+The source of truth is `src/shared/keyboard-shortcuts.ts`. Both the renderer and `before-input-event` listeners import that registry, and the ⌨️ sidebar view renders it for users. The tables below are derived directly from the registry.
 
-```typescript
-const electronAPI = {
-  onFocusUrlBar: (callback: () => void): void => {
-    ipcRenderer.on('focus-url-bar', () => callback());
-  },
-  onFocusSearchBar: (callback: () => void): void => {
-    ipcRenderer.on('focus-search-bar', () => callback());
-  },
-  onFocusLLMInput: (callback: () => void): void => {
-    ipcRenderer.on('focus-llm-input', () => callback());
-  },
-  onBookmarkTab: (callback: () => void): void => {
-    ipcRenderer.on('bookmark-tab', () => callback());
-  },
-  onNavigateNextTab: (callback: () => void): void => {
-    ipcRenderer.on('navigate-next-tab', () => callback());
-  },
-  onNavigatePreviousTab: (callback: () => void): void => {
-    ipcRenderer.on('navigate-previous-tab', () => callback());
-  },
-  onTriggerScreenshot: (callback: () => void): void => {
-    ipcRenderer.on('trigger-screenshot', () => callback());
-  },
-};
-```
+### Focus and search
 
----
+| Action | Windows / Linux | macOS |
+| --- | --- | --- |
+| Focus URL bar | `Ctrl+L` | `Cmd+L` |
+| Open new tab (focus URL bar) | `Ctrl+T` | `Cmd+T` |
+| Focus LLM input | `Ctrl+.` | `Cmd+.` |
+| Find in page | `Ctrl+F` | `Cmd+F` |
 
-## Cross-Platform Considerations
+### Tab management
 
-### Mac: Cmd vs Ctrl
+| Action | Windows / Linux | macOS |
+| --- | --- | --- |
+| Next tab | `Ctrl+Tab` | `Ctrl+Tab` or `Cmd+Option+Right` |
+| Previous tab | `Ctrl+Shift+Tab` | `Ctrl+Shift+Tab` or `Cmd+Option+Left` |
+| Close active tab | `Ctrl+W` | `Cmd+W` |
 
-In `before-input-event`, check for the appropriate modifier:
+### Navigation and actions
 
-```typescript
-const isMac = process.platform === 'darwin';
-const ctrl = isMac ? input.meta : input.control;
-```
-
-In renderer keyboard handlers:
-
-```typescript
-const isMac = navigator.platform.toLowerCase().includes('mac');
-const ctrlOrCmd = isMac ? event.metaKey : event.ctrlKey;
-```
-
----
-
-## Timing Considerations
-
-### Why setTimeout is Needed
-
-1. **Main Process (10ms delay)**:
-   - Allows `mainWindow.focus()` and `webContents.focus()` to complete
-   - OS-level focus changes are asynchronous
-
-2. **Renderer Process (0ms / next tick)**:
-   - Ensures webContents focus has settled before calling `element.focus()`
-   - Avoids race condition where element.focus() runs before webContents has focus
-
-### Testing Focus Issues
-
-If shortcuts aren't working, add logging at each level:
-
-```typescript
-// Main process (before-input-event)
-console.log('1. Shortcut intercepted');
-console.log('2. Focus chain started');
-console.log('3. IPC sent');
-
-// Renderer
-console.log('4. IPC received');
-console.log('5. Calling element.focus()');
-console.log('6. Focus completed');
-```
-
----
-
-## Current Shortcuts
-
-All shortcuts are handled in both locations for complete coverage:
-
-| Shortcut | Action | Browser View Handler | Renderer Handler |
-|----------|--------|---------------------|------------------|
-| Cmd/Ctrl+L | Focus URL bar | `before-input-event` → IPC | `keyboard-shortcuts.ts` |
-| Cmd/Ctrl+T | New tab (focus URL) | `before-input-event` → IPC | `keyboard-shortcuts.ts` |
-| Cmd/Ctrl+. | Focus LLM input | `before-input-event` → IPC | `keyboard-shortcuts.ts` |
-| Cmd/Ctrl+W | Close tab | `before-input-event` → TabManager | `keyboard-shortcuts.ts` |
-| Cmd/Ctrl+D | Bookmark tab | `before-input-event` → IPC | `keyboard-shortcuts.ts` |
-| Cmd/Ctrl+R | Reload tab | `before-input-event` → TabManager | `keyboard-shortcuts.ts` |
-| Cmd/Ctrl+F | Focus search bar | `before-input-event` → IPC | `keyboard-shortcuts.ts` |
-| Cmd/Ctrl+Alt+S | Screenshot | `before-input-event` → IPC | `keyboard-shortcuts.ts` |
-| Alt+Left | Go back | `before-input-event` → TabManager | `keyboard-shortcuts.ts` |
-| Alt+Right | Go forward | `before-input-event` → TabManager | `keyboard-shortcuts.ts` |
-| Ctrl+Tab | Next tab | `before-input-event` → IPC | `keyboard-shortcuts.ts` |
-| Ctrl+Shift+Tab | Previous tab | `before-input-event` → IPC | `keyboard-shortcuts.ts` |
-| Cmd+[ | Go back (Mac) | `before-input-event` → TabManager | (Mac-specific) |
-| Cmd+] | Go forward (Mac) | `before-input-event` → TabManager | (Mac-specific) |
-| Cmd+Alt+Right | Next tab (Mac) | `before-input-event` → IPC | (Mac-specific) |
-| Cmd+Alt+Left | Previous tab (Mac) | `before-input-event` → IPC | (Mac-specific) |
-| Esc | Return focus to page | (not needed) | `App.svelte` → IPC |
-
-### How the `Esc` Focus Return Works
-
-```ts
-// src/ui/App.svelte (renderer)
-<svelte:window on:keydown={async (event) => {
-  if (event.key !== 'Escape' || event.defaultPrevented) return;
-  event.preventDefault();
-  await ipc.focusActiveWebContents();
-}} />
-
-// src/main/tab-manager.ts (focus helper)
-focusActiveWebContents() {
-  this.mainWindow.focus();
-  this.mainWindow.webContents.focus();
-  this.activeWebContentsView.webContents.focus(); // page content focus
-}
-```
+| Action | Windows / Linux | macOS |
+| --- | --- | --- |
+| Go back | `Alt+Left` | `Alt+Left` or `Cmd+[` |
+| Go forward | `Alt+Right` | `Alt+Right` or `Cmd+]` |
+| Reload current tab | `Ctrl+R` | `Cmd+R` |
+| Bookmark current tab | `Ctrl+D` | `Cmd+D` |
+| Capture screenshot | `Ctrl+Alt+S` | `Cmd+Option+S` |
 
 ---
 
@@ -317,11 +186,12 @@ focusActiveWebContents() {
 
 ## Related Files
 
+- `src/shared/keyboard-shortcuts.ts` - Canonical registry and helpers
 - `src/main/tab-manager.ts` - `before-input-event` handlers for browser views
 - `src/main/main.ts` - Disabled global shortcuts (preserved for reference)
 - `src/main/preload.ts` - IPC bridge for shortcut events
-- `src/ui/config/shortcuts.ts` - Renderer shortcut configuration
 - `src/ui/utils/keyboard-shortcuts.ts` - Renderer shortcut handler
+- `src/ui/components/common/KeyboardShortcutsPanel.svelte` - Live shortcut help panel
 - `src/ui/App.svelte` - IPC listener setup and Escape handler
 
 ---

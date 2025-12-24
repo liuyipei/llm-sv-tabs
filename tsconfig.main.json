@@ -12,7 +12,8 @@
     "src/main/**/*.ts",
     "src/types.ts",
     "src/utils/**/*.ts",
-    "src/probe/**/*.ts"
+    "src/probe/**/*.ts",
+    "src/shared/**/*.ts"
   ],
   "exclude": [
     "src/ui",
