@@ -60,6 +60,72 @@
 - Moving a tab will be implemented by detaching its `WebContentsView` from the source window and re-attaching it to the destination, then updating `tabId -> windowId` ownership. Closing a tab from the aggregate view should call the existing `closeTab(tabId)` to keep cleanup consistent.
 - Activation commands from the aggregated view will focus the destination window before raising the tab. Stable `tabId` values from the registry should be used for all cross-window actions, and renderer consumers should be ready to refresh on snapshot changes to keep the aggregate UI live (via `get-tab-registry-snapshot` IPC or equivalent).
 
+## Listener & Event Architecture
+
+The following diagram shows how tab lifecycle events flow from the main process to renderer components:
+
+```mermaid
+flowchart TB
+    subgraph Main["Main Process"]
+        TM["TabManager + Services"]
+        STR["sendToRenderer(channel, payload)"]
+        TM -->|emit| STR
+    end
+
+    subgraph Events["IPC Channels"]
+        E1["tab-created"]
+        E2["tab-updated"]
+        E3["tab-closed"]
+        E4["active-tab-changed"]
+    end
+
+    STR --> E1 & E2 & E3 & E4
+
+    subgraph Preload["Preload Bridge"]
+        AL["addListener(channel, cb)<br/>→ ipcRenderer.on()<br/>returns unsubscribe fn"]
+        CB["contextBridge.exposeInMainWorld('electronAPI', {...})"]
+        AL --> CB
+    end
+
+    E1 & E2 & E3 & E4 --> AL
+
+    subgraph Renderer["Renderer Process"]
+        subgraph AppLifetime["App-lifetime Listeners (initializeIPC)"]
+            L1["onTabCreated → addTab()"]
+            L2["onTabUpdated → updateTab()"]
+            L3["onTabClosed → removeTab()"]
+            L4["onActiveTabChanged → activeTabId.set()"]
+        end
+
+        subgraph Component["Component-scoped (AggregateTabs)"]
+            M1["onMount: startEventListeners()"]
+            M2["scheduleRefresh() — 50ms debounce"]
+            M3["onDestroy: stopEventListeners()"]
+            M1 --> M2
+            M2 -.->|cleanup| M3
+        end
+
+        Stores["Svelte Stores<br/>(activeTabs, activeTabId)"]
+        L1 & L2 & L3 & L4 --> Stores
+    end
+
+    CB --> AppLifetime
+    CB --> Component
+```
+
+### Listener Invariants
+
+| # | Invariant | Enforcement |
+|---|-----------|-------------|
+| **I1** | Every tab create/close operation MUST emit corresponding IPC event | `AggregateTabService.openAggregateTab()` calls `sendToRenderer('tab-created', ...)` after inserting into `tabs` map |
+| **I2** | App-lifetime listeners (in `initializeIPC`) are never unsubscribed | These update global Svelte stores; cleanup not needed |
+| **I3** | Component-scoped listeners MUST unsubscribe in `onDestroy` | `AggregateTabs` collects unsubscribers in array, calls each in `stopEventListeners()` |
+| **I4** | Debounce rapid events to prevent UI thrashing | `scheduleRefresh()` uses 50ms timeout; clears pending timeout before scheduling new one |
+| **I5** | Aggregate tab MUST exclude itself from rendered list | `tabsById` derived state filters `tab.component !== 'aggregate-tabs'` |
+| **I6** | Tab lookups MUST handle missing entries gracefully | Use `{@const tab = tabsById.get(tabId)}` then `{#if tab}` to skip missing |
+| **I7** | `TabRegistrySnapshot` includes all tabs; consumer filters as needed | Backend returns complete snapshot; UI filters out self-references |
+| **I8** | `windowSnapshot.tabIds` may include IDs not in filtered `tabsById` | Renderer must not assume 1:1 correspondence; skip silently |
+
 ## Testing and Operational Considerations
 
 - Window-aware IPC relies on `event.sender`; ensure preload/bridge usage stays per-window.
