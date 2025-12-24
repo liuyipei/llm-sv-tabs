@@ -5,9 +5,9 @@
 
   const ipc = getContext<IPCBridgeAPI>('ipc');
 
-  let snapshot: TabRegistrySnapshot | null = null;
-  let loading = true;
-  let error: string | null = null;
+  let snapshot = $state<TabRegistrySnapshot | null>(null);
+  let loading = $state(true);
+  let error = $state<string | null>(null);
 
   let unsubscribers: Array<() => void> = [];
 
@@ -77,9 +77,11 @@
     stopEventListeners();
   });
 
-  $: tabsById = snapshot
-    ? new Map(snapshot.tabs.filter((tab) => tab.component !== 'aggregate-tabs').map((tab) => [tab.id, tab]))
-    : new Map<string, TabData>();
+  const tabsById = $derived(
+    snapshot
+      ? new Map(snapshot.tabs.filter((tab) => tab.component !== 'aggregate-tabs').map((tab) => [tab.id, tab]))
+      : new Map<string, TabData>()
+  );
 </script>
 
 <div class="aggregate-tabs">
