@@ -159,6 +159,45 @@ export class ContentExtractor {
    * Extract content from a note tab (especially image tabs)
    */
   static async extractFromNoteTab(tabData: TabData): Promise<ExtractedContent> {
+    // LLM response tabs: include both the query and the assistant reply
+    const isLLMResponse = tabData.component === 'llm-response' || tabData.metadata?.isLLMResponse;
+    if (isLLMResponse) {
+      const metadata = tabData.metadata || {};
+      const userQuery = metadata.fullQuery || metadata.query || '';
+      const assistantResponse = metadata.response || '';
+
+      const parts: string[] = [];
+      if (userQuery) {
+        const queryLabel = metadata.fullQuery ? 'User Query (with context)' : 'User Query';
+        parts.push(`${queryLabel}:\n${userQuery}`);
+      }
+      if (assistantResponse) {
+        parts.push(`Assistant Response:\n${assistantResponse}`);
+      }
+
+      const model = metadata.model ? `Model: ${metadata.model}` : '';
+      const tokenStats =
+        metadata.tokensIn || metadata.tokensOut
+          ? `Tokens In: ${metadata.tokensIn ?? 0}, Tokens Out: ${metadata.tokensOut ?? 0}`
+          : '';
+      const stats = [model, tokenStats].filter(Boolean).join(' | ');
+      if (stats) {
+        parts.push(stats);
+      }
+
+      return {
+        type: 'text',
+        title: tabData.title,
+        url: tabData.url,
+        content: parts.join('\n\n'),
+        metadata: {
+          persistentId: metadata.persistentId,
+          shortId: metadata.shortId,
+          slug: metadata.slug,
+        },
+      };
+    }
+
     // Check if this is an image tab
     if (tabData.metadata?.fileType === 'image' && tabData.metadata?.imageData) {
       const imageDataUrl = tabData.metadata.imageData;
@@ -218,13 +257,29 @@ export class ContentExtractor {
       }
     }
 
+    // Text-based note or uploaded text file
+    if (tabData.metadata?.fileType === 'text' || tabData.component === 'note') {
+      const noteContent = tabData.metadata?.noteContent ?? tabData.metadata?.response ?? '';
+      const prefix = tabData.metadata?.filePath ? `Source file: ${tabData.metadata.filePath}\n\n` : '';
+
+      return {
+        type: 'text',
+        title: tabData.title,
+        url: tabData.url,
+        content: `${prefix}${noteContent}`,
+      };
+    }
+
     // For non-image note tabs, return text content
     // The content would be stored in the note's body (via metadata or needs to be passed)
     return {
       type: 'text',
       title: tabData.title,
       url: tabData.url,
-      content: tabData.metadata?.response || '', // For LLM response tabs
+      content:
+        tabData.metadata?.noteContent ||
+        tabData.metadata?.response ||
+        `Internal tab (${tabData.component ?? 'note'}) with no additional extractable content.`,
     };
   }
 }
