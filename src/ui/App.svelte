@@ -6,6 +6,7 @@
   import ChatView from '$components/chat/ChatView.svelte';
   import UrlBar from '$components/chat/UrlBar.svelte';
   import SearchBar from '$components/chat/SearchBar.svelte';
+  import KeyboardShortcutsPanel from '$components/common/KeyboardShortcutsPanel.svelte';
   import LLMControls from '$components/llm/LLMControls.svelte';
   import NotesSection from '$components/notes/NotesSection.svelte';
   import ResizableDivider from '$components/ResizableDivider.svelte';
@@ -57,7 +58,7 @@
   setContext('setFocusUrlInputCallback', setFocusUrlInputCallback);
   setContext('setFocusLLMInputCallback', setFocusLLMInputCallback);
 
-  function setView(view: 'chat' | 'settings' | 'bookmarks' | 'notes'): void {
+  function setView(view: 'chat' | 'settings' | 'bookmarks' | 'notes' | 'shortcuts'): void {
     activeSidebarView.set(view);
   }
 
@@ -338,6 +339,14 @@
         >
           📝
         </button>
+        <button
+          class="nav-btn"
+          class:active={$activeSidebarView === 'shortcuts'}
+          onclick={() => setView('shortcuts')}
+          title="Keyboard shortcuts"
+        >
+          ⌨️
+        </button>
       </div>
 
       <div class="sidebar-content" style="flex: {100 - $sidebarTabsHeightPercent}">
@@ -349,6 +358,8 @@
           <BookmarksSection />
         {:else if $activeSidebarView === 'notes'}
           <NotesSection />
+        {:else if $activeSidebarView === 'shortcuts'}
+          <KeyboardShortcutsPanel />
         {/if}
       </div>
 

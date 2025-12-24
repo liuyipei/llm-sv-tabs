@@ -3,7 +3,13 @@
  * Manages keyboard event listeners and dispatches actions
  */
 
-import { shortcuts, matchesShortcut, type ShortcutAction } from '../config/shortcuts';
+import {
+  shortcutDefinitions,
+  matchesKeyboardShortcut,
+  type ShortcutActionId,
+} from '../../shared/keyboard-shortcuts.js';
+
+export type ShortcutAction = Record<ShortcutActionId, () => void>;
 
 /**
  * Initialize keyboard shortcuts
@@ -13,20 +19,18 @@ import { shortcuts, matchesShortcut, type ShortcutAction } from '../config/short
 export function initKeyboardShortcuts(actions: ShortcutAction): () => void {
   const handleKeyDown = (event: KeyboardEvent): void => {
     // Find matching shortcut
-    for (const shortcut of shortcuts) {
-      if (matchesShortcut(event, shortcut)) {
+    for (const shortcut of shortcutDefinitions) {
+      if (matchesKeyboardShortcut(event, shortcut)) {
         // Prevent default browser behavior
         event.preventDefault();
         event.stopPropagation();
 
-        // Execute the action
-        const actionName = shortcut.action as keyof ShortcutAction;
-        const action = actions[actionName];
+        const action = actions[shortcut.id];
 
         if (action && typeof action === 'function') {
           action();
         } else {
-          console.warn(`No action handler found for: ${shortcut.action}`);
+          console.warn(`No action handler found for: ${shortcut.id}`);
         }
 
         break;
