@@ -159,6 +159,8 @@ export class ContentExtractor {
    * Extract content from a note tab (especially image tabs)
    */
   static async extractFromNoteTab(tabData: TabData): Promise<ExtractedContent> {
+    const isLLMResponseTab = tabData.component === 'llm-response' || tabData.metadata?.isLLMResponse;
+
     // Check if this is an image tab
     if (tabData.metadata?.fileType === 'image' && tabData.metadata?.imageData) {
       const imageDataUrl = tabData.metadata.imageData;
@@ -219,12 +221,16 @@ export class ContentExtractor {
     }
 
     // For non-image note tabs, return text content
-    // The content would be stored in the note's body (via metadata or needs to be passed)
+    const noteContent =
+      tabData.metadata?.fileType === 'text'
+        ? tabData.metadata?.noteContent || ''
+        : tabData.metadata?.noteContent;
+
     return {
       type: 'text',
       title: tabData.title,
       url: tabData.url,
-      content: tabData.metadata?.response || '', // For LLM response tabs
+      content: isLLMResponseTab ? tabData.metadata?.response || '' : noteContent || '',
     };
   }
 }
