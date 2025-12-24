@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron';
+import { BrowserWindow, ipcMain, type IpcMainInvokeEvent } from 'electron';
 import type TabManager from '../../tab-manager.js';
 
 type HandlerError = { success: false; error: string };
@@ -21,16 +21,19 @@ async function handleSafely<T>(
 export function registerTabHandlers(
   getTabManager: () => TabManager
 ): void {
-  ipcMain.handle('open-url', async (_event, url: string) =>
+  const resolveWindowId = (event: IpcMainInvokeEvent): string =>
+    getTabManager().getWindowIdFor(BrowserWindow.fromWebContents(event.sender));
+
+  ipcMain.handle('open-url', async (event, url: string) =>
     handleSafely(() => {
       const tabManager = getTabManager();
 
       // Handle special URL schemes
       if (url.startsWith('api-keys://')) {
-        return { success: true, data: tabManager.openApiKeyInstructionsTab() };
+        return { success: true, data: tabManager.openApiKeyInstructionsTab(true, resolveWindowId(event)) };
       }
 
-      return { success: true, data: tabManager.openUrl(url) };
+      return { success: true, data: tabManager.openUrl(url, true, resolveWindowId(event)) };
     })
   );
 
@@ -38,16 +41,16 @@ export function registerTabHandlers(
     handleSafely(() => getTabManager().closeTab(tabId))
   );
 
-  ipcMain.handle('get-active-tabs', async () =>
-    handleSafely(() => ({ success: true, data: getTabManager().getActiveTabs() }))
+  ipcMain.handle('get-active-tabs', async (event) =>
+    handleSafely(() => ({ success: true, data: getTabManager().getActiveTabs(resolveWindowId(event)) }))
   );
 
-  ipcMain.handle('set-active-tab', async (_event, tabId: string) =>
-    handleSafely(() => getTabManager().setActiveTab(tabId))
+  ipcMain.handle('set-active-tab', async (event, tabId: string) =>
+    handleSafely(() => getTabManager().setActiveTab(tabId, resolveWindowId(event)))
   );
 
-  ipcMain.handle('focus-active-web-contents', async () =>
-    handleSafely(() => getTabManager().focusActiveWebContents())
+  ipcMain.handle('focus-active-web-contents', async (event) =>
+    handleSafely(() => getTabManager().focusActiveWebContents(resolveWindowId(event)))
   );
 
   ipcMain.handle('select-tabs', async (_event, tabIds: string[]) =>
@@ -70,9 +73,9 @@ export function registerTabHandlers(
     handleSafely(() => getTabManager().getNavigationState(tabId))
   );
 
-  ipcMain.handle('next-tab', async () => handleSafely(() => getTabManager().nextTab()));
+  ipcMain.handle('next-tab', async (event) => handleSafely(() => getTabManager().nextTab(resolveWindowId(event))));
 
-  ipcMain.handle('previous-tab', async () => handleSafely(() => getTabManager().previousTab()));
+  ipcMain.handle('previous-tab', async (event) => handleSafely(() => getTabManager().previousTab(resolveWindowId(event))));
 
   ipcMain.handle('update-tab-title', async (_event, tabId: string, title: string) =>
     handleSafely(() => getTabManager().updateTabTitle(tabId, title))
@@ -84,16 +87,19 @@ export function registerTabHandlers(
 
   ipcMain.handle(
     'open-note-tab',
-    async (_event, noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image', filePath?: string) =>
-      handleSafely(() => ({ success: true, data: getTabManager().openNoteTab(noteId, title, content, fileType, true, filePath) }))
+    async (event, noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image', filePath?: string) =>
+      handleSafely(() => ({
+        success: true,
+        data: getTabManager().openNoteTab(noteId, title, content, fileType, true, filePath, resolveWindowId(event)),
+      }))
   );
 
   ipcMain.handle('update-note-content', async (_event, tabId: string, content: string) =>
     handleSafely(() => getTabManager().updateNoteContent(tabId, content))
   );
 
-  ipcMain.handle('open-llm-response-tab', async (_event, query: string, response?: string, error?: string) =>
-    handleSafely(() => ({ success: true, data: getTabManager().openLLMResponseTab(query, response, error) }))
+  ipcMain.handle('open-llm-response-tab', async (event, query: string, response?: string, error?: string) =>
+    handleSafely(() => ({ success: true, data: getTabManager().openLLMResponseTab(query, response, error, true, resolveWindowId(event)) }))
   );
 
   ipcMain.handle('update-llm-response-tab', async (_event, tabId: string, response: string, metadata?: any) =>

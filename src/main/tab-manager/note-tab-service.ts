@@ -10,8 +10,8 @@ interface NoteTabServiceDeps {
   getTabData: (tabId: string) => TabData | null;
   sendToRenderer: (channel: string, payload: any) => void;
   saveSession: () => Promise<void> | void;
-  setActiveTab: (tabId: string) => void;
-  createView: () => WebContentsView;
+  setActiveTab: (tabId: string, windowId?: string) => void;
+  createView: (windowId?: string) => WebContentsView;
 }
 
 type NoteTabType = 'text' | 'pdf' | 'image';
@@ -25,11 +25,12 @@ export class NoteTabService {
     content: string,
     fileType: NoteTabType = 'text',
     autoSelect: boolean = true,
-    filePath?: string
+    filePath?: string,
+    windowId?: string
   ): { tabId: string; tab: TabData } {
     const existingTab = this.findExistingNoteTab({ noteId, filePath });
     if (existingTab) {
-      this.deps.setActiveTab(existingTab.id);
+      this.deps.setActiveTab(existingTab.id, windowId);
       return { tabId: existingTab.id, tab: this.deps.getTabData(existingTab.id)! };
     }
 
@@ -46,7 +47,7 @@ export class NoteTabService {
       title: title,
       url: noteUrl,
       type: 'notes' as TabType,
-      view: useWebContentsView ? this.deps.createView() : undefined,
+      view: useWebContentsView ? this.deps.createView(windowId) : undefined,
       component: fileType === 'text' ? 'note' : undefined,
       created: Date.now(),
       lastViewed: Date.now(),
@@ -61,7 +62,7 @@ export class NoteTabService {
     }
 
     if (autoSelect) {
-      this.deps.setActiveTab(tabId);
+      this.deps.setActiveTab(tabId, windowId);
     }
 
     this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) });
@@ -74,7 +75,8 @@ export class NoteTabService {
     title: string,
     filePath: string,
     fileType: NoteTabType,
-    noteId?: number
+    noteId?: number,
+    windowId?: string
   ): { success: boolean; data?: { tabId: string; tab: TabData }; error?: string } {
     if (!existsSync(filePath)) {
       return { success: false, error: `File not found: ${filePath}` };
@@ -82,7 +84,7 @@ export class NoteTabService {
 
     const existingTab = this.findExistingNoteTab({ filePath });
     if (existingTab) {
-      this.deps.setActiveTab(existingTab.id);
+      this.deps.setActiveTab(existingTab.id, windowId);
       return { success: true, data: { tabId: existingTab.id, tab: this.deps.getTabData(existingTab.id)! } };
     }
 
@@ -94,7 +96,7 @@ export class NoteTabService {
         const tab = this.createTextNoteTab({ tabId, title, content, filePath, noteId });
 
         this.deps.tabs.set(tabId, tab);
-        this.deps.setActiveTab(tabId);
+        this.deps.setActiveTab(tabId, windowId);
         this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) });
         void this.deps.saveSession();
 
@@ -110,7 +112,7 @@ export class NoteTabService {
         title,
         url: this.generateNoteUrl(noteId),
         type: 'notes' as TabType,
-        view: this.deps.createView(),
+        view: this.deps.createView(windowId),
         created: Date.now(),
         lastViewed: Date.now(),
         metadata: {
@@ -129,7 +131,7 @@ export class NoteTabService {
         tab.view.webContents.loadURL(fileUrl);
       }
 
-      this.deps.setActiveTab(tabId);
+      this.deps.setActiveTab(tabId, windowId);
       this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) });
       void this.deps.saveSession();
 

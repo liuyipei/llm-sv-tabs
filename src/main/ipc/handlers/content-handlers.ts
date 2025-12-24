@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron';
+import { BrowserWindow, ipcMain, type IpcMainInvokeEvent } from 'electron';
 import type TabManager from '../../tab-manager.js';
 import { ContentExtractor } from '../../services/content-extractor.js';
 import { ModelDiscovery } from '../../providers/model-discovery.js';
@@ -26,6 +26,9 @@ export function registerContentHandlers(
   getTabManager: () => TabManager,
   getScreenshotService: () => ScreenshotService
 ): void {
+  const resolveWindowId = (event: IpcMainInvokeEvent): string =>
+    getTabManager().getWindowIdFor(BrowserWindow.fromWebContents(event.sender));
+
   // Content extraction
   ipcMain.handle('extract-content', async (_event, tabId: string, includeScreenshot = false) =>
     handleSafely(async () => {
@@ -64,18 +67,19 @@ export function registerContentHandlers(
     handleSafely(() => getTabManager().stopFindInPage(tabId))
   );
 
-  ipcMain.handle('set-search-bar-visible', async (_event, visible: boolean) =>
+  ipcMain.handle('set-search-bar-visible', async (event, visible: boolean) =>
     handleSafely(() => {
-      getTabManager().setSearchBarVisible(visible);
+      getTabManager().setSearchBarVisible(visible, resolveWindowId(event));
       return { success: true };
     })
   );
 
   // Screenshot capture
-  ipcMain.handle('trigger-screenshot', async () =>
+  ipcMain.handle('trigger-screenshot', async (event) =>
     handleSafely(async () => {
       const screenshotService = getScreenshotService();
       const tabManager = getTabManager();
+      const windowId = resolveWindowId(event);
 
       console.log('Main: Starting screenshot capture...');
       const dataUrl = await screenshotService.startCapture();
@@ -104,7 +108,7 @@ export function registerContentHandlers(
       const title = `Screenshot ${timestamp}`;
       const noteId = Date.now();
 
-      tabManager.openNoteTab(noteId, title, dataUrl, 'image', true);
+      tabManager.openNoteTab(noteId, title, dataUrl, 'image', true, undefined, windowId);
 
       console.log('Main: Screenshot tab created successfully');
       return { success: true };

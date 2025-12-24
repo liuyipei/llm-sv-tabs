@@ -43,6 +43,7 @@ For a deep dive into the architecture and design philosophy:
 - [Token Streaming & API Providers](./design/01-token-streaming-and-providers.md) - Provider architecture and real-time streaming
 - [Visual Layout Architecture](./design/02-visual-layout.md) - Hybrid rendering system combining Electron and Svelte
 - [Flexible Tab System](./design/03-flexible-tab-system.md) - How tabs handle URLs, files, text, and LLM responses
+- [Multi-Window Tab Registry](./design/14-multi-window-tab-registry.md) - Main-process ownership of tabs across windows, with per-window controllers
 - [Session Persistence](./design/10-session-persistence.md) - How tabs, notes, and conversations survive browser restarts
 - [Screenshot Capture](./design/05-screenshot-capture.md) - Native screenshot implementation with region selection
 - [Round-Trip Test Pattern](./design/06-round-trip-test-pattern.md) - Testing pattern for state persistence through navigation
