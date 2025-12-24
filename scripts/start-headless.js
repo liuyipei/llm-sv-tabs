@@ -35,6 +35,22 @@ const headlessArgs = [
   '--disable-dev-shm-usage',
   '--no-sandbox'
 ];
+const SMOKE_TEST_TIMEOUT_MS = 20000;
+
+function enforceSmokeTestTimeout(child) {
+  if (!appArgs.includes('--smoke-test')) {
+    return;
+  }
+
+  const timeout = setTimeout(() => {
+    console.error(`Smoke test did not exit within ${SMOKE_TEST_TIMEOUT_MS}ms, forcing shutdown...`);
+    child.kill('SIGKILL');
+    process.exit(1);
+  }, SMOKE_TEST_TIMEOUT_MS);
+  timeout.unref?.();
+
+  child.on('exit', () => clearTimeout(timeout));
+}
 
 function hasXvfb() {
   try {
@@ -58,6 +74,7 @@ function runElectron(electronArgs = []) {
   });
 
   child.on('exit', (code) => process.exit(code ?? 0));
+  enforceSmokeTestTimeout(child);
   child.on('error', (err) => {
     console.error('Failed to start Electron:', err.message);
     process.exit(1);
@@ -83,6 +100,7 @@ function runWithXvfb(electronArgs = []) {
   });
 
   child.on('exit', (code) => process.exit(code ?? 0));
+  enforceSmokeTestTimeout(child);
   child.on('error', (err) => {
     console.error('Failed to start xvfb-run:', err.message);
     console.error('Install xvfb: sudo apt-get install xvfb');
