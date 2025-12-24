@@ -1,6 +1,6 @@
 # Design System Implementation Plan
 
-**Status:** In Progress (Phases 1-3, 5 complete)
+**Status:** ✅ Complete
 **Reference:** [Design System](../design/13-design-system.md)
 **Last Updated:** 2025-12-24
 
@@ -13,10 +13,10 @@
 | 1 | ✅ Complete | Created `tokens.css` with all design tokens |
 | 2 | ✅ Complete | Fixed LLM components (5 files) |
 | 3 | ✅ Complete | Migrated high-impact components (6 files) |
+| 4 | ✅ Complete | Normalized remaining components (17 files) |
 | 5 | ✅ Complete | Moved MessageStream.css to /styles/ |
-| 4 | ⏳ Pending | Normalize remaining components |
-| 6 | ⏳ Pending | Typography audit |
-| 7 | ⏳ Pending | Accessibility review |
+| 6 | ✅ Complete | Typography audit |
+| 7 | ✅ Complete | Accessibility review (focus states) |
 
 ### Files Updated
 
@@ -39,6 +39,31 @@
 
 **Phase 5:**
 - `src/ui/styles/message-stream.css` (moved from components/)
+
+**Phase 4 & 6 (Component Normalization & Typography):**
+- `src/ui/components/bookmarks/BookmarkList.svelte`
+- `src/ui/components/bookmarks/BookmarksSection.svelte`
+- `src/ui/components/chat/ChatContainer.svelte`
+- `src/ui/components/chat/ChatMessage.svelte`
+- `src/ui/components/chat/InputControls.svelte`
+- `src/ui/components/chat/ModelQuickSwitch.svelte`
+- `src/ui/components/chat/SearchBar.svelte`
+- `src/ui/components/llm/ApiKeyInstructionsModal.svelte`
+- `src/ui/components/llm/ApiKeyInstructionsView.svelte`
+- `src/ui/components/notes/LargeFileConfirmDialog.svelte`
+- `src/ui/components/notes/NoteEditor.svelte`
+- `src/ui/components/notes/NotesSection.svelte`
+- `src/ui/components/notes/UploadErrors.svelte`
+- `src/ui/components/notes/UploadProgress.svelte`
+- `src/ui/components/tabs/AggregateTabs.svelte`
+- `src/ui/components/tabs/TabControls.svelte`
+- `src/ui/components/tabs/TabList.svelte`
+
+**Phase 7 (Accessibility - Focus States):**
+- Added `:focus-visible` styles to all interactive elements
+- Components updated: TabItem, Toast, UrlBar, SearchBar, InputControls,
+  BookmarkList, BookmarksSection, NotesSection, LargeFileConfirmDialog,
+  ApiKeyInstructionsModal, AggregateTabs, TabControls
 
 ---
 

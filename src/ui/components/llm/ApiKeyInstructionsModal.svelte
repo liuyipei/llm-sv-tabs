@@ -206,9 +206,11 @@
     transition: all var(--transition-fast);
   }
 
-  .close-button:hover {
+  .close-button:hover,
+  .close-button:focus-visible {
     background: var(--bg-hover);
     color: var(--text-primary);
+    outline: none;
   }
 
   .close-button:active {

@@ -86,7 +86,13 @@
     justify-content: center;
   }
 
-  .toast-close:hover {
+  .toast-close:hover,
+  .toast-close:focus-visible {
     color: var(--text-bright);
+  }
+
+  .toast:focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 2px;
   }
 </style>

@@ -126,10 +126,18 @@
     justify-content: center;
   }
 
-  .delete-btn:hover {
+  .delete-btn:hover,
+  .delete-btn:focus-visible {
     background-color: var(--danger-red);
     border-color: var(--danger-red);
     color: var(--text-bright);
+    outline: none;
+  }
+
+  .bookmark-content:focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 2px;
+    border-radius: var(--radius-md);
   }
 
   /* Scrollbar styling */

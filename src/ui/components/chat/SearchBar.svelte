@@ -332,9 +332,11 @@
     justify-content: center;
   }
 
-  .nav-btn:hover:not(:disabled) {
+  .nav-btn:hover:not(:disabled),
+  .nav-btn:focus-visible:not(:disabled) {
     background-color: var(--bg-hover);
     border-color: var(--accent-color);
+    outline: none;
   }
 
   .nav-btn:disabled {
@@ -359,8 +361,10 @@
     justify-content: center;
   }
 
-  .close-btn:hover {
+  .close-btn:hover,
+  .close-btn:focus-visible {
     background-color: var(--bg-hover);
     color: var(--text-bright);
+    outline: none;
   }
 </style>

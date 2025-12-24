@@ -227,8 +227,10 @@
     height: 36px;
   }
 
-  .query-submit-btn:hover:not(:disabled) {
+  .query-submit-btn:hover:not(:disabled),
+  .query-submit-btn:focus-visible:not(:disabled) {
     background-color: var(--accent-hover);
+    outline: none;
   }
 
   .query-submit-btn:disabled {

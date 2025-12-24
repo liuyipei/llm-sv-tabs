@@ -123,8 +123,10 @@
     transition: background-color var(--transition-fast);
   }
 
-  button:hover {
+  button:hover,
+  button:focus-visible {
     background-color: var(--bg-input);
+    outline: none;
   }
 
   button.active {

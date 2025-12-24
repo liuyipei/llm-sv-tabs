@@ -260,7 +260,9 @@
     transition: background var(--transition-fast);
   }
 
-  .close-btn:hover {
+  .close-btn:hover,
+  .close-btn:focus-visible {
     background: var(--bg-hover);
+    outline: none;
   }
 </style>

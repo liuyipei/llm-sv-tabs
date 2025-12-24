@@ -85,8 +85,10 @@
     user-select: none;
   }
 
-  .section-header:hover {
+  .section-header:hover,
+  .section-header:focus-visible {
     background-color: var(--bg-tertiary);
+    outline: none;
   }
 
   h2 {
@@ -121,8 +123,10 @@
     line-height: var(--leading-tight);
   }
 
-  .add-bookmark-btn:hover {
+  .add-bookmark-btn:hover,
+  .add-bookmark-btn:focus-visible {
     background-color: var(--accent-hover);
+    outline: none;
   }
 
   .toggle-icon {

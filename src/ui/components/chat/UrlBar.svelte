@@ -188,9 +188,11 @@
     justify-content: center;
   }
 
-  .nav-btn:hover:not(:disabled) {
+  .nav-btn:hover:not(:disabled),
+  .nav-btn:focus-visible:not(:disabled) {
     background-color: #4e4e52;
     border-color: var(--accent-color);
+    outline: none;
   }
 
   .nav-btn:disabled {
@@ -230,8 +232,10 @@
     white-space: nowrap;
   }
 
-  .url-submit-btn:hover:not(:disabled) {
+  .url-submit-btn:hover:not(:disabled),
+  .url-submit-btn:focus-visible:not(:disabled) {
     background-color: var(--accent-hover);
+    outline: none;
   }
 
   .url-submit-btn:disabled {

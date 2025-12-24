@@ -307,15 +307,18 @@
     transition: background-color var(--transition-fast);
   }
 
-  .action-btn:hover {
+  .action-btn:hover,
+  .action-btn:focus-visible {
     background-color: var(--accent-hover);
+    outline: none;
   }
 
   .screenshot-btn {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   }
 
-  .screenshot-btn:hover {
+  .screenshot-btn:hover,
+  .screenshot-btn:focus-visible {
     background: linear-gradient(135deg, #5568d3 0%, #6a3f8e 100%);
   }
 

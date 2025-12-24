@@ -376,7 +376,8 @@
     transition: all var(--transition-fast);
   }
 
-  .refresh-btn:hover {
+  .refresh-btn:hover,
+  .refresh-btn:focus-visible {
     opacity: 1;
     background-color: var(--accent-color);
   }
@@ -399,7 +400,8 @@
     transition: all var(--transition-fast);
   }
 
-  .close-btn:hover {
+  .close-btn:hover,
+  .close-btn:focus-visible {
     opacity: 1;
     background-color: var(--danger-red);
   }
@@ -428,11 +430,14 @@
     transition: background-color var(--transition-fast);
   }
 
-  .context-menu-item:hover {
+  .context-menu-item:hover,
+  .context-menu-item:focus-visible {
     background-color: var(--bg-hover);
+    outline: none;
   }
 
-  .context-menu-item.danger:hover {
+  .context-menu-item.danger:hover,
+  .context-menu-item.danger:focus-visible {
     background-color: var(--danger-red);
     color: var(--text-bright);
   }

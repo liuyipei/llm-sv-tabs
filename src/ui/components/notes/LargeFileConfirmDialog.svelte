@@ -77,8 +77,10 @@
     color: var(--text-bright);
   }
 
-  .confirm-btn:hover {
+  .confirm-btn:hover,
+  .confirm-btn:focus-visible {
     background-color: var(--accent-hover);
+    outline: none;
   }
 
   .cancel-btn {
@@ -86,8 +88,10 @@
     color: var(--text-primary);
   }
 
-  .cancel-btn:hover {
+  .cancel-btn:hover,
+  .cancel-btn:focus-visible {
     background-color: var(--bg-input);
+    outline: none;
   }
 
   .large-files-list {
