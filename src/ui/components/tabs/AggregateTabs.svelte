@@ -8,11 +8,20 @@
   let snapshot = $state<TabRegistrySnapshot | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
+  let refreshTimeout: ReturnType<typeof setTimeout> | null = null;
+  let loadRequestId = 0;
 
   let unsubscribers: Array<() => void> = [];
 
   async function loadSnapshot(): Promise<void> {
-    if (!ipc?.getTabRegistrySnapshot) return;
+    const requestId = ++loadRequestId;
+
+    if (!ipc?.getTabRegistrySnapshot) {
+      error = 'Tab snapshot unavailable in this environment';
+      loading = false;
+      return;
+    }
+
     loading = true;
     error = null;
     try {
@@ -29,7 +38,10 @@
       error = err instanceof Error ? err.message : String(err);
       snapshot = null;
     } finally {
-      loading = false;
+      // Only clear loading for the latest request to avoid flicker on rapid refreshes
+      if (requestId === loadRequestId) {
+        loading = false;
+      }
     }
   }
 
@@ -46,18 +58,27 @@
     if (!ipc?.closeTab) return;
     try {
       await ipc.closeTab(tabId);
+      await loadSnapshot();
     } catch (err) {
       console.error('Failed to close tab from aggregate view', err);
     }
   }
 
+  function scheduleRefresh(): void {
+    if (refreshTimeout) clearTimeout(refreshTimeout);
+    refreshTimeout = setTimeout(() => {
+      refreshTimeout = null;
+      void loadSnapshot();
+    }, 50);
+  }
+
   function startEventListeners(): void {
     const api = window.electronAPI;
     const listeners = [
-      api?.onTabCreated?.(() => void loadSnapshot()),
-      api?.onTabUpdated?.(() => void loadSnapshot()),
-      api?.onTabClosed?.(() => void loadSnapshot()),
-      api?.onActiveTabChanged?.(() => void loadSnapshot()),
+      api?.onTabCreated?.(() => scheduleRefresh()),
+      api?.onTabUpdated?.(() => scheduleRefresh()),
+      api?.onTabClosed?.(() => scheduleRefresh()),
+      api?.onActiveTabChanged?.(() => scheduleRefresh()),
     ].filter((fn): fn is () => void => Boolean(fn));
 
     unsubscribers.push(...listeners);
@@ -66,6 +87,11 @@
   function stopEventListeners(): void {
     unsubscribers.forEach((fn) => fn());
     unsubscribers = [];
+
+    if (refreshTimeout) {
+      clearTimeout(refreshTimeout);
+      refreshTimeout = null;
+    }
   }
 
   onMount(() => {
