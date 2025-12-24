@@ -106,7 +106,8 @@ export class OllamaProvider extends BaseProvider {
   async queryStream(
     messages: Array<{ role: string; content: MessageContent }>,
     options: QueryOptions | undefined,
-    onChunk: (chunk: string) => void
+    onChunk: (chunk: string) => void,
+    signal?: AbortSignal
   ): Promise<LLMResponse> {
     const startTime = Date.now();
 
@@ -139,6 +140,7 @@ export class OllamaProvider extends BaseProvider {
           stream: true,
           options: {},
         }),
+        signal,
       });
 
       if (!response.ok) {

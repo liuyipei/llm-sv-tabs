@@ -125,7 +125,8 @@ export class AnthropicProvider extends BaseProvider {
   async queryStream(
     messages: Array<{ role: string; content: MessageContent }>,
     options: QueryOptions | undefined,
-    onChunk: (chunk: string) => void
+    onChunk: (chunk: string) => void,
+    signal?: AbortSignal
   ): Promise<LLMResponse> {
     const startTime = Date.now();
 
@@ -167,6 +168,7 @@ export class AnthropicProvider extends BaseProvider {
           max_tokens: maxTokens,
           stream: true,
         }),
+        signal,
       });
 
       if (!response.ok) {

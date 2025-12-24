@@ -52,12 +52,14 @@ export abstract class BaseProvider {
    * @param messages - Array of messages to send (supports multimodal content)
    * @param options - Query options
    * @param onChunk - Callback invoked for each chunk of text
+   * @param signal - Optional AbortSignal to cancel the stream
    * @returns Promise that resolves with the complete response
    */
   abstract queryStream(
     messages: Array<{ role: string; content: MessageContent }>,
     options: QueryOptions | undefined,
-    onChunk: (chunk: string) => void
+    onChunk: (chunk: string) => void,
+    signal?: AbortSignal
   ): Promise<LLMResponse>;
 
   /**
