@@ -18,11 +18,14 @@ import type {
   TabData,
   ProviderType,
   LLMModel,
+  TabRegistrySnapshot,
 } from '../../types';
 
 export interface IPCBridgeAPI {
   openUrl(url: string): Promise<IPCResponse<{ tabId: string; tab: TabData }> | { tabId: string; tab: Tab }>;
   closeTab(tabId: string): Promise<IPCResponse | { success: boolean }>;
+  openAggregateTab(): Promise<IPCResponse<{ tabId: string; tab: TabData }> | { tabId: string; tab: Tab }>;
+  getTabRegistrySnapshot(): Promise<IPCResponse<TabRegistrySnapshot> | { success: boolean; data: TabRegistrySnapshot }>;
   setActiveTab(tabId: string): Promise<IPCResponse | { success: boolean }>;
   selectTabs(tabIds: string[]): Promise<IPCResponse | { success: boolean }>;
   reloadTab(tabId: string): Promise<IPCResponse | { success: boolean }>;
@@ -137,6 +140,8 @@ export function initializeIPC(): IPCBridgeAPI {
   return {
     openUrl: (url: string) => window.electronAPI.openUrl(url),
     closeTab: (tabId: string) => window.electronAPI.closeTab(tabId),
+    openAggregateTab: () => window.electronAPI.openAggregateTab(),
+    getTabRegistrySnapshot: () => window.electronAPI.getTabRegistrySnapshot(),
     setActiveTab: (tabId: string) => window.electronAPI.setActiveTab(tabId),
     selectTabs: (tabIds: string[]) => window.electronAPI.selectTabs(tabIds),
     reloadTab: (tabId: string) => window.electronAPI.reloadTab(tabId),
@@ -223,6 +228,30 @@ function createMockAPI(): IPCBridgeAPI {
       console.log('Mock: closeTab', tabId);
       removeTab(tabId);
       return { success: true };
+    },
+    openAggregateTab: async () => {
+      console.log('Mock: openAggregateTab');
+      const tab: Tab = {
+        id: `mock-aggregate-${Date.now()}`,
+        title: 'All Windows',
+        url: 'aggregate-tabs://mock',
+        type: 'notes',
+        component: 'aggregate-tabs',
+        created: Date.now(),
+        lastViewed: Date.now(),
+      };
+      addTab(tab);
+      activeTabId.set(tab.id);
+      return { tabId: tab.id, tab };
+    },
+    getTabRegistrySnapshot: async () => {
+      console.log('Mock: getTabRegistrySnapshot');
+      const tabs = Array.from(get(activeTabs).values());
+      const windowId = 'window-mock';
+      return {
+        success: true,
+        data: { windows: [{ id: windowId, activeTabId: get(activeTabId), tabIds: tabs.map((t) => t.id) }], tabs },
+      };
     },
     setActiveTab: async (tabId: string) => {
       console.log('Mock: setActiveTab', tabId);

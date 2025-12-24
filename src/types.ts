@@ -19,7 +19,7 @@ export interface Tab {
   lastViewed?: number;
   created?: number;
   metadata?: TabMetadata;
-  component?: 'llm-response' | 'note' | 'api-key-instructions';
+  component?: 'llm-response' | 'note' | 'api-key-instructions' | 'aggregate-tabs';
   loadError?: {
     errorCode: number;
     errorDescription: string;
@@ -83,7 +83,7 @@ export interface TabData {
   title: string;
   url: string;
   type: TabType;
-  component?: 'llm-response' | 'note' | 'api-key-instructions';
+  component?: 'llm-response' | 'note' | 'api-key-instructions' | 'aggregate-tabs';
   metadata?: TabMetadata;
   created?: number;
   lastViewed?: number;
@@ -307,6 +307,12 @@ export interface ActiveTabChangedEvent {
   id: string;
 }
 
+// Snapshot for cross-window/aggregate tab views
+export interface TabRegistrySnapshot {
+  windows: Array<{ id: string; activeTabId: string | null; tabIds: string[] }>;
+  tabs: TabData[];
+}
+
 // ============================================================================
 // Store State Types
 // ============================================================================
@@ -344,6 +350,8 @@ export interface IPCBridge {
   openUrl(url: string): Promise<IPCResponse<TabData>>;
   closeTab(tabId: string): Promise<IPCResponse>;
   getActiveTabs(): Promise<IPCResponse<{ tabs: TabData[]; activeTabId: string | null }>>;
+  getTabRegistrySnapshot(): Promise<IPCResponse<TabRegistrySnapshot>>;
+  openAggregateTab(): Promise<IPCResponse<{ tabId: string; tab: TabData }>>;
   setActiveTab(tabId: string): Promise<IPCResponse>;
   selectTabs(tabIds: string[]): Promise<IPCResponse>;
 

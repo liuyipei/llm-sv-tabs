@@ -16,9 +16,16 @@ import type {
   ExtractedContent,
   ProviderType,
   LLMModel,
+  TabRegistrySnapshot,
 } from '../types';
 
 console.log('Preload script is running!');
+
+const addListener = <T = any>(channel: string, callback: (data: T) => void): (() => void) => {
+  const handler = (_event: unknown, data: T) => callback(data);
+  ipcRenderer.on(channel, handler);
+  return () => ipcRenderer.off(channel, handler);
+};
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
@@ -65,6 +72,12 @@ const electronAPI = {
 
   copyTabUrl: (tabId: string): Promise<IPCResponse<{ url?: string }>> =>
     ipcRenderer.invoke('copy-tab-url', tabId),
+
+  openAggregateTab: (): Promise<IPCResponse<{ tabId: string; tab: TabData }>> =>
+    ipcRenderer.invoke('open-aggregate-tab'),
+
+  getTabRegistrySnapshot: (): Promise<IPCResponse<TabRegistrySnapshot>> =>
+    ipcRenderer.invoke('get-tab-registry-snapshot'),
 
   // Note tabs
   openNoteTab: (noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image', filePath?: string): Promise<IPCResponse<{ tabId: string; tab: TabData }>> =>
@@ -135,65 +148,40 @@ const electronAPI = {
     ipcRenderer.invoke('set-search-bar-visible', visible),
 
   // Event listeners (from main to renderer)
-  onTabCreated: (callback: (data: TabCreatedEvent) => void): void => {
-    ipcRenderer.on('tab-created', (_event, data) => callback(data));
-  },
+  onTabCreated: (callback: (data: TabCreatedEvent) => void): () => void => addListener('tab-created', callback),
 
-  onTabUpdated: (callback: (data: TabUpdatedEvent) => void): void => {
-    ipcRenderer.on('tab-updated', (_event, data) => callback(data));
-  },
+  onTabUpdated: (callback: (data: TabUpdatedEvent) => void): () => void => addListener('tab-updated', callback),
 
-  onTabClosed: (callback: (data: TabClosedEvent) => void): void => {
-    ipcRenderer.on('tab-closed', (_event, data) => callback(data));
-  },
+  onTabClosed: (callback: (data: TabClosedEvent) => void): () => void => addListener('tab-closed', callback),
 
-  onTabTitleUpdated: (callback: (data: TabTitleUpdatedEvent) => void): void => {
-    ipcRenderer.on('tab-title-updated', (_event, data) => callback(data));
-  },
+  onTabTitleUpdated: (callback: (data: TabTitleUpdatedEvent) => void): () => void =>
+    addListener('tab-title-updated', callback),
 
-  onTabUrlUpdated: (callback: (data: TabUrlUpdatedEvent) => void): void => {
-    ipcRenderer.on('tab-url-updated', (_event, data) => callback(data));
-  },
+  onTabUrlUpdated: (callback: (data: TabUrlUpdatedEvent) => void): () => void =>
+    addListener('tab-url-updated', callback),
 
-  onActiveTabChanged: (callback: (data: ActiveTabChangedEvent) => void): void => {
-    ipcRenderer.on('active-tab-changed', (_event, data) => callback(data));
-  },
+  onActiveTabChanged: (callback: (data: ActiveTabChangedEvent) => void): () => void =>
+    addListener('active-tab-changed', callback),
 
-  onNavigationStateUpdated: (callback: (data: NavigationStateUpdatedEvent) => void): void => {
-    ipcRenderer.on('navigation-state-updated', (_event, data) => callback(data));
-  },
+  onNavigationStateUpdated: (callback: (data: NavigationStateUpdatedEvent) => void): () => void =>
+    addListener('navigation-state-updated', callback),
 
-  onFocusUrlBar: (callback: () => void): void => {
-    ipcRenderer.on('focus-url-bar', () => callback());
-  },
+  onFocusUrlBar: (callback: () => void): () => void => addListener('focus-url-bar', callback),
 
-  onFocusSearchBar: (callback: () => void): void => {
-    ipcRenderer.on('focus-search-bar', () => callback());
-  },
+  onFocusSearchBar: (callback: () => void): () => void => addListener('focus-search-bar', callback),
 
-  onFocusLLMInput: (callback: () => void): void => {
-    ipcRenderer.on('focus-llm-input', () => callback());
-  },
+  onFocusLLMInput: (callback: () => void): () => void => addListener('focus-llm-input', callback),
 
-  onNavigateNextTab: (callback: () => void): void => {
-    ipcRenderer.on('navigate-next-tab', () => callback());
-  },
+  onNavigateNextTab: (callback: () => void): () => void => addListener('navigate-next-tab', callback),
 
-  onNavigatePreviousTab: (callback: () => void): void => {
-    ipcRenderer.on('navigate-previous-tab', () => callback());
-  },
+  onNavigatePreviousTab: (callback: () => void): () => void => addListener('navigate-previous-tab', callback),
 
-  onBookmarkTab: (callback: () => void): void => {
-    ipcRenderer.on('bookmark-tab', () => callback());
-  },
+  onBookmarkTab: (callback: () => void): () => void => addListener('bookmark-tab', callback),
 
-  onTriggerScreenshot: (callback: () => void): void => {
-    ipcRenderer.on('trigger-screenshot', () => callback());
-  },
+  onTriggerScreenshot: (callback: () => void): () => void => addListener('trigger-screenshot', callback),
 
-  onFoundInPage: (callback: (data: { activeMatchOrdinal: number; matches: number }) => void): void => {
-    ipcRenderer.on('found-in-page', (_event, data) => callback(data));
-  },
+  onFoundInPage: (callback: (data: { activeMatchOrdinal: number; matches: number }) => void): () => void =>
+    addListener('found-in-page', callback),
 
   onLLMChunk: (callback: (payload: { tabId: string; chunk: string }) => void) => {
     const handler = (_event: unknown, payload: { tabId: string; chunk: string }) => {

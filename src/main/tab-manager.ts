@@ -11,6 +11,7 @@ import { SessionPersistenceService } from './tab-manager/session-persistence-ser
 import { createConfiguredView } from './tab-manager/web-contents-view-factory.js';
 import { NoteTabService } from './tab-manager/note-tab-service.js';
 import { WindowRegistry, type WindowContext, type WindowId } from './tab-manager/window-registry.js';
+import { AggregateTabService } from './tab-manager/aggregate-tab-service.js';
 
 class TabManager {
   private windowRegistry: WindowRegistry;
@@ -27,6 +28,7 @@ class TabManager {
   private navigation: NavigationService;
   private sessionPersistence: SessionPersistenceService;
   private noteTabs: NoteTabService;
+  private aggregateTabs: AggregateTabService;
 
   constructor(mainWindow: BrowserWindow) {
     this.windowRegistry = new WindowRegistry(mainWindow, {
@@ -76,6 +78,18 @@ class TabManager {
       saveSession: () => this.saveSession(),
       setActiveTab: (tabId, windowId) => this.setActiveTab(tabId, windowId),
       createView: (windowId) => this.createView(windowId),
+    });
+
+    this.aggregateTabs = new AggregateTabService({
+      tabs: this.tabs,
+      createTabId: () => this.createTabId(),
+      getTabData: (tabId) => this.getTabData(tabId),
+      setTabOwner: (tabId, windowId) => this.windowRegistry.setTabOwner(tabId, windowId),
+      setActiveTab: (tabId, windowId) => this.setActiveTab(tabId, windowId),
+      sendToRenderer: (channel, payload, windowId) => this.sendToRenderer(channel, payload, windowId),
+      saveSession: () => this.saveSession(),
+      windowRegistry: this.windowRegistry,
+      getPrimaryWindowId: () => this.windowRegistry.getPrimaryWindowId(),
     });
 
     // Save session periodically (every 30 seconds)
@@ -477,6 +491,10 @@ class TabManager {
     return { tabId, tab: this.getTabData(tabId)! };
   }
 
+  openAggregateTab(autoSelect: boolean = true, windowId?: WindowId): { tabId: string; tab: TabData } {
+    return this.aggregateTabs.openAggregateTab(autoSelect, windowId);
+  }
+
   /**
    * Update metadata on an in-progress LLM tab without ending streaming
    */
@@ -782,6 +800,10 @@ class TabManager {
       created: tab.created,
       lastViewed: tab.lastViewed,
     };
+  }
+
+  getRegistrySnapshot() {
+    return this.aggregateTabs.getRegistrySnapshot();
   }
 
   focusActiveWebContents(windowId?: WindowId): { success: boolean; error?: string } {

@@ -12,7 +12,7 @@
 - **Tab Registry (main process)**
   - Owns the global tab map (`tabId -> TabWithView`) and window ownership map (`tabId -> windowId`).
   - Generates tab IDs and tracks window descriptors (`windowId -> { BrowserWindow, activeTabId, activeWebContentsView, isSearchBarVisible }`).
-  - Provides helper queries for per-window tab lists and aggregated snapshots.
+  - Provides helper queries for per-window tab lists (`getActiveTabs(windowId)`) and aggregated snapshots (`getWindowSnapshots()`), matching the current `TabManager` and `WindowRegistry` APIs.
   - Sends renderer updates to the window that owns the tab (or to the primary window for window-agnostic events).
 
 - **Window Controllers (per BrowserWindow)**
@@ -56,9 +56,9 @@
 
 ## Aggregated View (forward-looking)
 
-- The registry already provides the primitives to surface `{ windows: [{ id, activeTabId, tabIds }], tabs: TabData[] }` for a global tab picker/mover.
-- Moving a tab will be implemented by detaching its `WebContentsView` from the source window and re-attaching it to the destination, then updating `tabId -> windowId` ownership.
-- Activation commands from the aggregated view will focus the destination window before raising the tab.
+- The registry already provides the primitives to surface `{ windows: [{ id, activeTabId, tabIds }], tabs: TabData[] }` for a global tab picker/mover or the component-backed “aggregate browser multitabs” UI described in Design 03.
+- Moving a tab will be implemented by detaching its `WebContentsView` from the source window and re-attaching it to the destination, then updating `tabId -> windowId` ownership. Closing a tab from the aggregate view should call the existing `closeTab(tabId)` to keep cleanup consistent.
+- Activation commands from the aggregated view will focus the destination window before raising the tab. Stable `tabId` values from the registry should be used for all cross-window actions, and renderer consumers should be ready to refresh on snapshot changes to keep the aggregate UI live.
 
 ## Testing and Operational Considerations
 
