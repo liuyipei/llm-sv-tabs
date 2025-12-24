@@ -253,16 +253,16 @@ When the LOC refactor is complete:
 
 ---
 
-## Open Questions
+## Decisions (Resolved)
 
 1. **Naming convention**: Use `--bg-secondary` (simpler) or `--bg-surface-1` (semantic)?
-   - Recommendation: Simpler names per design-system.md
+   - **Decision:** Simpler names per design-system.md
 
 2. **Spacing units**: Keep `px` or migrate to `rem` for accessibility?
-   - Current: Mixed. Future: Consider `rem` for scalability
+   - **Decision:** Move directly to `rem` for scalability
 
 3. **MessageStream.css location**: Keep in component folder or move to `/styles/`?
-   - Could argue either way; depends on whether it's component-specific
+   - **Decision:** Move CSS to `/styles/`
 
 4. **Gradient tokens**: Should NotesSection gradients become tokens?
-   - Probably not — they're decorative and component-specific
+   - **Decision:** No. Tab rendering styles (for LLM conversations, files, notes, etc.) are separate concerns from LLM conversation content. Visual presentation should not impact LLM interactions.
