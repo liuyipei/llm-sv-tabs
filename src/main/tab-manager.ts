@@ -42,9 +42,10 @@ class TabManager {
       tabs: this.tabs,
       createTabId: () => this.createTabId(),
       getTabData: (tabId) => this.getTabData(tabId),
-      sendToRenderer: (channel, payload) => this.sendToRenderer(channel, payload),
+      sendToRenderer: (channel, payload, windowId) => this.sendToRenderer(channel, payload, windowId),
       saveSession: () => this.saveSession(),
-      setActiveTab: (tabId) => this.setActiveTab(tabId),
+      setActiveTab: (tabId, windowId) => this.setActiveTab(tabId, windowId),
+      setTabOwner: (tabId, windowId) => this.windowRegistry.setTabOwner(tabId, windowId),
       lastMetadataUpdate: this.lastMetadataUpdate,
       openUrl: (url, autoSelect) => this.openUrl(url, autoSelect),
     });
@@ -60,10 +61,11 @@ class TabManager {
       tabs: this.tabs,
       createTabId: () => this.createTabId(),
       getTabData: (tabId) => this.getTabData(tabId),
-      sendToRenderer: (channel, payload) => this.sendToRenderer(channel, payload),
+      sendToRenderer: (channel, payload, windowId) => this.sendToRenderer(channel, payload, windowId),
       openUrl: (url, autoSelect, targetWindowId) => this.openUrl(url, autoSelect, targetWindowId),
       createView: (targetWindowId) => this.createView(targetWindowId),
       createNoteHTML: (title, content, fileType) => createNoteHTML(title, content, fileType as 'text' | 'pdf' | 'image'),
+      setTabOwner: (tabId, windowId) => this.windowRegistry.setTabOwner(tabId, windowId),
     });
 
     this.noteTabs = new NoteTabService({
@@ -438,13 +440,8 @@ class TabManager {
   }
 
   openLLMResponseTab(query: string, response?: string, error?: string, autoSelect: boolean = true, windowId?: WindowId): { tabId: string; tab: TabData } {
-    const result = this.llmTabs.openLLMResponseTab(query, response, error, autoSelect);
     const targetWindowId = windowId ?? this.windowRegistry.getPrimaryWindowId();
-    this.windowRegistry.setTabOwner(result.tabId, targetWindowId);
-    if (autoSelect) {
-      this.setActiveTab(result.tabId, targetWindowId);
-    }
-    return result;
+    return this.llmTabs.openLLMResponseTab(query, response, error, autoSelect, targetWindowId);
   }
 
   openApiKeyInstructionsTab(autoSelect: boolean = true, windowId?: WindowId): { tabId: string; tab: TabData } {

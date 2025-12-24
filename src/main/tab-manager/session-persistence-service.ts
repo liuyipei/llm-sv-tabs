@@ -8,10 +8,11 @@ interface SessionPersistenceServiceDeps {
   tabs: Map<string, TabWithView>;
   createTabId: () => string;
   getTabData: (tabId: string) => TabData | null;
-  sendToRenderer: (channel: string, payload: any) => void;
+  sendToRenderer: (channel: string, payload: any, windowId?: string) => void;
   openUrl: (url: string, autoSelect: boolean, windowId?: string) => { tabId: string; tab: TabData };
   createView: (windowId?: string) => any; // WebContentsView factory
   createNoteHTML: (title: string, content: string, fileType: string) => string;
+  setTabOwner: (tabId: string, windowId: string) => void;
 }
 
 /**
@@ -74,7 +75,7 @@ export class SessionPersistenceService {
   restoreTab(tabData: TabData, windowId?: string): string | null {
     // LLM Response tabs
     if (tabData.component === 'llm-response' && tabData.metadata?.isLLMResponse) {
-      return this.restoreLLMResponseTab(tabData);
+      return this.restoreLLMResponseTab(tabData, windowId);
     }
 
     // File tabs with a file path (images, PDFs, text files from uploads)
@@ -112,7 +113,7 @@ export class SessionPersistenceService {
   /**
    * Restore an LLM response tab with its full metadata.
    */
-  private restoreLLMResponseTab(tabData: TabData): string {
+  private restoreLLMResponseTab(tabData: TabData, windowId?: string): string {
     const tabId = this.deps.createTabId();
     const metadata = tabData.metadata || {};
 
@@ -143,7 +144,12 @@ export class SessionPersistenceService {
     };
 
     this.deps.tabs.set(tabId, tab);
-    this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) });
+
+    if (windowId) {
+      this.deps.setTabOwner(tabId, windowId);
+    }
+
+    this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) }, windowId);
 
     return tabId;
   }
@@ -151,7 +157,7 @@ export class SessionPersistenceService {
   /**
    * Restore a text note tab with its content.
    */
-  private restoreNoteTab(tabData: TabData, _windowId?: string): string {
+  private restoreNoteTab(tabData: TabData, windowId?: string): string {
     const tabId = this.deps.createTabId();
     const metadata = tabData.metadata || {};
 
@@ -171,7 +177,12 @@ export class SessionPersistenceService {
     };
 
     this.deps.tabs.set(tabId, tab);
-    this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) });
+
+    if (windowId) {
+      this.deps.setTabOwner(tabId, windowId);
+    }
+
+    this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) }, windowId);
 
     return tabId;
   }
@@ -220,7 +231,12 @@ export class SessionPersistenceService {
         };
 
         this.deps.tabs.set(tabId, tab);
-        this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) });
+
+        if (windowId) {
+          this.deps.setTabOwner(tabId, windowId);
+        }
+
+        this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) }, windowId);
         return tabId;
       } else {
         // Read binary file (image or PDF) as base64
@@ -247,6 +263,10 @@ export class SessionPersistenceService {
 
         this.deps.tabs.set(tabId, tab);
 
+        if (windowId) {
+          this.deps.setTabOwner(tabId, windowId);
+        }
+
         // Write to temp file and load via file:// protocol
         // This avoids Chromium's ~2MB data URL limit that causes large files to fail
         if (tab.view) {
@@ -254,7 +274,7 @@ export class SessionPersistenceService {
           tab.view.webContents.loadURL(fileUrl);
         }
 
-        this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) });
+        this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) }, windowId);
         return tabId;
       }
     } catch (error) {
@@ -291,7 +311,12 @@ export class SessionPersistenceService {
       };
 
       this.deps.tabs.set(tabId, tab);
-      this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) });
+
+      if (windowId) {
+        this.deps.setTabOwner(tabId, windowId);
+      }
+
+      this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) }, windowId);
     } else {
       // For images/PDFs, create a view with error message
       const tab: TabWithView = {
@@ -311,6 +336,10 @@ export class SessionPersistenceService {
 
       this.deps.tabs.set(tabId, tab);
 
+      if (windowId) {
+        this.deps.setTabOwner(tabId, windowId);
+      }
+
       // Load error HTML into WebContentsView
       if (tab.view) {
         const errorHtml = createFileErrorHTML(tabData.title, errorMessage, metadata.filePath!);
@@ -318,7 +347,7 @@ export class SessionPersistenceService {
         tab.view.webContents.loadURL(dataUrl);
       }
 
-      this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) });
+      this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) }, windowId);
     }
 
     return tabId;
