@@ -9,25 +9,14 @@ import { tempFileService } from './services/temp-file-service.js';
 import { configureSessionSecurity } from './session-security.js';
 import { registerIpcHandlers } from './ipc/register-ipc-handlers.js';
 import type { MainProcessContext } from './ipc/register-ipc-handlers.js';
+import { initSmokeTestExit } from './smoke-test-exit.js';
+import type { SmokeTestExitControls } from './smoke-test-exit.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Check for smoke test mode (used in CI to verify app starts correctly)
 const isSmokeTest = process.argv.includes('--smoke-test');
-const SMOKE_TEST_FORCE_EXIT_MS = 5000;
-const forceExitTimer = isSmokeTest
-  ? (() => {
-      const timer = setTimeout(() => {
-        console.error('Smoke test: forcing process exit after timeout');
-        process.exit(0);
-      }, SMOKE_TEST_FORCE_EXIT_MS);
-      if (typeof timer.unref === 'function') {
-        timer.unref();
-      }
-      return timer;
-    })()
-  : null;
 
 let mainWindow: BrowserWindow | null = null;
 const appContext: MainProcessContext = {
@@ -36,6 +25,7 @@ const appContext: MainProcessContext = {
   screenshotService: null,
 };
 let sessionSecurityConfigured = false;
+let smokeTestExit: SmokeTestExitControls | null = null;
 
 async function createWindow(): Promise<void> {
   const preloadPath = join(__dirname, 'preload.js');
@@ -63,9 +53,7 @@ async function createWindow(): Promise<void> {
   // In smoke test mode, exit after window loads successfully
   if (isSmokeTest) {
     mainWindow.webContents.once('did-finish-load', () => {
-      console.log('Smoke test passed: window loaded successfully');
-      shutdownManager.performCleanup();
-      app.quit();
+      smokeTestExit?.handleWindowLoaded();
     });
   }
 
@@ -166,21 +154,7 @@ app.whenReady().then(async () => {
   shutdownManager.setup();
 
   if (isSmokeTest) {
-    app.on('window-all-closed', () => {
-      console.log('Smoke test: window-all-closed, quitting');
-      app.quit();
-    });
-
-    app.once('will-quit', () => {
-      if (forceExitTimer) {
-        clearTimeout(forceExitTimer);
-      }
-
-      const immediateExit = setTimeout(() => process.exit(0), 0);
-      if (typeof immediateExit.unref === 'function') {
-        immediateExit.unref();
-      }
-    });
+    smokeTestExit = initSmokeTestExit(app, shutdownManager);
   }
 
   // Register temp file cleanup on shutdown
