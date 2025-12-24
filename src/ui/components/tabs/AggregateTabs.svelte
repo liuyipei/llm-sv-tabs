@@ -146,9 +146,8 @@
                       ×
                     </button>
                   </li>
-                {:else}
-                  <li class="state subtle">Tab data unavailable</li>
                 {/if}
+                <!-- Tabs not in tabsById (e.g., aggregate-tabs itself) are silently skipped -->
               {/each}
             </ul>
           {/if}
