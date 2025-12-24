@@ -5,13 +5,13 @@
   function getTypeColor(type: string) {
     switch (type) {
       case 'success':
-        return '#10b981';
+        return 'var(--success-green)';
       case 'error':
         return '#ef4444';
       case 'warning':
-        return '#f59e0b';
+        return 'var(--warning-orange)';
       default:
-        return '#3b82f6';
+        return 'var(--info-blue)';
     }
   }
 </script>
@@ -41,25 +41,25 @@
 <style>
   .toast-container {
     position: fixed;
-    top: 16px;
-    right: 16px;
-    z-index: 10000;
+    top: var(--space-8);
+    right: var(--space-8);
+    z-index: var(--z-toast);
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--space-4);
     pointer-events: none;
   }
 
   .toast {
-    background: #1e1e1e;
-    color: #e0e0e0;
-    padding: 12px 16px;
-    border-radius: 4px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    padding: var(--space-6) var(--space-8);
+    border-radius: var(--radius-md);
     border-left: 4px solid;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--shadow-sm);
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--space-6);
     min-width: 300px;
     max-width: 500px;
     pointer-events: auto;
@@ -68,25 +68,25 @@
 
   .toast-message {
     flex: 1;
-    font-size: 14px;
+    font-size: var(--text-base);
   }
 
   .toast-close {
     background: none;
     border: none;
-    color: #999;
-    font-size: 24px;
-    line-height: 1;
+    color: var(--text-secondary);
+    font-size: var(--text-2xl);
+    line-height: var(--leading-tight);
     cursor: pointer;
     padding: 0;
-    width: 20px;
-    height: 20px;
+    width: 1.25rem;
+    height: 1.25rem;
     display: flex;
     align-items: center;
     justify-content: center;
   }
 
   .toast-close:hover {
-    color: #fff;
+    color: var(--text-bright);
   }
 </style>

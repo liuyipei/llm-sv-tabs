@@ -281,27 +281,27 @@
 
 <style>
   .tab-item {
-    padding: 6px 8px;
-    margin-bottom: 3px;
-    background-color: #2d2d30;
-    border-radius: 3px;
+    padding: var(--space-3) var(--space-4);
+    margin-bottom: var(--space-1);
+    background-color: var(--bg-tertiary);
+    border-radius: var(--radius-default);
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: background-color var(--transition-fast);
   }
 
   .tab-item:hover {
-    background-color: #3e3e42;
+    background-color: var(--bg-hover);
   }
 
   .tab-item.active {
-    background-color: #094771;
-    border-left: 3px solid #007acc;
+    background-color: var(--bg-active);
+    border-left: 3px solid var(--accent-color);
   }
 
   .tab-main-row {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
+    gap: var(--space-4);
   }
 
   input[type='checkbox'] {
@@ -317,13 +317,13 @@
   }
 
   .tab-title {
-    font-size: 12px;
-    font-weight: 500;
-    color: #d4d4d4;
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+    color: var(--text-primary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-bottom: 2px;
+    margin-bottom: var(--space-1);
   }
 
   .tab-title.editable {
@@ -331,28 +331,28 @@
   }
 
   .tab-title.editable:hover {
-    background-color: rgba(255, 255, 255, 0.05);
-    border-radius: 2px;
+    background-color: var(--bg-hover-subtle);
+    border-radius: var(--radius-sm);
     padding: 1px 2px;
     margin: -1px -2px;
   }
 
   .tab-title-input {
-    font-size: 12px;
-    font-weight: 500;
-    color: #d4d4d4;
-    background-color: #3c3c3c;
-    border: 1px solid #007acc;
-    border-radius: 2px;
-    padding: 1px 4px;
-    margin-bottom: 2px;
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+    color: var(--text-primary);
+    background-color: var(--bg-input);
+    border: 1px solid var(--accent-color);
+    border-radius: var(--radius-sm);
+    padding: 1px var(--space-2);
+    margin-bottom: var(--space-1);
     width: 100%;
     outline: none;
   }
 
   .tab-url {
-    font-size: 10px;
-    color: #808080;
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -362,57 +362,57 @@
     flex-shrink: 0;
     background: none;
     border: none;
-    color: #d4d4d4;
-    font-size: 16px;
+    color: var(--text-primary);
+    font-size: var(--text-lg);
     cursor: pointer;
     padding: 0;
-    width: 20px;
-    height: 20px;
-    border-radius: 3px;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: var(--radius-default);
     display: flex;
     align-items: center;
     justify-content: center;
     opacity: 0.6;
-    transition: all 0.2s;
+    transition: all var(--transition-fast);
   }
 
   .refresh-btn:hover {
     opacity: 1;
-    background-color: #007acc;
+    background-color: var(--accent-color);
   }
 
   .close-btn {
     flex-shrink: 0;
     background: none;
     border: none;
-    color: #d4d4d4;
-    font-size: 18px;
+    color: var(--text-primary);
+    font-size: var(--text-xl);
     cursor: pointer;
     padding: 0;
-    width: 20px;
-    height: 20px;
-    border-radius: 3px;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: var(--radius-default);
     display: flex;
     align-items: center;
     justify-content: center;
     opacity: 0.6;
-    transition: all 0.2s;
+    transition: all var(--transition-fast);
   }
 
   .close-btn:hover {
     opacity: 1;
-    background-color: #e81123;
+    background-color: var(--danger-red);
   }
 
   .context-menu {
     position: fixed;
-    background-color: #2d2d30;
-    border: 1px solid #3e3e42;
-    border-radius: 4px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-    z-index: 1000;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    z-index: var(--z-modal);
     min-width: 150px;
-    padding: 4px 0;
+    padding: var(--space-2) 0;
   }
 
   .context-menu-item {
@@ -420,26 +420,26 @@
     width: 100%;
     background: none;
     border: none;
-    color: #d4d4d4;
-    padding: 8px 16px;
+    color: var(--text-primary);
+    padding: var(--space-4) var(--space-8);
     text-align: left;
-    font-size: 13px;
+    font-size: var(--text-md);
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: background-color var(--transition-fast);
   }
 
   .context-menu-item:hover {
-    background-color: #3e3e42;
+    background-color: var(--bg-hover);
   }
 
   .context-menu-item.danger:hover {
-    background-color: #e81123;
-    color: white;
+    background-color: var(--danger-red);
+    color: var(--text-bright);
   }
 
   .context-menu-divider {
     height: 1px;
-    background-color: #3e3e42;
-    margin: 4px 0;
+    background-color: var(--border-color);
+    margin: var(--space-2) 0;
   }
 </style>

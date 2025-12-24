@@ -165,24 +165,24 @@
 <style>
   .url-bar {
     display: flex;
-    gap: 10px;
-    padding: 8px 15px;
-    background-color: #252526;
-    border-bottom: 1px solid #3e3e42;
+    gap: var(--space-5);
+    padding: var(--space-4) var(--space-7);
+    background-color: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
   }
 
   .nav-btn {
-    background-color: #3c3c3c;
-    color: #d4d4d4;
-    border: 1px solid #3e3e42;
-    border-radius: 4px;
-    padding: 6px 12px;
-    font-size: 18px;
-    font-weight: bold;
+    background-color: var(--bg-input);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-6);
+    font-size: var(--text-xl);
+    font-weight: var(--font-bold);
     cursor: pointer;
-    transition: all 0.2s;
-    height: 36px;
-    min-width: 36px;
+    transition: all var(--transition-fast);
+    height: 2.25rem;
+    min-width: 2.25rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -190,53 +190,53 @@
 
   .nav-btn:hover:not(:disabled) {
     background-color: #4e4e52;
-    border-color: #007acc;
+    border-color: var(--accent-color);
   }
 
   .nav-btn:disabled {
-    background-color: #2d2d30;
-    color: #606060;
+    background-color: var(--bg-tertiary);
+    color: var(--text-disabled);
     cursor: not-allowed;
-    border-color: #3e3e42;
+    border-color: var(--border-color);
   }
 
   .url-input {
     flex: 1;
-    background-color: #3c3c3c;
-    color: #d4d4d4;
-    border: 1px solid #3e3e42;
-    border-radius: 4px;
-    padding: 8px 12px;
+    background-color: var(--bg-input);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--space-4) var(--space-6);
     font-family: inherit;
-    font-size: 14px;
-    height: 36px;
+    font-size: var(--text-base);
+    height: 2.25rem;
   }
 
   .url-input:focus {
     outline: none;
-    border-color: #007acc;
+    border-color: var(--accent-color);
   }
 
   .url-submit-btn {
-    background-color: #007acc;
-    color: white;
+    background-color: var(--accent-color);
+    color: var(--text-bright);
     border: none;
-    border-radius: 4px;
-    padding: 8px 20px;
-    font-size: 14px;
-    font-weight: 500;
+    border-radius: var(--radius-md);
+    padding: var(--space-4) var(--space-9);
+    font-size: var(--text-base);
+    font-weight: var(--font-medium);
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: background-color var(--transition-fast);
     white-space: nowrap;
   }
 
   .url-submit-btn:hover:not(:disabled) {
-    background-color: #005a9e;
+    background-color: var(--accent-hover);
   }
 
   .url-submit-btn:disabled {
-    background-color: #3e3e42;
-    color: #808080;
+    background-color: var(--bg-hover);
+    color: var(--text-tertiary);
     cursor: not-allowed;
   }
 </style>
