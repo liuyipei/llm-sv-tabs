@@ -37,69 +37,73 @@
 
 <style>
   h3 {
-    margin: 0 0 16px 0;
-    font-size: 18px;
-    font-weight: 600;
-    color: #cccccc;
+    margin: 0 0 var(--space-8) 0;
+    font-size: var(--text-xl);
+    font-weight: var(--font-semibold);
+    color: var(--text-primary);
   }
 
   p {
-    margin: 0 0 12px 0;
-    font-size: 14px;
-    color: #d4d4d4;
-    line-height: 1.5;
+    margin: 0 0 var(--space-6) 0;
+    font-size: var(--text-base);
+    color: var(--text-primary);
+    line-height: var(--leading-relaxed);
   }
 
   p strong {
-    color: #ffffff;
+    color: var(--text-bright);
     word-break: break-all;
   }
 
   .modal-actions {
     display: flex;
-    gap: 10px;
-    margin-top: 20px;
+    gap: var(--space-5);
+    margin-top: var(--space-9);
   }
 
   .modal-actions button {
     flex: 1;
     border: none;
-    border-radius: 4px;
-    padding: 10px 20px;
-    font-size: 14px;
-    font-weight: 500;
+    border-radius: var(--radius-md);
+    padding: var(--space-5) var(--space-9);
+    font-size: var(--text-base);
+    font-weight: var(--font-medium);
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: background-color var(--transition-fast);
   }
 
   .confirm-btn {
-    background-color: #007acc;
-    color: white;
+    background-color: var(--accent-color);
+    color: var(--text-bright);
   }
 
-  .confirm-btn:hover {
-    background-color: #005a9e;
+  .confirm-btn:hover,
+  .confirm-btn:focus-visible {
+    background-color: var(--accent-hover);
+    outline: none;
   }
 
   .cancel-btn {
-    background-color: #3e3e42;
-    color: #d4d4d4;
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
   }
 
-  .cancel-btn:hover {
-    background-color: #4e4e52;
+  .cancel-btn:hover,
+  .cancel-btn:focus-visible {
+    background-color: var(--bg-input);
+    outline: none;
   }
 
   .large-files-list {
-    margin: 10px 0;
-    padding-left: 20px;
+    margin: var(--space-5) 0;
+    padding-left: var(--space-9);
     max-height: 200px;
     overflow-y: auto;
   }
 
   .large-files-list li {
-    color: #d4d4d4;
-    margin: 5px 0;
-    font-size: 13px;
+    color: var(--text-primary);
+    margin: var(--space-2) 0;
+    font-size: var(--text-md);
   }
 </style>

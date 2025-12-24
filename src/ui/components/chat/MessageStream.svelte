@@ -6,7 +6,7 @@
   import type { ContextTabInfo, Tab } from '../../../types';
   import { searchState, updateSearchResults } from '$stores/search';
   import { createDOMSearch, type DOMSearchInstance } from '$lib/dom-search';
-  import './message-stream/MessageStream.css';
+  import '../../styles/message-stream.css';
   import QueryHeader from './message-stream/QueryHeader.svelte';
   import IdentifiersSection from './message-stream/IdentifiersSection.svelte';
   import ContextTabsSection from './message-stream/ContextTabsSection.svelte';

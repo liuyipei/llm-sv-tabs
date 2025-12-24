@@ -16,11 +16,17 @@ import {
   updateCacheFromProbeResult,
 } from '../../probe/index.js';
 import { probeModel } from '../../probe/index.js';
+import {
+  PROBE_TABLE_HEADERS,
+  formatProbeTableRow,
+  renderTable,
+} from '../../probe/output-format.js';
 
 const CAPABILITY_STALE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 let cacheLoaded = false;
 const probeInFlight = new Map<string, Promise<ModelProbeResult>>();
+let probeLogHeaderPrinted = false;
 
 async function ensureCacheInitialized(): Promise<void> {
   if (cacheLoaded) return;
@@ -77,6 +83,7 @@ async function runProbe(
       DEFAULT_PROBE_CONFIG
     );
 
+    logProbeSummary(result);
     updateCacheFromProbeResult(result);
     await saveCacheToFile();
     return result;
@@ -119,4 +126,18 @@ export async function resolveModelCapabilities(
   }
 
   return resolveCachedCapabilities(provider, model);
+}
+
+function logProbeSummary(result: ModelProbeResult): void {
+  // Use fixed widths for streaming output (rows arrive one at a time)
+  if (!probeLogHeaderPrinted) {
+    const headerLines = renderTable([formatProbeTableRow(result, 50)], PROBE_TABLE_HEADERS, true).slice(0, 2);
+    console.log();
+    headerLines.forEach(line => console.log(line));
+    probeLogHeaderPrinted = true;
+  }
+
+  const row = formatProbeTableRow(result, 50);
+  const dataLine = renderTable([row], PROBE_TABLE_HEADERS, true)[2];
+  console.log(dataLine);
 }

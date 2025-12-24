@@ -79,54 +79,58 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 15px;
-    border-bottom: 1px solid #3e3e42;
+    padding: var(--space-7);
+    border-bottom: 1px solid var(--border-color);
     cursor: pointer;
     user-select: none;
   }
 
-  .section-header:hover {
-    background-color: #2d2d30;
+  .section-header:hover,
+  .section-header:focus-visible {
+    background-color: var(--bg-tertiary);
+    outline: none;
   }
 
   h2 {
     margin: 0;
-    font-size: 14px;
-    font-weight: 600;
+    font-size: var(--text-base);
+    font-weight: var(--font-semibold);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: #cccccc;
+    color: var(--text-primary);
   }
 
   .header-actions {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--space-5);
   }
 
   .add-bookmark-btn {
-    background-color: #007acc;
-    color: white;
+    background-color: var(--accent-color);
+    color: var(--text-bright);
     border: none;
-    border-radius: 3px;
+    border-radius: var(--radius-default);
     width: 24px;
     height: 24px;
-    font-size: 18px;
+    font-size: var(--text-xl);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background-color 0.2s;
+    transition: background-color var(--transition-fast);
     padding: 0;
-    line-height: 1;
+    line-height: var(--leading-tight);
   }
 
-  .add-bookmark-btn:hover {
-    background-color: #005a9e;
+  .add-bookmark-btn:hover,
+  .add-bookmark-btn:focus-visible {
+    background-color: var(--accent-hover);
+    outline: none;
   }
 
   .toggle-icon {
-    font-size: 10px;
-    color: #808080;
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
   }
 </style>

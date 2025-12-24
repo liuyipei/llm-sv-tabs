@@ -8,9 +8,16 @@ import { existsSync } from 'fs';
 import { mkdir, readFile, writeFile } from 'fs/promises';
 import type { TabData } from '../../types';
 
+export interface WindowSessionData {
+  id: string;
+  activeTabId: string | null;
+  tabIds: string[];
+}
+
 interface SessionData {
   tabs: TabData[];
   activeTabId: string | null;
+  windows?: WindowSessionData[];
   lastSaved: number;
 }
 
@@ -25,16 +32,19 @@ export class SessionManager {
   /**
    * Save current session to disk
    */
-  async saveSession(tabs: TabData[], activeTabId: string | null): Promise<void> {
+  async saveSession(tabs: TabData[], windows: WindowSessionData[]): Promise<void> {
     try {
       const userDataPath = app.getPath('userData');
       if (!existsSync(userDataPath)) {
         await mkdir(userDataPath, { recursive: true });
       }
 
+      const primaryWindowActive = windows.find((window) => window.id === windows[0]?.id)?.activeTabId ?? null;
+
       const sessionData: SessionData = {
         tabs,
-        activeTabId,
+        activeTabId: primaryWindowActive,
+        windows,
         lastSaved: Date.now(),
       };
 
@@ -72,7 +82,11 @@ export class SessionManager {
   async clearSession(): Promise<void> {
     try {
       if (existsSync(this.sessionPath)) {
-        await writeFile(this.sessionPath, JSON.stringify({ tabs: [], activeTabId: null, lastSaved: Date.now() }), 'utf-8');
+        await writeFile(
+          this.sessionPath,
+          JSON.stringify({ tabs: [], activeTabId: null, windows: [], lastSaved: Date.now() }),
+          'utf-8'
+        );
         console.log('Session cleared');
       }
     } catch (error) {

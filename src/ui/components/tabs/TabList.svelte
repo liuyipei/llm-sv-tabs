@@ -20,39 +20,39 @@
   .tab-list {
     flex: 1;
     overflow-y: auto;
-    padding: 8px;
+    padding: var(--space-4);
   }
 
   .empty-state {
-    padding: 20px 15px;
+    padding: var(--space-9) var(--space-7);
     text-align: center;
-    color: #808080;
+    color: var(--text-tertiary);
   }
 
   .empty-state p {
-    margin: 5px 0;
+    margin: var(--space-2) 0;
   }
 
   .empty-state .hint {
-    font-size: 12px;
-    color: #606060;
+    font-size: var(--text-sm);
+    color: var(--text-disabled);
   }
 
   /* Scrollbar styling */
   .tab-list::-webkit-scrollbar {
-    width: 8px;
+    width: var(--space-4);
   }
 
   .tab-list::-webkit-scrollbar-track {
-    background: #1e1e1e;
+    background: var(--bg-primary);
   }
 
   .tab-list::-webkit-scrollbar-thumb {
-    background: #3e3e42;
-    border-radius: 4px;
+    background: var(--border-color);
+    border-radius: var(--radius-md);
   }
 
   .tab-list::-webkit-scrollbar-thumb:hover {
-    background: #4e4e52;
+    background: var(--bg-hover);
   }
 </style>

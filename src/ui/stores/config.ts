@@ -1,48 +1,7 @@
-import { writable, type Writable } from 'svelte/store';
+import { get } from 'svelte/store';
 import type { ProviderType, LLMModel } from '../../types';
+import { createPersistedStore } from '../utils/persisted-store';
 import { loadCapabilitiesFromCache, probeAndStoreCapabilities, getCapabilities as getCachedCapabilities, isCapabilityStale as isCapabilityStaleCached } from './capabilities.js';
-
-// Create a persisted store that syncs with localStorage
-// Uses the custom store pattern to avoid subscribing during module init
-function createPersistedStore<T>(key: string, initial: T): Writable<T> {
-  const isBrowser = typeof window !== 'undefined' && typeof localStorage !== 'undefined';
-
-  // 1. Load initial value from localStorage
-  let initialValue = initial;
-  if (isBrowser) {
-    const stored = localStorage.getItem(key);
-    if (stored) {
-      try {
-        initialValue = JSON.parse(stored);
-      } catch (e) {
-        console.warn(`Failed to parse stored value for ${key}`, e);
-      }
-    }
-  }
-
-  // 2. Create the base writable store
-  const { subscribe, set, update } = writable<T>(initialValue);
-
-  // 3. Return a custom store object that persists on set/update
-  return {
-    subscribe,
-    set: (value: T) => {
-      if (isBrowser) {
-        localStorage.setItem(key, JSON.stringify(value));
-      }
-      set(value);
-    },
-    update: (fn: (value: T) => T) => {
-      update((current) => {
-        const newValue = fn(current);
-        if (isBrowser) {
-          localStorage.setItem(key, JSON.stringify(newValue));
-        }
-        return newValue;
-      });
-    }
-  };
-}
 
 // Configuration stores
 export const provider = createPersistedStore<ProviderType>('provider', 'openai');
@@ -64,31 +23,46 @@ export const selectedQuickSwitchIndex = createPersistedStore<number | null>('sel
 // Auto-sync quick list to file for CLI probe tool
 // This runs on any change to the quick switch models (debounced)
 let syncTimeout: ReturnType<typeof setTimeout> | null = null;
-if (typeof window !== 'undefined') {
-  void loadCapabilitiesFromCache();
+let forceProbe = false;
+const QUICK_LIST_SYNC_MS = 500;
 
-  quickSwitchModels.subscribe((models) => {
-    // Debounce sync to avoid excessive writes
-    if (syncTimeout) clearTimeout(syncTimeout);
-    syncTimeout = setTimeout(() => {
-      const electronAPI = (window as any).electronAPI;
-      if (electronAPI?.syncQuickList) {
-        electronAPI.syncQuickList(models).catch((err: Error) => {
-          console.warn('Failed to sync quick list to file:', err);
-        });
-      }
+function scheduleQuickListSync(triggeredForceProbe = false): void {
+  if (triggeredForceProbe) {
+    forceProbe = true;
+  }
 
-      // Probe newly added models in background
-      if (electronAPI?.probeModel) {
-        for (const { provider, model } of models) {
-          const existing = getCachedCapabilities(provider, model);
-          if (!existing || isCapabilityStaleCached(existing)) {
-            void probeAndStoreCapabilities(provider, model, undefined, undefined, false);
-          }
+  if (syncTimeout) clearTimeout(syncTimeout);
+  syncTimeout = setTimeout(() => {
+    const electronAPI = (window as any).electronAPI;
+    const models = get(quickSwitchModels);
+    const keys = get(apiKeys);
+    const endpointUrl = get(endpoint);
+
+    if (electronAPI?.syncQuickList) {
+      electronAPI.syncQuickList(models).catch((err: Error) => {
+        console.warn('Failed to sync quick list to file:', err);
+      });
+    }
+
+    if (electronAPI?.probeModel) {
+      for (const { provider, model } of models) {
+        const existing = getCachedCapabilities(provider, model);
+        if (forceProbe || !existing || isCapabilityStaleCached(existing)) {
+          void probeAndStoreCapabilities(provider, model, keys[provider], endpointUrl, forceProbe);
         }
       }
-    }, 500);
-  });
+    }
+
+    forceProbe = false;
+  }, QUICK_LIST_SYNC_MS);
+}
+
+// Subscribe to changes and sync to file
+quickSwitchModels.subscribe(() => scheduleQuickListSync());
+
+// Load capabilities from cache on startup
+if (typeof window !== 'undefined') {
+  loadCapabilitiesFromCache();
 }
 
 // Model history stores
@@ -252,4 +226,9 @@ export function formatQuickSwitchModel(item: QuickSwitchModel): string {
 export function formatQuickSwitchModelTruncated(item: QuickSwitchModel, maxModelLen: number = 40): string {
   const truncatedModel = truncateModelName(item.model, maxModelLen);
   return `${item.provider}:${truncatedModel}`;
+}
+
+// Trigger a re-probe of all models in the quick list (e.g. after API key change)
+export function triggerQuickListProbe(): void {
+  scheduleQuickListSync(true);
 }

@@ -10,12 +10,12 @@ import { NavigationService } from './tab-manager/navigation-service.js';
 import { SessionPersistenceService } from './tab-manager/session-persistence-service.js';
 import { createConfiguredView } from './tab-manager/web-contents-view-factory.js';
 import { NoteTabService } from './tab-manager/note-tab-service.js';
+import { WindowRegistry, type WindowContext, type WindowId } from './tab-manager/window-registry.js';
+import { AggregateTabService } from './tab-manager/aggregate-tab-service.js';
 
 class TabManager {
-  private mainWindow: BrowserWindow;
+  private windowRegistry: WindowRegistry;
   private tabs: Map<string, TabWithView>;
-  private activeTabId: string | null;
-  private activeWebContentsView: WebContentsView | null;
   private tabCounter: number;
   private sessionManager: SessionManager;
   private readonly SIDEBAR_WIDTH = 350;
@@ -23,18 +23,19 @@ class TabManager {
   private readonly SEARCH_BAR_HEIGHT = 45; // Height of the search bar when visible
   private lastMetadataUpdate: Map<string, number>; // Track last metadata update time per tab
   private readonly METADATA_UPDATE_THROTTLE_MS = 500; // Send metadata updates at most every 500ms
-  private isSearchBarVisible: boolean = false; // Track search bar visibility
   private llmTabs: LLMTabService;
   private findInPageService: FindInPageService;
   private navigation: NavigationService;
   private sessionPersistence: SessionPersistenceService;
   private noteTabs: NoteTabService;
+  private aggregateTabs: AggregateTabService;
 
   constructor(mainWindow: BrowserWindow) {
-    this.mainWindow = mainWindow;
+    this.windowRegistry = new WindowRegistry(mainWindow, {
+      onResize: (windowId) => this.updateWebContentsViewBounds(windowId),
+      onClose: (windowId) => this.handleWindowClosed(windowId),
+    });
     this.tabs = new Map();
-    this.activeTabId = null;
-    this.activeWebContentsView = null;
     this.tabCounter = 0;
     this.sessionManager = new SessionManager();
     this.lastMetadataUpdate = new Map();
@@ -43,9 +44,10 @@ class TabManager {
       tabs: this.tabs,
       createTabId: () => this.createTabId(),
       getTabData: (tabId) => this.getTabData(tabId),
-      sendToRenderer: (channel, payload) => this.sendToRenderer(channel, payload),
+      sendToRenderer: (channel, payload, windowId) => this.sendToRenderer(channel, payload, windowId),
       saveSession: () => this.saveSession(),
-      setActiveTab: (tabId) => this.setActiveTab(tabId),
+      setActiveTab: (tabId, windowId) => this.setActiveTab(tabId, windowId),
+      setTabOwner: (tabId, windowId) => this.windowRegistry.setTabOwner(tabId, windowId),
       lastMetadataUpdate: this.lastMetadataUpdate,
       openUrl: (url, autoSelect) => this.openUrl(url, autoSelect),
     });
@@ -61,10 +63,11 @@ class TabManager {
       tabs: this.tabs,
       createTabId: () => this.createTabId(),
       getTabData: (tabId) => this.getTabData(tabId),
-      sendToRenderer: (channel, payload) => this.sendToRenderer(channel, payload),
-      openUrl: (url, autoSelect) => this.openUrl(url, autoSelect),
-      createView: () => this.createView(),
+      sendToRenderer: (channel, payload, windowId) => this.sendToRenderer(channel, payload, windowId),
+      openUrl: (url, autoSelect, targetWindowId) => this.openUrl(url, autoSelect, targetWindowId),
+      createView: (targetWindowId) => this.createView(targetWindowId),
       createNoteHTML: (title, content, fileType) => createNoteHTML(title, content, fileType as 'text' | 'pdf' | 'image'),
+      setTabOwner: (tabId, windowId) => this.windowRegistry.setTabOwner(tabId, windowId),
     });
 
     this.noteTabs = new NoteTabService({
@@ -73,37 +76,62 @@ class TabManager {
       getTabData: (tabId) => this.getTabData(tabId),
       sendToRenderer: (channel, payload) => this.sendToRenderer(channel, payload),
       saveSession: () => this.saveSession(),
-      setActiveTab: (tabId) => this.setActiveTab(tabId),
-      createView: () => this.createView(),
+      setActiveTab: (tabId, windowId) => this.setActiveTab(tabId, windowId),
+      createView: (windowId) => this.createView(windowId),
     });
 
-    // Handle window resize to update WebContentsView bounds
-    this.mainWindow.on('resize', () => this.updateWebContentsViewBounds());
+    this.aggregateTabs = new AggregateTabService({
+      tabs: this.tabs,
+      createTabId: () => this.createTabId(),
+      getTabData: (tabId) => this.getTabData(tabId),
+      setTabOwner: (tabId, windowId) => this.windowRegistry.setTabOwner(tabId, windowId),
+      setActiveTab: (tabId, windowId) => this.setActiveTab(tabId, windowId),
+      sendToRenderer: (channel, payload, windowId) => this.sendToRenderer(channel, payload, windowId),
+      saveSession: () => this.saveSession(),
+      windowRegistry: this.windowRegistry,
+      getPrimaryWindowId: () => this.windowRegistry.getPrimaryWindowId(),
+    });
 
     // Save session periodically (every 30 seconds)
     setInterval(() => void this.saveSession(), 30000);
-
-    // Save session before app quits
-    this.mainWindow.on('close', () => {
-      void void this.saveSession();
-    });
   }
 
-  private updateWebContentsViewBounds(): void {
-    if (!this.activeTabId) return;
+  private handleWindowClosed(windowId: WindowId): void {
+    const context = this.windowRegistry.getWindowContext(windowId);
+    if (!context) return;
 
-    const tab = this.tabs.get(this.activeTabId);
+    // Clean up tab ownership for this window
+    for (const tabId of this.windowRegistry.getTabIdsForWindow(windowId)) {
+      this.windowRegistry.removeTab(tabId);
+    }
+
+    // Detach active view if present
+    const activeView = (context as WindowContext & { activeWebContentsView?: WebContentsView }).activeWebContentsView;
+    if (activeView) {
+      try {
+        context.window.contentView.removeChildView(activeView);
+      } catch (error) {
+        console.warn(`Failed to remove view during window close for ${windowId}`, error);
+      }
+    }
+  }
+
+  private updateWebContentsViewBounds(windowId?: WindowId): void {
+    const context = this.windowRegistry.getWindowContext(windowId);
+    if (!context.activeTabId) return;
+
+    const tab = this.tabs.get(context.activeTabId);
     if (!tab || !tab.view) return;
 
     // Check if the view's webContents has been destroyed
-    if (tab.view.webContents.isDestroyed()) {
-      console.warn(`Tab ${this.activeTabId} has a destroyed webContents, skipping bounds update`);
-      return;
-    }
+      if (tab.view.webContents.isDestroyed()) {
+        console.warn(`Tab ${context.activeTabId} has a destroyed webContents, skipping bounds update`);
+        return;
+      }
 
     try {
-      const bounds = this.mainWindow.getContentBounds();
-      const headerHeight = this.HEADER_HEIGHT + (this.isSearchBarVisible ? this.SEARCH_BAR_HEIGHT : 0);
+      const bounds = context.window.getContentBounds();
+      const headerHeight = this.HEADER_HEIGHT + (context.isSearchBarVisible ? this.SEARCH_BAR_HEIGHT : 0);
       tab.view.setBounds({
         x: this.SIDEBAR_WIDTH,
         y: headerHeight,
@@ -113,7 +141,7 @@ class TabManager {
     } catch (error) {
       // Handle race condition where view is destroyed between check and usage
       if (error instanceof Error && error.message.includes('destroyed')) {
-        console.warn(`Tab ${this.activeTabId} was destroyed during bounds update`);
+        console.warn(`Tab ${context.activeTabId} was destroyed during bounds update`);
       } else {
         throw error; // Re-throw if it's not a destroyed object error
       }
@@ -123,18 +151,31 @@ class TabManager {
   /**
    * Set whether the search bar is visible (affects WebContentsView bounds)
    */
-  setSearchBarVisible(visible: boolean): void {
-    this.isSearchBarVisible = visible;
-    this.updateWebContentsViewBounds();
+  setSearchBarVisible(visible: boolean, windowId?: WindowId): void {
+    const context = this.windowRegistry.getWindowContext(windowId);
+    this.windowRegistry.setSearchBarVisible(context.id, visible);
+    this.updateWebContentsViewBounds(context.id);
   }
 
   private createTabId(): string {
     return `tab-${++this.tabCounter}`;
   }
 
-  private createView(): WebContentsView {
-    const view = createConfiguredView((url) => this.openUrl(url));
-    this.setupViewKeyboardShortcuts(view);
+  private getWindowIdForTab(tabId: string, fallbackWindowId?: WindowId): WindowId {
+    return this.windowRegistry.getWindowIdForTab(tabId, fallbackWindowId);
+  }
+
+  getWindowIdFor(window: BrowserWindow | null): WindowId {
+    return this.windowRegistry.getWindowIdFor(window);
+  }
+
+  private getTabIdsForWindow(windowId: WindowId): string[] {
+    return this.windowRegistry.getTabIdsForWindow(windowId);
+  }
+
+  private createView(windowId?: WindowId): WebContentsView {
+    const view = createConfiguredView((url) => this.openUrl(url, true, windowId));
+    this.setupViewKeyboardShortcuts(view, windowId);
     return view;
   }
 
@@ -143,7 +184,7 @@ class TabManager {
    * These handlers intercept keyboard events before they reach the page,
    * allowing shortcuts to work when the browser content is focused.
    */
-  private setupViewKeyboardShortcuts(view: WebContentsView): void {
+  private setupViewKeyboardShortcuts(view: WebContentsView, windowId?: WindowId): void {
     const isMac = process.platform === 'darwin';
 
     view.webContents.on('before-input-event', (event, input) => {
@@ -156,7 +197,7 @@ class TabManager {
       // Ctrl/Cmd+W: Close active tab
       if (ctrl && key === 'w') {
         event.preventDefault();
-        const activeTabId = this.getActiveTabs().activeTabId;
+        const activeTabId = this.getActiveTabs(windowId).activeTabId;
         if (activeTabId) {
           this.closeTab(activeTabId);
         }
@@ -166,14 +207,14 @@ class TabManager {
       // Ctrl/Cmd+T: New tab (focus URL bar)
       if (ctrl && key === 't') {
         event.preventDefault();
-        this.sendFocusEvent('focus-url-bar');
+        this.sendFocusEvent('focus-url-bar', windowId);
         return;
       }
 
       // Ctrl/Cmd+R: Reload current tab
       if (ctrl && key === 'r') {
         event.preventDefault();
-        const activeTabId = this.getActiveTabs().activeTabId;
+        const activeTabId = this.getActiveTabs(windowId).activeTabId;
         if (activeTabId) {
           this.reloadTab(activeTabId);
         }
@@ -183,42 +224,43 @@ class TabManager {
       // Ctrl/Cmd+L: Focus URL bar
       if (ctrl && key === 'l') {
         event.preventDefault();
-        this.sendFocusEvent('focus-url-bar');
+        this.sendFocusEvent('focus-url-bar', windowId);
         return;
       }
 
       // Ctrl/Cmd+F: Find in page
       if (ctrl && key === 'f') {
         event.preventDefault();
-        this.sendFocusEvent('focus-search-bar');
+        this.sendFocusEvent('focus-search-bar', windowId);
         return;
       }
 
       // Ctrl/Cmd+.: Focus LLM input
       if (ctrl && key === '.') {
         event.preventDefault();
-        this.sendFocusEvent('focus-llm-input');
+        this.sendFocusEvent('focus-llm-input', windowId);
         return;
       }
 
       // Ctrl/Cmd+D: Bookmark current tab
       if (ctrl && key === 'd') {
         event.preventDefault();
-        this.sendFocusEvent('bookmark-tab');
+        this.sendFocusEvent('bookmark-tab', windowId);
         return;
       }
 
       // Ctrl/Cmd+Alt+S: Screenshot
       if (ctrl && input.alt && key === 's') {
         event.preventDefault();
-        this.mainWindow.webContents.send('trigger-screenshot');
+        const targetWindow = this.windowRegistry.getWindowContext(windowId).window;
+        targetWindow.webContents.send('trigger-screenshot');
         return;
       }
 
       // Alt+Left or Cmd+[: Go back
       if ((input.alt && key === 'arrowleft') || (isMac && input.meta && key === '[')) {
         event.preventDefault();
-        const activeTabId = this.getActiveTabs().activeTabId;
+        const activeTabId = this.getActiveTabs(windowId).activeTabId;
         if (activeTabId) {
           this.goBack(activeTabId);
         }
@@ -228,7 +270,7 @@ class TabManager {
       // Alt+Right or Cmd+]: Go forward
       if ((input.alt && key === 'arrowright') || (isMac && input.meta && key === ']')) {
         event.preventDefault();
-        const activeTabId = this.getActiveTabs().activeTabId;
+        const activeTabId = this.getActiveTabs(windowId).activeTabId;
         if (activeTabId) {
           this.goForward(activeTabId);
         }
@@ -238,28 +280,32 @@ class TabManager {
       // Ctrl+Tab: Next tab
       if (input.control && key === 'tab' && !input.shift) {
         event.preventDefault();
-        this.mainWindow.webContents.send('navigate-next-tab');
+        const targetWindow = this.windowRegistry.getWindowContext(windowId).window;
+        targetWindow.webContents.send('navigate-next-tab');
         return;
       }
 
       // Ctrl+Shift+Tab: Previous tab
       if (input.control && key === 'tab' && input.shift) {
         event.preventDefault();
-        this.mainWindow.webContents.send('navigate-previous-tab');
+        const targetWindow = this.windowRegistry.getWindowContext(windowId).window;
+        targetWindow.webContents.send('navigate-previous-tab');
         return;
       }
 
       // Mac: Cmd+Alt+Right: Next tab
       if (isMac && input.meta && input.alt && key === 'arrowright') {
         event.preventDefault();
-        this.mainWindow.webContents.send('navigate-next-tab');
+        const targetWindow = this.windowRegistry.getWindowContext(windowId).window;
+        targetWindow.webContents.send('navigate-next-tab');
         return;
       }
 
       // Mac: Cmd+Alt+Left: Previous tab
       if (isMac && input.meta && input.alt && key === 'arrowleft') {
         event.preventDefault();
-        this.mainWindow.webContents.send('navigate-previous-tab');
+        const targetWindow = this.windowRegistry.getWindowContext(windowId).window;
+        targetWindow.webContents.send('navigate-previous-tab');
         return;
       }
     });
@@ -269,19 +315,21 @@ class TabManager {
    * Helper to send focus events to the renderer with proper focus chain.
    * Focuses the OS window and UI webContents before sending the IPC event.
    */
-  private sendFocusEvent(eventName: string): void {
-    this.mainWindow.show();
-    this.mainWindow.focus();
-    this.mainWindow.webContents.focus();
+  private sendFocusEvent(eventName: string, windowId?: WindowId): void {
+    const context = this.windowRegistry.getWindowContext(windowId);
+    context.window.show();
+    context.window.focus();
+    context.window.webContents.focus();
     setTimeout(() => {
-      this.mainWindow.webContents.send(eventName);
+      context.window.webContents.send(eventName);
     }, 10);
   }
 
-  openUrl(url: string, autoSelect: boolean = true): { tabId: string; tab: TabData } {
+  openUrl(url: string, autoSelect: boolean = true, windowId?: WindowId): { tabId: string; tab: TabData } {
+    const context = this.windowRegistry.getWindowContext(windowId);
     const tabId = this.createTabId();
 
-    const view = this.createView();
+    const view = this.createView(context.id);
 
     const tab: TabWithView = {
       id: tabId,
@@ -294,6 +342,7 @@ class TabManager {
     };
 
     this.tabs.set(tabId, tab);
+    this.windowRegistry.setTabOwner(tabId, context.id);
 
     // Load the URL
     view.webContents.loadURL(url);
@@ -361,11 +410,11 @@ class TabManager {
 
     // Set as active tab (if autoSelect is true)
     if (autoSelect) {
-      this.setActiveTab(tabId);
+      this.setActiveTab(tabId, context.id);
     }
 
     // Notify renderer
-    this.sendToRenderer('tab-created', { tab: this.getTabData(tabId) });
+    this.sendToRenderer('tab-created', { tab: this.getTabData(tabId) }, context.id);
 
     // Save session after tab change
     void this.saveSession();
@@ -373,16 +422,28 @@ class TabManager {
     return { tabId, tab: this.getTabData(tabId)! };
   }
 
-  openNoteTab(noteId: number, title: string, content: string, fileType: 'text' | 'pdf' | 'image' = 'text', autoSelect: boolean = true, filePath?: string): { tabId: string; tab: TabData } {
-    return this.noteTabs.openNoteTab(noteId, title, content, fileType, autoSelect, filePath);
+  openNoteTab(noteId: number, title: string, content: string, fileType: 'text' | 'pdf' | 'image' = 'text', autoSelect: boolean = true, filePath?: string, windowId?: WindowId): { tabId: string; tab: TabData } {
+    const result = this.noteTabs.openNoteTab(noteId, title, content, fileType, autoSelect, filePath, windowId);
+    const targetWindowId = windowId ?? this.windowRegistry.getPrimaryWindowId();
+    this.windowRegistry.setTabOwner(result.tabId, targetWindowId);
+    if (autoSelect) {
+      this.setActiveTab(result.tabId, targetWindowId);
+    }
+    return result;
   }
 
   /**
    * Open a file from a bookmark by reading it from disk.
    * Similar to session persistence restore, but for bookmarks.
    */
-  openFileFromBookmark(title: string, filePath: string, fileType: 'text' | 'pdf' | 'image', noteId?: number): { success: boolean; data?: { tabId: string; tab: TabData }; error?: string } {
-    return this.noteTabs.openFileFromBookmark(title, filePath, fileType, noteId);
+  openFileFromBookmark(title: string, filePath: string, fileType: 'text' | 'pdf' | 'image', noteId?: number, windowId?: WindowId): { success: boolean; data?: { tabId: string; tab: TabData }; error?: string } {
+    const result = this.noteTabs.openFileFromBookmark(title, filePath, fileType, noteId, windowId);
+    if (result.success && result.data) {
+      const targetWindowId = windowId ?? this.windowRegistry.getPrimaryWindowId();
+      this.windowRegistry.setTabOwner(result.data.tabId, targetWindowId);
+      this.setActiveTab(result.data.tabId, targetWindowId);
+    }
+    return result;
   }
 
   /**
@@ -392,13 +453,15 @@ class TabManager {
     return this.noteTabs.updateNoteContent(tabId, content);
   }
 
-  openLLMResponseTab(query: string, response?: string, error?: string, autoSelect: boolean = true): { tabId: string; tab: TabData } {
-    return this.llmTabs.openLLMResponseTab(query, response, error, autoSelect);
+  openLLMResponseTab(query: string, response?: string, error?: string, autoSelect: boolean = true, windowId?: WindowId): { tabId: string; tab: TabData } {
+    const targetWindowId = windowId ?? this.windowRegistry.getPrimaryWindowId();
+    return this.llmTabs.openLLMResponseTab(query, response, error, autoSelect, targetWindowId);
   }
 
-  openApiKeyInstructionsTab(autoSelect: boolean = true): { tabId: string; tab: TabData } {
+  openApiKeyInstructionsTab(autoSelect: boolean = true, windowId?: WindowId): { tabId: string; tab: TabData } {
     const tabId = this.createTabId();
     const timestamp = Date.now();
+    const targetWindowId = windowId ?? this.windowRegistry.getPrimaryWindowId();
 
     // No BrowserView for API key instructions - use Svelte component instead
     const tab: TabWithView = {
@@ -412,19 +475,24 @@ class TabManager {
     };
 
     this.tabs.set(tabId, tab);
+    this.windowRegistry.setTabOwner(tabId, targetWindowId);
 
     // Set as active tab (if autoSelect is true)
     if (autoSelect) {
-      this.setActiveTab(tabId);
+      this.setActiveTab(tabId, targetWindowId);
     }
 
     // Notify renderer
-    this.sendToRenderer('tab-created', { tab: this.getTabData(tabId) });
+    this.sendToRenderer('tab-created', { tab: this.getTabData(tabId) }, targetWindowId);
 
     // Save session after tab change
     void this.saveSession();
 
     return { tabId, tab: this.getTabData(tabId)! };
+  }
+
+  openAggregateTab(autoSelect: boolean = true, windowId?: WindowId): { tabId: string; tab: TabData } {
+    return this.aggregateTabs.openAggregateTab(autoSelect, windowId);
   }
 
   /**
@@ -523,32 +591,34 @@ class TabManager {
   /**
    * Switch to the next tab
    */
-  nextTab(): { success: boolean; tabId?: string; error?: string } {
-    const tabIds = Array.from(this.tabs.keys());
+  nextTab(windowId?: WindowId): { success: boolean; tabId?: string; error?: string } {
+    const context = this.windowRegistry.getWindowContext(windowId);
+    const tabIds = this.windowRegistry.getTabIdsForWindow(context.id);
     if (tabIds.length === 0) return { success: false, error: 'No tabs available' };
-    if (!this.activeTabId) return { success: false, error: 'No active tab' };
+    if (!context.activeTabId) return { success: false, error: 'No active tab' };
 
-    const currentIndex = tabIds.indexOf(this.activeTabId);
+    const currentIndex = tabIds.indexOf(context.activeTabId);
     const nextIndex = (currentIndex + 1) % tabIds.length;
     const nextTabId = tabIds[nextIndex];
 
-    this.setActiveTab(nextTabId);
+    this.setActiveTab(nextTabId, context.id);
     return { success: true, tabId: nextTabId };
   }
 
   /**
    * Switch to the previous tab
    */
-  previousTab(): { success: boolean; tabId?: string; error?: string } {
-    const tabIds = Array.from(this.tabs.keys());
+  previousTab(windowId?: WindowId): { success: boolean; tabId?: string; error?: string } {
+    const context = this.windowRegistry.getWindowContext(windowId);
+    const tabIds = this.windowRegistry.getTabIdsForWindow(context.id);
     if (tabIds.length === 0) return { success: false, error: 'No tabs available' };
-    if (!this.activeTabId) return { success: false, error: 'No active tab' };
+    if (!context.activeTabId) return { success: false, error: 'No active tab' };
 
-    const currentIndex = tabIds.indexOf(this.activeTabId);
+    const currentIndex = tabIds.indexOf(context.activeTabId);
     const previousIndex = (currentIndex - 1 + tabIds.length) % tabIds.length;
     const previousTabId = tabIds[previousIndex];
 
-    this.setActiveTab(previousTabId);
+    this.setActiveTab(previousTabId, context.id);
     return { success: true, tabId: previousTabId };
   }
 
@@ -556,9 +626,15 @@ class TabManager {
     const tab = this.tabs.get(tabId);
     if (!tab) return { success: false, error: 'Tab not found' };
 
+    const context = this.windowRegistry.getWindowContext(this.windowRegistry.getWindowIdForTab(tabId));
+
     // Destroy the view
     if (tab.view) {
-      this.mainWindow.contentView.removeChildView(tab.view);
+      try {
+        context.window.contentView.removeChildView(tab.view);
+      } catch (error) {
+        console.warn(`Failed to remove view for tab ${tabId} during close`, error);
+      }
       // Note: WebContents cleanup is handled automatically when view is removed
       // The destroy() method was removed in newer Electron versions
     }
@@ -568,18 +644,20 @@ class TabManager {
 
     // Remove from tabs
     this.tabs.delete(tabId);
+    this.windowRegistry.removeTab(tabId);
 
-    // If this was the active tab, switch to another
-    if (this.activeTabId === tabId) {
-      const remainingTabs = Array.from(this.tabs.keys());
-      this.activeTabId = remainingTabs.length > 0 ? remainingTabs[0] : null;
-      if (this.activeTabId) {
-        this.setActiveTab(this.activeTabId);
+    // If this was the active tab, switch to another in the same window
+    if (context.activeTabId === tabId) {
+      const remainingTabs = this.windowRegistry.getTabIdsForWindow(context.id);
+      const next = remainingTabs.length > 0 ? remainingTabs[0] : null;
+      this.windowRegistry.setActiveTab(context.id, next);
+      if (next) {
+        this.setActiveTab(next, context.id);
       }
     }
 
     // Notify renderer
-    this.sendToRenderer('tab-closed', { id: tabId });
+    this.sendToRenderer('tab-closed', { id: tabId }, context.id);
 
     // Save session after tab change
     void this.saveSession();
@@ -587,18 +665,26 @@ class TabManager {
     return { success: true };
   }
 
-  setActiveTab(tabId: string): { success: boolean; error?: string } {
+  setActiveTab(tabId: string, windowId?: WindowId): { success: boolean; error?: string } {
     const tab = this.tabs.get(tabId);
     if (!tab) return { success: false, error: 'Tab not found' };
 
+    const context = this.windowRegistry.getWindowContext(this.windowRegistry.getWindowIdForTab(tabId, windowId));
+    this.windowRegistry.setTabOwner(tabId, context.id);
+
     // Hide previous WebContentsView if there was one
-    if (this.activeWebContentsView) {
-      this.mainWindow.contentView.removeChildView(this.activeWebContentsView);
-      this.activeWebContentsView = null;
+    const activeView = (context as WindowContext & { activeWebContentsView?: WebContentsView }).activeWebContentsView;
+    if (activeView) {
+      try {
+        context.window.contentView.removeChildView(activeView);
+      } catch (error) {
+        console.warn(`Failed to remove previous view during activation for window ${context.id}`, error);
+      }
+      (context as WindowContext & { activeWebContentsView?: WebContentsView }).activeWebContentsView = undefined;
     }
 
     // Show new active tab
-    this.activeTabId = tabId;
+    this.windowRegistry.setActiveTab(context.id, tabId);
     tab.lastViewed = Date.now();
 
     if (tab.view) {
@@ -606,9 +692,9 @@ class TabManager {
       if (!tab.view.webContents) {
         console.warn(`Tab ${tabId} has no webContents, skipping activation`);
         this.tabs.delete(tabId);
-        const remainingTabs = Array.from(this.tabs.keys());
+        const remainingTabs = this.getTabIdsForWindow(context.id);
         if (remainingTabs.length > 0) {
-          return this.setActiveTab(remainingTabs[0]);
+          return this.setActiveTab(remainingTabs[0], context.id);
         }
         return { success: false, error: 'Tab has no webContents' };
       }
@@ -619,21 +705,21 @@ class TabManager {
         // Remove the destroyed tab
         this.tabs.delete(tabId);
         // Try to activate another tab
-        const remainingTabs = Array.from(this.tabs.keys());
+        const remainingTabs = this.getTabIdsForWindow(context.id);
         if (remainingTabs.length > 0) {
-          return this.setActiveTab(remainingTabs[0]);
+          return this.setActiveTab(remainingTabs[0], context.id);
         }
         return { success: false, error: 'Tab webContents has been destroyed' };
       }
 
       try {
         // Traditional WebContentsView tab (webpage, notes, uploads)
-        this.mainWindow.contentView.addChildView(tab.view);
-        this.activeWebContentsView = tab.view;
+        context.window.contentView.addChildView(tab.view);
+        (context as WindowContext & { activeWebContentsView?: WebContentsView }).activeWebContentsView = tab.view;
 
         // Position the view to the right of the sidebar and below the header (and search bar if visible)
-        const bounds = this.mainWindow.getContentBounds();
-        const headerHeight = this.HEADER_HEIGHT + (this.isSearchBarVisible ? this.SEARCH_BAR_HEIGHT : 0);
+        const bounds = context.window.getContentBounds();
+        const headerHeight = this.HEADER_HEIGHT + (context.isSearchBarVisible ? this.SEARCH_BAR_HEIGHT : 0);
         tab.view.setBounds({
           x: this.SIDEBAR_WIDTH,
           y: headerHeight,
@@ -647,9 +733,9 @@ class TabManager {
           // Remove the destroyed tab
           this.tabs.delete(tabId);
           // Try to activate another tab
-          const remainingTabs = Array.from(this.tabs.keys());
+          const remainingTabs = this.getTabIdsForWindow(context.id);
           if (remainingTabs.length > 0) {
-            return this.setActiveTab(remainingTabs[0]);
+            return this.setActiveTab(remainingTabs[0], context.id);
           }
           return { success: false, error: 'Tab webContents was destroyed during activation' };
         }
@@ -658,22 +744,25 @@ class TabManager {
     } else {
       // Svelte component tab (LLM responses)
       // Renderer will show Svelte component in the content area
-      this.activeWebContentsView = null;
+      (context as WindowContext & { activeWebContentsView?: WebContentsView }).activeWebContentsView = undefined;
     }
 
     // Notify renderer
-    this.sendToRenderer('active-tab-changed', { id: tabId });
+    this.sendToRenderer('active-tab-changed', { id: tabId }, context.id);
 
     this.sendNavigationState(tabId);
 
     return { success: true };
   }
 
-  getActiveTabs(): { tabs: TabData[]; activeTabId: string | null } {
-    const tabs = Array.from(this.tabs.values()).map((tab) => this.getTabData(tab.id)!);
+  getActiveTabs(windowId?: WindowId): { tabs: TabData[]; activeTabId: string | null } {
+    const context = this.windowRegistry.getWindowContext(windowId);
+    const tabs = this.windowRegistry.getTabIdsForWindow(context.id)
+      .map((tabId) => this.getTabData(tabId))
+      .filter((tabData): tabData is TabData => Boolean(tabData));
     return {
       tabs,
-      activeTabId: this.activeTabId,
+      activeTabId: context.activeTabId,
     };
   }
 
@@ -713,23 +802,28 @@ class TabManager {
     };
   }
 
-  focusActiveWebContents(): { success: boolean; error?: string } {
-    if (!this.activeTabId) {
+  getRegistrySnapshot() {
+    return this.aggregateTabs.getRegistrySnapshot();
+  }
+
+  focusActiveWebContents(windowId?: WindowId): { success: boolean; error?: string } {
+    const context = this.windowRegistry.getWindowContext(windowId);
+    if (!context.activeTabId) {
       return { success: false, error: 'No active tab' };
     }
 
-    if (!this.activeWebContentsView) {
+    if (!context.activeWebContentsView) {
       return { success: false, error: 'Active tab has no WebContentsView' };
     }
 
-    if (this.activeWebContentsView.webContents.isDestroyed()) {
+    if (context.activeWebContentsView.webContents.isDestroyed()) {
       return { success: false, error: 'Active tab WebContentsView was destroyed' };
     }
 
     try {
-      this.mainWindow.focus();
-      this.mainWindow.webContents.focus();
-      this.activeWebContentsView.webContents.focus();
+      context.window.focus();
+      context.window.webContents.focus();
+      context.activeWebContentsView.webContents.focus();
       return { success: true };
     } catch (error) {
       if (error instanceof Error && error.message.includes('destroyed')) {
@@ -801,10 +895,18 @@ class TabManager {
     return this.navigation.getTabView(tabId);
   }
 
-  private sendToRenderer(channel: string, data: any): void {
-    if (this.mainWindow && this.mainWindow.webContents) {
-      this.mainWindow.webContents.send(channel, data);
+  private inferWindowIdFromPayload(payload: any): WindowId {
+    const candidate = payload?.id ?? payload?.tabId ?? payload?.tab?.id;
+    if (typeof candidate === 'string') {
+      return this.windowRegistry.getWindowIdForTab(candidate);
     }
+    return this.windowRegistry.getPrimaryWindowId();
+  }
+
+  private sendToRenderer(channel: string, data: any, windowId?: WindowId): void {
+    const targetWindowId = windowId ?? this.inferWindowIdFromPayload(data);
+    const context = this.windowRegistry.getWindowContext(targetWindowId);
+    context.window.webContents.send(channel, data);
   }
 
   /**
@@ -827,7 +929,7 @@ class TabManager {
       }
     }
 
-    this.mainWindow.webContents.send('llm-stream-chunk', { tabId, chunk });
+    this.sendToRenderer('llm-stream-chunk', { tabId, chunk });
   }
 
   /**
@@ -842,8 +944,9 @@ class TabManager {
    */
   private async saveSession(): Promise<void> {
     const tabs = this.sessionPersistence.getTabsForPersistence();
+    const windows = this.windowRegistry.getWindowSnapshots();
     try {
-      await this.sessionManager.saveSession(tabs, this.activeTabId);
+      await this.sessionManager.saveSession(tabs, windows);
     } catch (error) {
       console.error('Failed to persist session', error);
     }
@@ -858,29 +961,59 @@ class TabManager {
       return false;
     }
 
-    // Find the index of the previously active tab
-    let activeTabIndex = -1;
-    if (session.activeTabId) {
-      activeTabIndex = session.tabs.findIndex(tab => tab.id === session.activeTabId);
+    const sessionTabToWindow = new Map<string, WindowId>();
+    if (session.windows?.length) {
+      for (const window of session.windows) {
+        for (const tabId of window.tabIds) {
+          sessionTabToWindow.set(tabId, window.id);
+        }
+      }
     }
 
     // Track the new tab IDs as we restore
     const restoredTabIds: string[] = [];
+    const restoredTabIdMap = new Map<string, string>(); // persisted -> new
+    const restoredByWindow = new Map<WindowId, string[]>();
 
     // Restore each tab without auto-selecting
     for (const tabData of session.tabs) {
-      const tabId = this.sessionPersistence.restoreTab(tabData);
+      const targetWindowId = sessionTabToWindow.get(tabData.id) ?? this.windowRegistry.getPrimaryWindowId();
+      const tabId = this.sessionPersistence.restoreTab(tabData, targetWindowId);
       if (tabId) {
         restoredTabIds.push(tabId);
+        restoredTabIdMap.set(tabData.id, tabId);
+        const actualWindowId = targetWindowId;
+        this.windowRegistry.setTabOwner(tabId, actualWindowId);
+        const bucket = restoredByWindow.get(actualWindowId) ?? [];
+        bucket.push(tabId);
+        restoredByWindow.set(actualWindowId, bucket);
       }
     }
 
-    // Restore the active tab based on its index position
-    if (activeTabIndex >= 0 && activeTabIndex < restoredTabIds.length) {
-      this.setActiveTab(restoredTabIds[activeTabIndex]);
-    } else if (restoredTabIds.length > 0) {
-      // Fallback: activate the first tab if the active tab index is invalid
-      this.setActiveTab(restoredTabIds[0]);
+    // Determine active tab per window (fallback to legacy single activeTabId)
+    const activeTargets = new Map<WindowId, string | null>();
+    if (session.windows?.length) {
+      for (const window of session.windows) {
+        const restoredActive = window.activeTabId ? restoredTabIdMap.get(window.activeTabId) ?? null : null;
+        const fallbackTab = restoredByWindow.get(window.id)?.[0] ?? null;
+        activeTargets.set(window.id, restoredActive ?? fallbackTab ?? null);
+      }
+    } else {
+      const activeTabIndex = session.activeTabId
+        ? session.tabs.findIndex(tab => tab.id === session.activeTabId)
+        : -1;
+      const activeTabId =
+        activeTabIndex >= 0 && activeTabIndex < restoredTabIds.length
+          ? restoredTabIds[activeTabIndex]
+          : restoredTabIds[0];
+      activeTargets.set(this.windowRegistry.getPrimaryWindowId(), activeTabId ?? null);
+    }
+
+    // Activate tabs per window
+    for (const [windowId, tabId] of activeTargets.entries()) {
+      if (tabId) {
+        this.setActiveTab(tabId, windowId);
+      }
     }
 
     return true;
@@ -895,20 +1028,29 @@ class TabManager {
 
   private sendNavigationState(tabId: string): void {
     const state = this.navigation.getNavigationState(tabId);
+    const windowId = this.getWindowIdForTab(tabId);
     if (!state.success) {
-      this.sendToRenderer('navigation-state-updated', {
-        id: tabId,
-        canGoBack: false,
-        canGoForward: false,
-      });
+      this.sendToRenderer(
+        'navigation-state-updated',
+        {
+          id: tabId,
+          canGoBack: false,
+          canGoForward: false,
+        },
+        windowId
+      );
       return;
     }
 
-    this.sendToRenderer('navigation-state-updated', {
-      id: tabId,
-      canGoBack: state.canGoBack ?? false,
-      canGoForward: state.canGoForward ?? false,
-    });
+    this.sendToRenderer(
+      'navigation-state-updated',
+      {
+        id: tabId,
+        canGoBack: state.canGoBack ?? false,
+        canGoForward: state.canGoForward ?? false,
+      },
+      windowId
+    );
   }
 
   /**

@@ -3,14 +3,16 @@ import type { TabData, TabMetadata, TabWithView } from '../../types';
 import type { WebContentsView } from 'electron';
 import { createConfiguredView } from './web-contents-view-factory.js';
 import { generateLLMTabIdentifiers } from '../utils/tab-id-generator.js';
+import type { WindowId } from './window-registry.js';
 
 interface LLMTabDependencies {
   tabs: Map<string, TabWithView>;
   createTabId: () => string;
   getTabData: (tabId: string) => TabData | undefined | null;
-  sendToRenderer: (channel: string, payload: any) => void;
+  sendToRenderer: (channel: string, payload: any, windowId?: WindowId) => void;
   saveSession: () => void;
-  setActiveTab: (tabId: string) => { success: boolean; error?: string };
+  setActiveTab: (tabId: string, windowId?: WindowId) => { success: boolean; error?: string };
+  setTabOwner: (tabId: string, windowId: WindowId) => void;
   lastMetadataUpdate: Map<string, number>;
   openUrl: (url: string, autoSelect?: boolean) => { tabId: string; tab: TabData };
 }
@@ -18,7 +20,13 @@ interface LLMTabDependencies {
 export class LLMTabService {
   constructor(private readonly deps: LLMTabDependencies) {}
 
-  openLLMResponseTab(query: string, response?: string, error?: string, autoSelect: boolean = true): { tabId: string; tab: TabData } {
+  openLLMResponseTab(
+    query: string,
+    response?: string,
+    error?: string,
+    autoSelect: boolean = true,
+    windowId?: WindowId
+  ): { tabId: string; tab: TabData } {
     const tabId = this.deps.createTabId();
 
     const timestamp = Date.now();
@@ -48,11 +56,15 @@ export class LLMTabService {
 
     this.deps.tabs.set(tabId, tab);
 
-    if (autoSelect) {
-      this.deps.setActiveTab(tabId);
+    if (windowId) {
+      this.deps.setTabOwner(tabId, windowId);
     }
 
-    this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) });
+    if (autoSelect) {
+      this.deps.setActiveTab(tabId, windowId);
+    }
+
+    this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) }, windowId);
     this.deps.saveSession();
 
     return { tabId, tab: this.deps.getTabData(tabId)! };

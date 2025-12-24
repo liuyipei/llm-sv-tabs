@@ -178,8 +178,8 @@
 <style>
   .input-controls {
     flex: 1;
-    padding: 15px;
-    background-color: #252526;
+    padding: var(--space-7);
+    background-color: var(--bg-secondary);
     display: flex;
     flex-direction: column;
   }
@@ -192,34 +192,34 @@
 
   .query-input {
     flex: 1;
-    background-color: #3c3c3c;
-    color: #d4d4d4;
-    border: 1px solid #3e3e42;
-    border-radius: 4px;
-    padding: 10px 50px 10px 10px;
+    background-color: var(--bg-input);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--space-5) 50px var(--space-5) var(--space-5);
     font-family: inherit;
-    font-size: 14px;
+    font-size: var(--text-base);
     resize: none;
     min-height: 100px;
   }
 
   .query-input:focus {
     outline: none;
-    border-color: #007acc;
+    border-color: var(--accent-color);
   }
 
   .query-submit-btn {
     position: absolute;
-    bottom: 10px;
-    right: 10px;
-    background-color: #007acc;
-    color: white;
+    bottom: var(--space-5);
+    right: var(--space-5);
+    background-color: var(--accent-color);
+    color: var(--text-bright);
     border: none;
-    border-radius: 4px;
-    padding: 8px 12px;
-    font-size: 18px;
+    border-radius: var(--radius-md);
+    padding: var(--space-4) var(--space-6);
+    font-size: var(--text-xl);
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: background-color var(--transition-fast);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -227,24 +227,26 @@
     height: 36px;
   }
 
-  .query-submit-btn:hover:not(:disabled) {
-    background-color: #005a9e;
+  .query-submit-btn:hover:not(:disabled),
+  .query-submit-btn:focus-visible:not(:disabled) {
+    background-color: var(--accent-hover);
+    outline: none;
   }
 
   .query-submit-btn:disabled {
-    background-color: #3e3e42;
-    color: #808080;
+    background-color: var(--bg-hover);
+    color: var(--text-tertiary);
     cursor: not-allowed;
   }
 
   .no-model-warning {
-    padding: 0.75rem;
-    margin-bottom: 0.5rem;
-    background-color: rgba(244, 135, 113, 0.15);
-    border: 1px solid rgba(244, 135, 113, 0.5);
-    border-radius: 4px;
-    color: #f48771;
-    font-size: 0.875rem;
-    line-height: 1.4;
+    padding: var(--space-6);
+    margin-bottom: var(--space-4);
+    background-color: var(--warning-bg);
+    border: 1px solid var(--warning-border);
+    border-radius: var(--radius-md);
+    color: var(--error-text);
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
   }
 </style>

@@ -72,16 +72,16 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
+    z-index: var(--z-modal);
   }
 
   .modal-content {
-    background-color: #252526;
-    border: 1px solid #3e3e42;
-    border-radius: 6px;
-    padding: 24px;
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--space-10);
     max-width: 500px;
     width: 90%;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    box-shadow: var(--shadow-lg);
   }
 </style>

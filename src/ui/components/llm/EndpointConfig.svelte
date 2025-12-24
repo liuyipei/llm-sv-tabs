@@ -66,54 +66,54 @@
   .endpoint-config {
     display: flex;
     flex-direction: column;
-    gap: 0.125rem;
+    gap: var(--space-1);
   }
 
   label {
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: var(--text-secondary, #666);
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+    color: var(--text-secondary);
   }
 
   .input-wrapper {
     display: flex;
-    gap: 0.25rem;
+    gap: var(--space-2);
     align-items: center;
   }
 
   .endpoint-input {
     flex: 1;
-    padding: 0.25rem 0.375rem;
-    border: 1px solid var(--border-color, #ddd);
-    border-radius: 4px;
-    background: var(--input-bg, white);
-    color: var(--text-primary, #333);
-    font-family: monospace;
-    font-size: 0.75rem;
-    transition: border-color 0.2s;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    transition: border-color var(--transition-fast);
   }
 
   .endpoint-input:focus {
     outline: none;
-    border-color: var(--primary-color, #0066cc);
-    box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.1);
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px var(--accent-bg);
   }
 
   .default-button {
-    padding: 0.25rem 0.5rem;
-    border: 1px solid var(--border-color, #ddd);
-    border-radius: 4px;
-    background: var(--button-bg, white);
-    color: var(--text-primary, #333);
-    font-size: 0.75rem;
+    padding: var(--space-2) var(--space-4);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-size: var(--text-sm);
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all var(--transition-fast);
     white-space: nowrap;
   }
 
   .default-button:hover {
-    background: var(--button-hover-bg, #f5f5f5);
-    border-color: var(--border-hover, #999);
+    background: var(--bg-hover);
+    border-color: var(--accent-color);
   }
 
   .default-button:active {
@@ -121,8 +121,8 @@
   }
 
   .hint {
-    font-size: 0.7rem;
-    color: var(--text-muted, #999);
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
     font-style: italic;
   }
 </style>

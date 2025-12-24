@@ -12,6 +12,7 @@
   import MessageStream from '$components/chat/MessageStream.svelte';
   import ApiKeyInstructionsView from '$components/llm/ApiKeyInstructionsView.svelte';
   import NoteEditor from '$components/notes/NoteEditor.svelte';
+  import AggregateTabs from '$components/tabs/AggregateTabs.svelte';
   import Toast from '$components/Toast.svelte';
   import { activeSidebarView, sidebarTabsHeightPercent } from '$stores/ui';
   import { activeTabId, activeTabs, sortedTabs } from '$stores/tabs';
@@ -19,6 +20,8 @@
   import { loadCapabilitiesFromCache } from '$stores/capabilities';
   import { handleBookmarkResponse } from '$lib/bookmark-results';
   import { initKeyboardShortcuts } from '$utils/keyboard-shortcuts';
+  import { handleDragOver, handleDrop } from '$utils/file-drop-handler';
+  import { setupElectronListeners } from '$utils/electron-listeners';
 
   // Import styles for markdown rendering
   import '~/highlight.js/styles/github-dark.css';
@@ -29,6 +32,7 @@
   $: showSvelteContent = activeTab?.component === 'llm-response';
   $: showApiKeyInstructions = activeTab?.component === 'api-key-instructions';
   $: showNoteEditor = activeTab?.component === 'note';
+  $: showAggregateTabs = activeTab?.component === 'aggregate-tabs';
 
   // Initialize IPC and make it available to all child components
   const ipc: IPCBridgeAPI = initializeIPC();
@@ -255,77 +259,15 @@
     focusWebContentsView();
   }
 
-  // Global drag and drop handler to open files in tabs
-  function handleGlobalDragOver(event: DragEvent): void {
-    event.preventDefault();
-    event.stopPropagation();
-  }
-
-  async function handleGlobalDrop(event: DragEvent): Promise<void> {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const files = event.dataTransfer?.files;
-    if (!files || files.length === 0) return;
-
-    // Process all files in parallel
-    const fileArray = Array.from(files);
-    const promises = fileArray.map(file => processDroppedFile(file));
-
-    try {
-      await Promise.all(promises);
-    } catch (error) {
-      console.error('Error processing dropped files:', error);
-    }
-  }
-
-  async function processDroppedFile(file: File): Promise<void> {
-    const fileType = detectFileType(file);
-    const filePath = ipc?.getPathForFile?.(file);
-    const reader = new FileReader();
-
-    reader.onload = async (e) => {
-      const content = e.target?.result as string;
-      if (ipc) {
-        try {
-          await ipc.openNoteTab(Date.now(), file.name, content, fileType, filePath);
-        } catch (error) {
-          console.error('Failed to create tab for dropped file:', error);
-        }
-      }
-    };
-
-    if (fileType === 'image' || fileType === 'pdf') {
-      reader.readAsDataURL(file);
-    } else {
-      reader.readAsText(file);
-    }
-  }
-
-  function detectFileType(file: File): 'text' | 'pdf' | 'image' {
-    const mimeType = file.type.toLowerCase();
-    const fileName = file.name.toLowerCase();
-
-    if (mimeType.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|bmp|svg|ico)$/i.test(fileName)) {
-      return 'image';
-    }
-
-    if (mimeType === 'application/pdf' || fileName.endsWith('.pdf')) {
-      return 'pdf';
-    }
-
-    return 'text';
-  }
-
-  // Initialize keyboard shortcuts on mount
+  // Initialize keyboard shortcuts and IPC listeners on mount
   onMount(() => {
+    // Load capabilities when window gains focus
     const handleFocus = () => {
       void loadCapabilitiesFromCache();
     };
-
     window.addEventListener('focus', handleFocus);
 
-    const cleanup = initKeyboardShortcuts({
+    const keyboardCleanup = initKeyboardShortcuts({
       focusUrlInput,
       focusLLMInput,
       closeActiveTab,
@@ -339,63 +281,28 @@
       previousTab: navigateToPreviousTab,
     });
 
-    // Set up IPC listener for focus-url-bar event (triggered by global shortcut)
-    if (typeof window !== 'undefined' && window.electronAPI) {
-      window.electronAPI.onFocusUrlBar(() => {
-        focusUrlInput();
-      });
-
-      // Set up IPC listener for focus-search-bar event (triggered by Ctrl+F global shortcut)
-      window.electronAPI.onFocusSearchBar(() => {
-        showSearchBar();
-      });
-
-      if (window.electronAPI.onFocusLLMInput) {
-        window.electronAPI.onFocusLLMInput(() => {
-          focusLLMInput();
-        });
-      }
-
-
-      // Set up IPC listeners for tab navigation using sorted order
-      if (window.electronAPI.onNavigateNextTab) {
-        window.electronAPI.onNavigateNextTab(() => {
-          navigateToNextTab();
-        });
-      }
-
-      if (window.electronAPI.onNavigatePreviousTab) {
-        window.electronAPI.onNavigatePreviousTab(() => {
-          navigateToPreviousTab();
-        });
-      }
-
-      // Handle bookmark shortcut from browser view
-      if (window.electronAPI.onBookmarkTab) {
-        window.electronAPI.onBookmarkTab(() => {
-          bookmarkActiveTab();
-        });
-      }
-
-      // Handle screenshot shortcut from browser view
-      if (window.electronAPI.onTriggerScreenshot) {
-        window.electronAPI.onTriggerScreenshot(() => {
-          ipc.triggerScreenshot();
-        });
-      }
-    }
+    const electronCleanup = setupElectronListeners({
+      focusUrlInput,
+      focusLLMInput,
+      showSearchBar,
+      navigateToNextTab,
+      navigateToPreviousTab,
+      bookmarkActiveTab,
+      triggerScreenshot,
+    });
 
     // Cleanup on unmount
     return () => {
       window.removeEventListener('focus', handleFocus);
-      cleanup();
+      keyboardCleanup();
+      electronCleanup();
     };
   });
 </script>
 
 <svelte:window on:keydown={handleGlobalKeydown} />
 
-<main class="app-container" ondragover={handleGlobalDragOver} ondrop={handleGlobalDrop}>
+<main class="app-container" ondragover={handleDragOver} ondrop={(e) => handleDrop(e, ipc)}>
   <div class="app-content">
     <aside class="sidebar">
       <div class="sidebar-nav">
@@ -464,6 +371,8 @@
           <ApiKeyInstructionsView />
         {:else if showNoteEditor && activeTab}
           <NoteEditor tabId={activeTab.id} />
+        {:else if showAggregateTabs}
+          <AggregateTabs />
         {:else if showSvelteContent && activeTab}
           <MessageStream tabId={activeTab.id} />
         {:else}
@@ -483,10 +392,9 @@
   :global(body) {
     margin: 0;
     padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
-      Ubuntu, Cantarell, sans-serif;
-    background-color: #1e1e1e;
-    color: #d4d4d4;
+    font-family: var(--font-system);
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
   }
 
   .app-container {
@@ -502,12 +410,12 @@
   }
 
   .sidebar {
-    width: 350px;
-    min-width: 350px;
-    max-width: 350px;
+    width: var(--sidebar-width);
+    min-width: var(--sidebar-width);
+    max-width: var(--sidebar-width);
     flex-shrink: 0;
-    background-color: #252526;
-    border-right: 1px solid #3e3e42;
+    background-color: var(--bg-secondary);
+    border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -515,26 +423,26 @@
 
   .sidebar-nav {
     display: flex;
-    gap: 5px;
-    padding: 10px;
-    background-color: #2d2d30;
-    border-bottom: 1px solid #3e3e42;
+    gap: var(--space-3);
+    padding: var(--space-5);
+    background-color: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-color);
   }
 
   .nav-btn {
     flex: 1;
-    background-color: #3e3e42;
-    color: #d4d4d4;
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
     border: none;
-    border-radius: 4px;
-    padding: 8px;
-    font-size: 18px;
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+    font-size: var(--text-xl);
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all var(--transition-fast);
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 36px;
+    height: 2.25rem;
   }
 
   .nav-btn:hover {
@@ -542,7 +450,7 @@
   }
 
   .nav-btn.active {
-    background-color: #007acc;
+    background-color: var(--accent-color);
     transform: scale(1.05);
   }
 
@@ -570,7 +478,7 @@
 
   .browser-view {
     flex: 1;
-    background-color: #1e1e1e;
+    background-color: var(--bg-primary);
     overflow-y: auto;
   }
 
@@ -580,17 +488,17 @@
     align-items: center;
     justify-content: center;
     height: 100%;
-    color: #808080;
+    color: var(--text-tertiary);
     text-align: center;
   }
 
   .browser-placeholder p {
-    margin: 5px 0;
-    font-size: 16px;
+    margin: var(--space-3) 0;
+    font-size: var(--text-lg);
   }
 
   .browser-placeholder .hint {
-    font-size: 14px;
-    color: #606060;
+    font-size: var(--text-base);
+    color: var(--text-disabled);
   }
 </style>

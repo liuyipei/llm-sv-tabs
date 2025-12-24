@@ -274,48 +274,51 @@
   }
 
   .notes-header {
-    padding: 15px;
-    border-bottom: 1px solid #3e3e42;
+    padding: var(--space-7);
+    border-bottom: 1px solid var(--border-color);
   }
 
   h2 {
     margin: 0;
-    font-size: 14px;
-    font-weight: 600;
+    font-size: var(--text-base);
+    font-weight: var(--font-semibold);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: #cccccc;
+    color: var(--text-primary);
   }
 
   .notes-actions {
     display: flex;
-    gap: 10px;
-    padding: 15px;
-    border-bottom: 1px solid #3e3e42;
+    gap: var(--space-5);
+    padding: var(--space-7);
+    border-bottom: 1px solid var(--border-color);
   }
 
   .action-btn {
     flex: 1;
-    background-color: #007acc;
-    color: white;
+    background-color: var(--accent-color);
+    color: var(--text-bright);
     border: none;
-    border-radius: 4px;
-    padding: 8px 12px;
-    font-size: 13px;
-    font-weight: 500;
+    border-radius: var(--radius-md);
+    padding: var(--space-4) var(--space-6);
+    font-size: var(--text-md);
+    font-weight: var(--font-medium);
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: background-color var(--transition-fast);
   }
 
-  .action-btn:hover {
-    background-color: #005a9e;
+  .action-btn:hover,
+  .action-btn:focus-visible {
+    background-color: var(--accent-hover);
+    outline: none;
   }
 
   .screenshot-btn {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   }
 
-  .screenshot-btn:hover {
+  .screenshot-btn:hover,
+  .screenshot-btn:focus-visible {
     background: linear-gradient(135deg, #5568d3 0%, #6a3f8e 100%);
   }
 
@@ -332,30 +335,30 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 40px 20px;
-    transition: background-color 0.2s, border 0.2s;
+    padding: 40px var(--space-9);
+    transition: background-color var(--transition-fast), border var(--transition-fast);
     position: relative;
-    background-color: #1e1e1e;
-    border: 2px dashed #3e3e42;
-    margin: 10px;
-    border-radius: 8px;
+    background-color: var(--bg-primary);
+    border: 2px dashed var(--border-color);
+    margin: var(--space-5);
+    border-radius: var(--radius-lg);
   }
 
   .drop-zone.dragging {
-    background-color: #094771;
-    border-color: #007acc;
+    background-color: var(--bg-active);
+    border-color: var(--accent-color);
   }
 
   .drop-zone-text {
-    color: #d4d4d4;
-    font-size: 14px;
-    margin: 0 0 8px 0;
-    font-weight: 500;
+    color: var(--text-primary);
+    font-size: var(--text-base);
+    margin: 0 0 var(--space-4) 0;
+    font-weight: var(--font-medium);
   }
 
   .drop-zone-hint {
-    color: #808080;
-    font-size: 12px;
+    color: var(--text-tertiary);
+    font-size: var(--text-sm);
     margin: 0;
   }
 </style>
