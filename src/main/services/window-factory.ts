@@ -37,7 +37,7 @@ export class WindowFactory {
         preload: this.config.preloadPath,
         contextIsolation: true,
         nodeIntegration: false,
-        sandbox: false,
+        sandbox: true,
       },
     };
   }

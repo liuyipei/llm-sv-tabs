@@ -1,6 +1,7 @@
 import TabManager from '../tab-manager.js';
 import { BookmarkManager } from '../services/bookmark-manager.js';
 import { ScreenshotService } from '../services/screenshot-service.js';
+import { registerSecureStorageHandlers } from '../services/secure-storage.js';
 import { registerTabHandlers } from './handlers/tab-handlers.js';
 import { registerBookmarkHandlers } from './handlers/bookmark-handlers.js';
 import { registerContentHandlers } from './handlers/content-handlers.js';
@@ -42,4 +43,7 @@ export function registerIpcHandlers(context: MainProcessContext): void {
   registerQueryHandlers(get.tabManager);
   registerModelHandlers();
   registerWindowHandlers(get.createNewWindow);
+  
+  // Register secure storage handlers
+  registerSecureStorageHandlers();
 }

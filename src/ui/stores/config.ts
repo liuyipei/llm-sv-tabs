@@ -1,12 +1,14 @@
 import { get } from 'svelte/store';
 import type { ProviderType, LLMModel } from '../../types';
 import { createPersistedStore } from '../utils/persisted-store';
+import { createSecurePersistedStore } from '../utils/secure-persisted-store';
 import { loadCapabilitiesFromCache, probeAndStoreCapabilities, getCapabilities as getCachedCapabilities, isCapabilityStale as isCapabilityStaleCached } from './capabilities.js';
 
 // Configuration stores
 export const provider = createPersistedStore<ProviderType>('provider', 'openai');
 export const model = createPersistedStore<string | null>('model', null);
-export const apiKeys = createPersistedStore<Record<string, string>>('apiKeys', {});
+// API keys are stored securely using encryption (if available)
+export const apiKeys = createSecurePersistedStore<Record<string, string>>('apiKeys', {});
 export const maxTokens = createPersistedStore<number>('maxTokens', 2000);
 export const systemPrompt = createPersistedStore<string>('systemPrompt', '');
 export const endpoint = createPersistedStore<string>('endpoint', '');

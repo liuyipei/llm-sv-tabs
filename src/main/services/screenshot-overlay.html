@@ -80,7 +80,6 @@
   <canvas id="canvas"></canvas>
 
   <script>
-    const { ipcRenderer } = require('electron');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     const dimensionsEl = document.getElementById('dimensions');
@@ -180,10 +179,18 @@
       // Only send if selection is meaningful (at least 10x10 pixels)
       if (bounds.width >= 10 && bounds.height >= 10) {
         console.log('Selection complete:', bounds);
-        ipcRenderer.send('screenshot-region-selected', bounds);
+        if (window.screenshotOverlay) {
+          window.screenshotOverlay.selectRegion(bounds);
+        } else {
+          console.error('screenshotOverlay API not available');
+        }
       } else {
         console.log('Selection too small, cancelled');
-        ipcRenderer.send('screenshot-cancelled');
+        if (window.screenshotOverlay) {
+          window.screenshotOverlay.cancel();
+        } else {
+          console.error('screenshotOverlay API not available');
+        }
       }
     });
 
@@ -191,7 +198,11 @@
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         console.log('ESC pressed, cancelling');
-        ipcRenderer.send('screenshot-cancelled');
+        if (window.screenshotOverlay) {
+          window.screenshotOverlay.cancel();
+        } else {
+          console.error('screenshotOverlay API not available');
+        }
       }
     });
 

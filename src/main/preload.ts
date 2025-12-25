@@ -225,6 +225,16 @@ const electronAPI = {
     endpoint?: string,
   ) => ipcRenderer.invoke('probe-model', provider, model, apiKey, endpoint),
   loadCapabilityCache: (): Promise<any> => ipcRenderer.invoke('load-capability-cache'),
+
+  // Secure storage for sensitive data (API keys)
+  encryptSecureData: (data: Record<string, string>): Promise<{ success: boolean; data?: Record<string, string>; error?: string }> =>
+    ipcRenderer.invoke('secure-storage-encrypt', data),
+
+  decryptSecureData: (data: Record<string, string>): Promise<{ success: boolean; data?: Record<string, string>; error?: string }> =>
+    ipcRenderer.invoke('secure-storage-decrypt', data),
+
+  isSecureStorageAvailable: (): Promise<boolean> =>
+    ipcRenderer.invoke('secure-storage-is-available'),
 };
 
 // Diagnostic: log every tab-updated payload to trace streaming completion signals
