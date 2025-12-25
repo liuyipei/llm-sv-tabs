@@ -110,7 +110,7 @@ export class ScreenshotService {
       // On macOS, if permission is denied, this throws "Failed to get sources"
       console.error('ScreenshotService: desktopCapturer.getSources() failed:', error);
       const errorMsg = process.platform === 'darwin'
-        ? 'Screen Recording permission denied.\n\nTo fix:\n1. Open System Preferences → Security & Privacy → Privacy\n2. Select "Screen Recording" from the left sidebar\n3. Check the box next to "Electron"\n4. Restart this app\n\nThe Electron app is located at:\n/Users/yiliu/repos/llm-sv-tabs/node_modules/electron/dist/Electron.app'
+        ? 'Screen Recording permission denied.\n\nTo fix:\n1. Open System Preferences → Security & Privacy → Privacy\n2. Select "Screen Recording" from the left sidebar\n3. Check the box next to "Electron"\n4. Restart this app'
         : 'Failed to capture screen. Please check your system permissions.';
       throw new Error(errorMsg);
     }

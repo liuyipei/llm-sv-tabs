@@ -119,25 +119,39 @@ export abstract class BaseProvider {
   }
 
   /**
-   * Helper method to make HTTP requests
+   * Helper method to make HTTP requests with timeout
    */
   protected async makeRequest(
     url: string,
     options: RequestInit
   ): Promise<Response> {
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
-    if (!response.ok) {
-      const error = await response.text().catch(() => response.statusText);
-      throw new Error(`HTTP ${response.status}: ${error}`);
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const error = await response.text().catch(() => response.statusText);
+        throw new Error(`HTTP ${response.status}: ${error}`);
+      }
+
+      return response;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('Request timed out after 30 seconds');
+      }
+      throw error;
     }
-
-    return response;
   }
 }
