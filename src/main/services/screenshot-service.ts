@@ -153,8 +153,10 @@ export class ScreenshotService {
       movable: false,
       fullscreen: false,
       webPreferences: {
-        nodeIntegration: true,
-        contextIsolation: false, // Simplified for overlay - it's a trusted window
+        nodeIntegration: false,
+        contextIsolation: true,
+        preload: join(__dirname, 'screenshot-overlay-preload.js'),
+        sandbox: true,
       },
     });
 
