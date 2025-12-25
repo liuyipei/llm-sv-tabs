@@ -48,8 +48,6 @@ You'll receive a `.pfx` or `.p12` file with a password.
 
 ### Installing Dependencies
 
-**Important:** See `.claude/BUILD-INSTRUCTIONS.md` for environment-specific installation notes.
-
 ```bash
 # Standard installation (full Electron binary)
 npm install

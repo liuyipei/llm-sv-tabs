@@ -42,6 +42,7 @@ For a deep dive into the architecture and design philosophy:
 - [Design System](./docs/design/13-design-system.md) - Visual design tokens, color palette, typography, spacing, and component patterns
 - [Smart Content Extraction](./docs/design/09-smart-content-extraction.md) - Context-aware DOM extraction for articles and web apps
 - [Token Streaming & API Providers](./docs/design/01-token-streaming-and-providers.md) - Provider architecture and real-time streaming
+- [Streaming Implementation Details](./docs/design/16-streaming-implementation-details.md) - MessageStream component, buffering strategies, and chunk handling
 - [Visual Layout Architecture](./docs/design/02-visual-layout.md) - Hybrid rendering system combining Electron and Svelte
 - [Flexible Tab System](./docs/design/03-flexible-tab-system.md) - How tabs handle URLs, files, text, and LLM responses
 - [Multi-Window Tab Registry](./docs/design/14-multi-window-tab-registry.md) - Main-process ownership of tabs across windows, with per-window controllers
@@ -119,6 +120,10 @@ Comprehensive test suite with **80+ tests** running in < 10 seconds:
 - Provider system
 
 See [TESTING.md](./TESTING.md) for details.
+
+## Distribution
+
+For building, signing, and distributing the app for macOS and Windows, see the [Distribution Guide](./docs/distribution.md).
 
 ## Continuous Integration
 
