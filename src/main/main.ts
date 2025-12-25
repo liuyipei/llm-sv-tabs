@@ -59,6 +59,10 @@ async function createWindow(): Promise<void> {
   // Initialize tab manager with the primary window
   appContext.tabManager = new TabManager(mainWindow);
 
+  // Set up callbacks on TabManager for window creation (context menu, shift+click, Ctrl+N)
+  // This must happen BEFORE restoring session so that restored tabs have the context menu options
+  windowFactory.setupTabManagerCallbacks();
+
   // Initialize bookmark manager
   appContext.bookmarkManager = new BookmarkManager();
 
@@ -81,9 +85,6 @@ async function createWindow(): Promise<void> {
 
   // Set up the createNewWindow function for IPC handlers
   appContext.createNewWindow = (url?: string) => windowFactory!.createWindow(url);
-
-  // Set up callbacks on TabManager for window creation (context menu, shift+click, Ctrl+N)
-  windowFactory.setupTabManagerCallbacks();
 }
 
 function setupDownloadHandler(): void {
