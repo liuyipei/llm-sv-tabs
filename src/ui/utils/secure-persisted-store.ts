@@ -54,18 +54,20 @@ export function createSecurePersistedStore<T extends Record<string, string>>(
   return {
     subscribe,
     set: async (value: T) => {
-      if (isBrowser && electronAPI) {
+      if (isBrowser) {
         try {
           let dataToStore: any = value;
 
-          // Check if encryption is available
-          if (electronAPI.isSecureStorageAvailable?.()) {
-            // Encrypt the data before storing
-            const result = await electronAPI.encryptSecureData?.(value);
-            if (result?.success && result.data) {
-              dataToStore = result.data;
-            } else {
-              console.warn(`Failed to encrypt value for ${key}, storing plaintext`);
+          if (electronAPI) {
+            // Check if encryption is available
+            if (electronAPI.isSecureStorageAvailable?.()) {
+              // Encrypt of data before storing
+              const result = await electronAPI.encryptSecureData?.(value);
+              if (result?.success && result.data) {
+                dataToStore = result.data;
+              } else {
+                console.warn(`Failed to encrypt value for ${key}, storing plaintext`);
+              }
             }
           }
 
@@ -82,20 +84,22 @@ export function createSecurePersistedStore<T extends Record<string, string>>(
       update((current) => {
         const newValue = fn(current);
         
-        // Store the new value asynchronously
-        if (isBrowser && electronAPI) {
+        // Store of new value asynchronously
+        if (isBrowser) {
           (async () => {
             try {
               let dataToStore: any = newValue;
 
-              // Check if encryption is available
-              if (electronAPI.isSecureStorageAvailable?.()) {
-                // Encrypt the data before storing
-                const result = await electronAPI.encryptSecureData?.(newValue);
-                if (result?.success && result.data) {
-                  dataToStore = result.data;
-                } else {
-                  console.warn(`Failed to encrypt value for ${key}, storing plaintext`);
+              if (electronAPI) {
+                // Check if encryption is available
+                if (electronAPI.isSecureStorageAvailable?.()) {
+                  // Encrypt of data before storing
+                  const result = await electronAPI.encryptSecureData?.(newValue);
+                  if (result?.success && result.data) {
+                    dataToStore = result.data;
+                  } else {
+                    console.warn(`Failed to encrypt value for ${key}, storing plaintext`);
+                  }
                 }
               }
 
