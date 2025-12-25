@@ -35,6 +35,8 @@ class TabManager {
   private sessionPersistence: SessionPersistenceService;
   private noteTabs: NoteTabService;
   private aggregateTabs: AggregateTabService;
+  private openUrlInNewWindowCallback: ((url: string) => Promise<void>) | null = null;
+  private openNewWindowCallback: (() => Promise<void>) | null = null;
 
   constructor(mainWindow: BrowserWindow) {
     this.windowRegistry = new WindowRegistry(mainWindow, {
@@ -181,7 +183,12 @@ class TabManager {
   }
 
   private createView(windowId?: WindowId): WebContentsView {
-    const view = createConfiguredView((url) => this.openUrl(url, true, windowId));
+    const openUrlInNewWindow = this.openUrlInNewWindowCallback
+      ? (url: string) => {
+          this.openUrlInNewWindowCallback!(url);
+        }
+      : undefined;
+    const view = createConfiguredView((url) => this.openUrl(url, true, windowId), openUrlInNewWindow);
     this.setupViewKeyboardShortcuts(view, windowId);
     return view;
   }
@@ -235,6 +242,11 @@ class TabManager {
       previousTab: () => {
         const targetWindow = this.windowRegistry.getWindowContext(windowId).window;
         targetWindow.webContents.send('navigate-previous-tab');
+      },
+      openNewWindow: () => {
+        if (this.openNewWindowCallback) {
+          void this.openNewWindowCallback();
+        }
       },
     };
 
@@ -1044,6 +1056,50 @@ class TabManager {
    */
   stopFindInPage(tabId: string): { success: boolean; error?: string } {
     return this.findInPageService.stopFindInPage(tabId);
+  }
+
+  /**
+   * Register a new browser window with the tab manager.
+   * This allows the window to have its own set of tabs.
+   * @param window The BrowserWindow to register
+   * @param isPrimary Whether this should become the primary window
+   * @returns The window ID for the registered window
+   */
+  registerNewWindow(window: BrowserWindow, isPrimary: boolean = false): string {
+    const windowId = this.windowRegistry.registerWindow(window, isPrimary, {
+      onResize: (wId) => this.updateWebContentsViewBounds(wId),
+      onClose: (wId) => this.handleWindowClosed(wId),
+    });
+    return windowId;
+  }
+
+  /**
+   * Open a URL in a new window.
+   * Creates a tab in the specified window with the given URL.
+   * @param url The URL to open
+   * @param windowId The window ID to open the URL in
+   * @returns The tab ID and tab data
+   */
+  openUrlInWindow(url: string, windowId: string): { tabId: string; tab: TabData } {
+    return this.openUrl(url, true, windowId);
+  }
+
+  /**
+   * Set the callback for opening URLs in new windows.
+   * This is used by the web-contents-view-factory for context menus and shift+click.
+   * @param callback The function to call when a URL should be opened in a new window
+   */
+  setOpenUrlInNewWindowCallback(callback: (url: string) => Promise<void>): void {
+    this.openUrlInNewWindowCallback = callback;
+  }
+
+  /**
+   * Set the callback for opening a blank new window.
+   * This is used by the Ctrl+N keyboard shortcut handler.
+   * @param callback The function to call when a new window should be opened
+   */
+  setOpenNewWindowCallback(callback: () => Promise<void>): void {
+    this.openNewWindowCallback = callback;
   }
 }
 

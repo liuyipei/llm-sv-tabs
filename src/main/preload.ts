@@ -79,6 +79,13 @@ const electronAPI = {
   getTabRegistrySnapshot: (): Promise<IPCResponse<TabRegistrySnapshot>> =>
     ipcRenderer.invoke('get-tab-registry-snapshot'),
 
+  // Window management
+  openNewWindow: (): Promise<IPCResponse<{ windowId: string }>> =>
+    ipcRenderer.invoke('open-new-window'),
+
+  openUrlInNewWindow: (url: string): Promise<IPCResponse<{ windowId: string; tabId?: string }>> =>
+    ipcRenderer.invoke('open-url-in-new-window', url),
+
   // Note tabs
   openNoteTab: (noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image', filePath?: string): Promise<IPCResponse<{ tabId: string; tab: TabData }>> =>
     ipcRenderer.invoke('open-note-tab', noteId, title, content, fileType, filePath),

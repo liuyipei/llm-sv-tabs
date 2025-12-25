@@ -243,6 +243,16 @@
     }
   }
 
+  async function openNewWindow(): Promise<void> {
+    if (ipc) {
+      try {
+        await ipc.openNewWindow();
+      } catch (error) {
+        console.error('Failed to open new window:', error);
+      }
+    }
+  }
+
   function handleGlobalKeydown(event: KeyboardEvent): void {
     const isCtrlOrMeta = event.ctrlKey || event.metaKey;
 
@@ -281,6 +291,7 @@
       goForward,
       nextTab: navigateToNextTab,
       previousTab: navigateToPreviousTab,
+      openNewWindow,
     });
 
     const electronCleanup = setupElectronListeners({

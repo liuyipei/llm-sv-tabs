@@ -11,6 +11,7 @@ import { registerIpcHandlers } from './ipc/register-ipc-handlers.js';
 import type { MainProcessContext } from './ipc/register-ipc-handlers.js';
 import { initSmokeTestExit } from './smoke-test-exit.js';
 import type { SmokeTestExitControls } from './smoke-test-exit.js';
+import type { WindowId } from './tab-manager/window-registry.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -19,16 +20,18 @@ const __dirname = dirname(__filename);
 const isSmokeTest = process.argv.includes('--smoke-test');
 
 let mainWindow: BrowserWindow | null = null;
+let preloadPath: string;
 const appContext: MainProcessContext = {
   tabManager: null,
   bookmarkManager: null,
   screenshotService: null,
+  createNewWindow: null,
 };
 let sessionSecurityConfigured = false;
 let smokeTestExit: SmokeTestExitControls | null = null;
 
 async function createWindow(): Promise<void> {
-  const preloadPath = join(__dirname, 'preload.js');
+  preloadPath = join(__dirname, 'preload.js');
 
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -79,6 +82,62 @@ async function createWindow(): Promise<void> {
     mainWindow = null;
     appContext.screenshotService = null;
   });
+
+  // Set up the createNewWindow function now that we have the preload path
+  appContext.createNewWindow = createNewBrowserWindow;
+
+  // Set the callback on TabManager for opening URLs in new windows (context menu, shift+click)
+  appContext.tabManager.setOpenUrlInNewWindowCallback(async (url: string) => {
+    await createNewBrowserWindow(url);
+  });
+
+  // Set the callback on TabManager for opening blank new windows (Ctrl+N)
+  appContext.tabManager.setOpenNewWindowCallback(async () => {
+    await createNewBrowserWindow();
+  });
+}
+
+/**
+ * Create a new browser window with its own tabs.
+ * @param url Optional URL to open in the new window
+ * @returns The window ID and optionally the tab data if a URL was provided
+ */
+async function createNewBrowserWindow(url?: string): Promise<{ windowId: WindowId; tabId?: string }> {
+  const newWindow = new BrowserWindow({
+    width: 1400,
+    height: 900,
+    webPreferences: {
+      preload: preloadPath,
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+    },
+  });
+
+  // Load the UI
+  if (process.env.VITE_DEV_SERVER_URL) {
+    newWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
+  } else {
+    newWindow.loadFile(join(__dirname, '../../dist/index.html'));
+  }
+
+  // Register the window with the tab manager
+  const windowId = appContext.tabManager!.registerNewWindow(newWindow, false);
+
+  // If a URL was provided, open it in the new window after the UI loads
+  let tabId: string | undefined;
+  if (url) {
+    // Wait for the window to be ready before opening the URL
+    await new Promise<void>((resolve) => {
+      newWindow.webContents.once('did-finish-load', () => {
+        resolve();
+      });
+    });
+    const result = appContext.tabManager!.openUrlInWindow(url, windowId);
+    tabId = result.tabId;
+  }
+
+  return { windowId, tabId };
 }
 
 function setupDownloadHandler(): void {
