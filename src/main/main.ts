@@ -6,6 +6,7 @@ import { BookmarkManager } from './services/bookmark-manager.js';
 import { ScreenshotService } from './services/screenshot-service.js';
 import { shutdownManager } from './services/shutdown-manager.js';
 import { tempFileService } from './services/temp-file-service.js';
+import { WindowFactory } from './services/window-factory.js';
 import { configureSessionSecurity } from './session-security.js';
 import { registerIpcHandlers } from './ipc/register-ipc-handlers.js';
 import type { MainProcessContext } from './ipc/register-ipc-handlers.js';
@@ -19,36 +20,34 @@ const __dirname = dirname(__filename);
 const isSmokeTest = process.argv.includes('--smoke-test');
 
 let mainWindow: BrowserWindow | null = null;
+let windowFactory: WindowFactory | null = null;
 const appContext: MainProcessContext = {
   tabManager: null,
   bookmarkManager: null,
   screenshotService: null,
+  createNewWindow: null,
 };
 let sessionSecurityConfigured = false;
 let smokeTestExit: SmokeTestExitControls | null = null;
 
 async function createWindow(): Promise<void> {
   const preloadPath = join(__dirname, 'preload.js');
+  const distPath = join(__dirname, '../../dist');
 
-  mainWindow = new BrowserWindow({
-    width: 1400,
-    height: 900,
-    webPreferences: {
-      preload: preloadPath,
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: false,
+  // Create the window factory (used for creating additional windows)
+  windowFactory = new WindowFactory(
+    {
+      preloadPath,
+      distPath,
+      devServerUrl: process.env.VITE_DEV_SERVER_URL,
     },
-  });
+    {
+      getTabManager: () => appContext.tabManager!,
+    }
+  );
 
-  // In development, load from Vite dev server
-  // In production, load from built files
-  if (process.env.VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
-    mainWindow.webContents.openDevTools();
-  } else {
-    mainWindow.loadFile(join(__dirname, '../../dist/index.html'));
-  }
+  // Create the primary window using the factory
+  mainWindow = windowFactory.createPrimaryWindow();
 
   // In smoke test mode, exit after window loads successfully
   if (isSmokeTest) {
@@ -57,8 +56,12 @@ async function createWindow(): Promise<void> {
     });
   }
 
-  // Initialize tab manager
+  // Initialize tab manager with the primary window
   appContext.tabManager = new TabManager(mainWindow);
+
+  // Set up callbacks on TabManager for window creation (context menu, shift+click, Ctrl+N)
+  // This must happen BEFORE restoring session so that restored tabs have the context menu options
+  windowFactory.setupTabManagerCallbacks();
 
   // Initialize bookmark manager
   appContext.bookmarkManager = new BookmarkManager();
@@ -79,6 +82,9 @@ async function createWindow(): Promise<void> {
     mainWindow = null;
     appContext.screenshotService = null;
   });
+
+  // Set up the createNewWindow function for IPC handlers
+  appContext.createNewWindow = (url?: string) => windowFactory!.createWindow(url);
 }
 
 function setupDownloadHandler(): void {

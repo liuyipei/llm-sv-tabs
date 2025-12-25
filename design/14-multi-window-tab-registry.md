@@ -5,7 +5,26 @@
 - Make the main process the authoritative source of truth for every tab across multiple `BrowserWindow` instances.
 - Allow each window to have its own active tab, layout state, and keyboard handling without duplicating tab management logic.
 - Provide the data model needed for a global aggregated view that can list, activate, and move tabs across windows.
-- Keep renderer processes “dumb”: they render what the main process tells them and request mutations via IPC.
+- Keep renderer processes "dumb": they render what the main process tells them and request mutations via IPC.
+
+## Creating New Windows
+
+Users can create new browser windows through three mechanisms:
+
+| Method | Description |
+|--------|-------------|
+| **Keyboard shortcut** | `Ctrl+N` (Windows/Linux) or `Cmd+N` (Mac) opens a blank new window |
+| **Context menu** | Right-click on a link and select "Open link in new window" |
+| **Shift+click** | Hold Shift while clicking a link to open it in a new window |
+
+Each new window has its own tabs, sidebars, and visual elements while sharing the underlying settings, bookmarks, and session state with other windows.
+
+### Implementation
+
+- `main.ts` provides `createNewBrowserWindow(url?: string)` which creates a `BrowserWindow`, loads the UI, and registers it with the `TabManager`.
+- `TabManager.registerNewWindow()` adds the window to the `WindowRegistry` with resize/close handlers.
+- `TabManager.setOpenNewWindowCallback()` and `setOpenUrlInNewWindowCallback()` connect keyboard shortcuts and context menu actions to window creation.
+- The `web-contents-view-factory` handles context menu items and shift+click detection via the `setWindowOpenHandler` disposition.
 
 ## Architecture (Option A)
 

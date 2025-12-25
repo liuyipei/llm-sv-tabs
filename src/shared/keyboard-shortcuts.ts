@@ -12,7 +12,8 @@ export type ShortcutActionId =
   | 'goBack'
   | 'goForward'
   | 'nextTab'
-  | 'previousTab';
+  | 'previousTab'
+  | 'openNewWindow';
 
 export interface ShortcutChord {
   key: string;
@@ -114,6 +115,12 @@ export const shortcutDefinitions: ShortcutDefinition[] = [
       { key: 'tab', ctrl: true, shift: true },
       { key: 'arrowleft', meta: true, alt: true, platform: 'mac' },
     ],
+  },
+  {
+    id: 'openNewWindow',
+    description: 'Open new window',
+    category: 'Tab Management',
+    chords: [{ key: 'n', ctrl: true }],
   },
 ];
 

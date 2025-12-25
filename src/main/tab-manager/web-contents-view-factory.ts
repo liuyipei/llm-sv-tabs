@@ -1,6 +1,11 @@
 import { Menu, MenuItem, WebContentsView } from 'electron';
 
-export function createConfiguredView(openUrl: (url: string) => void): WebContentsView {
+export interface ViewFactoryOptions {
+  openUrl: (url: string) => void;
+  openUrlInNewWindow?: (url: string) => void;
+}
+
+export function createConfiguredView(openUrl: (url: string) => void, openUrlInNewWindow?: (url: string) => void): WebContentsView {
   const view = new WebContentsView({
     webPreferences: {
       nodeIntegration: false,
@@ -8,13 +13,13 @@ export function createConfiguredView(openUrl: (url: string) => void): WebContent
     },
   });
 
-  setupContextMenu(view, openUrl);
-  setupWindowOpenHandler(view, openUrl);
+  setupContextMenu(view, openUrl, openUrlInNewWindow);
+  setupWindowOpenHandler(view, openUrl, openUrlInNewWindow);
 
   return view;
 }
 
-function setupContextMenu(view: WebContentsView, openUrl: (url: string) => void): void {
+function setupContextMenu(view: WebContentsView, openUrl: (url: string) => void, openUrlInNewWindow?: (url: string) => void): void {
   view.webContents.on('context-menu', (_event, params) => {
     const { linkURL, x, y } = params;
 
@@ -28,6 +33,15 @@ function setupContextMenu(view: WebContentsView, openUrl: (url: string) => void)
         openUrl(linkURL);
       }
     }));
+
+    if (openUrlInNewWindow) {
+      menu.append(new MenuItem({
+        label: 'Open link in new window',
+        click: () => {
+          openUrlInNewWindow(linkURL);
+        }
+      }));
+    }
 
     menu.append(new MenuItem({
       label: 'Save link as...',
@@ -56,8 +70,15 @@ function setupContextMenu(view: WebContentsView, openUrl: (url: string) => void)
   });
 }
 
-function setupWindowOpenHandler(view: WebContentsView, openUrl: (url: string) => void): void {
+function setupWindowOpenHandler(view: WebContentsView, openUrl: (url: string) => void, openUrlInNewWindow?: (url: string) => void): void {
   view.webContents.setWindowOpenHandler((details) => {
+    // Handle shift+click: opens in new window
+    if (details.disposition === 'new-window' && openUrlInNewWindow) {
+      openUrlInNewWindow(details.url);
+      return { action: 'deny' };
+    }
+
+    // Handle regular clicks that want new tabs
     if (details.disposition === 'foreground-tab' || details.disposition === 'background-tab') {
       openUrl(details.url);
       return { action: 'deny' };

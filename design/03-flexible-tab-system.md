@@ -52,4 +52,5 @@ This document summarizes how tabs are represented, created, rendered, and persis
 
 ## Multi-window notes (summary)
 
+- **Window creation:** Users can open new windows via `Ctrl+N`/`Cmd+N`, right-click context menu ("Open link in new window"), or shift+click on links. Each window has independent tabs and UI while sharing settings and bookmarks. See Design 14 for creation mechanisms and implementation details.
 - Ownership (`tabId -> windowId`) and activation are managed centrally by `WindowRegistry`; `setActiveTab` detaches any prior view for that window, attaches the new one, and targets updates to the owning renderer. Keyboard shortcuts inside `WebContentsView` are routed through the registry so they act on the correct window. See Design 14 for full lifecycle and aggregated snapshot behavior.【F:src/main/tab-manager.ts†L545-L739】【F:src/main/tab-manager/window-registry.ts†L18-L112】

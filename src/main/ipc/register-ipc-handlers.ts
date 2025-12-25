@@ -6,11 +6,14 @@ import { registerBookmarkHandlers } from './handlers/bookmark-handlers.js';
 import { registerContentHandlers } from './handlers/content-handlers.js';
 import { registerQueryHandlers } from './handlers/query-handlers.js';
 import { registerModelHandlers } from './handlers/model-handlers.js';
+import { registerWindowHandlers } from './handlers/window-handlers.js';
+import type { WindowId } from '../tab-manager/window-registry.js';
 
 export interface MainProcessContext {
   tabManager: TabManager | null;
   bookmarkManager: BookmarkManager | null;
   screenshotService: ScreenshotService | null;
+  createNewWindow: ((url?: string) => Promise<{ windowId: WindowId; tabId?: string }>) | null;
 }
 
 function createContextAccessors(context: MainProcessContext) {
@@ -25,6 +28,7 @@ function createContextAccessors(context: MainProcessContext) {
     tabManager: () => ensure(context.tabManager, 'TabManager'),
     bookmarkManager: () => ensure(context.bookmarkManager, 'BookmarkManager'),
     screenshotService: () => ensure(context.screenshotService, 'ScreenshotService'),
+    createNewWindow: () => ensure(context.createNewWindow, 'createNewWindow'),
   };
 }
 
@@ -37,4 +41,5 @@ export function registerIpcHandlers(context: MainProcessContext): void {
   registerContentHandlers(get.tabManager, get.screenshotService);
   registerQueryHandlers(get.tabManager);
   registerModelHandlers();
+  registerWindowHandlers(get.createNewWindow);
 }

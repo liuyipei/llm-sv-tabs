@@ -56,8 +56,9 @@ For a deep dive into the architecture and design philosophy:
 ## Features
 
 - **Tab Management**: Create, switch, close tabs with WebContentsView for web content, notes, files, and LLM responses
+- **Multi-Window Support**: Open new windows via Ctrl/Cmd+N, context menu, or shift+click on links; each window has independent tabs while sharing settings
 - **LLM Integration**: Query tabs with Fireworks AI, OpenRouter, Anthropic, OpenAI, and more
-- **Keyboard Shortcuts**: Browser-style global shortcuts (Cmd+L to focus URL bar, Cmd+Alt+S for screenshots)
+- **Keyboard Shortcuts**: Browser-style global shortcuts (Cmd+L to focus URL bar, Cmd+N for new window, Cmd+Alt+S for screenshots)
 - **Screenshot Capture**: Native region-based screenshots with drag-to-select overlay
 - **Content Extraction**: DOM serialization and webpage screenshots for vision models
 - **File Upload**: Support for images, PDFs, and text files as tab content
