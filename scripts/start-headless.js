@@ -35,7 +35,7 @@ const headlessArgs = [
   '--disable-dev-shm-usage',
   '--no-sandbox'
 ];
-const SMOKE_TEST_TIMEOUT_MS = 20000;
+const SMOKE_TEST_TIMEOUT_MS = 15000;
 
 function enforceSmokeTestTimeout(child) {
   if (!appArgs.includes('--smoke-test')) {
@@ -43,7 +43,7 @@ function enforceSmokeTestTimeout(child) {
   }
 
   const timeout = setTimeout(() => {
-    console.error(`Smoke test did not exit within ${SMOKE_TEST_TIMEOUT_MS}ms, forcing shutdown...`);
+    console.error(`[TIMEOUT] Smoke test did not exit within ${SMOKE_TEST_TIMEOUT_MS}ms, forcing shutdown...`);
     child.kill('SIGKILL');
     process.exit(1);
   }, SMOKE_TEST_TIMEOUT_MS);
