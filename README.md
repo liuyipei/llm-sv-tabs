@@ -37,21 +37,22 @@ A common workflow is opening several data sources in different tabs. These might
 
 For a deep dive into the architecture and design philosophy:
 
-- **[User Experience & Prompt Context Management](./design/04-user-experience-and-context-management.md)** ⭐ **Start here** - Learn about the UX design
+- **[User Experience & Prompt Context Management](./docs/design/04-user-experience-and-context-management.md)** ⭐ **Start here** - Learn about the UX design
 - **[Resource & Lifecycle Management](./docs/design/resources/)** 🔧 - Resource ownership, cleanup patterns, and memory leak prevention
-- [Design System](./design/13-design-system.md) - Visual design tokens, color palette, typography, spacing, and component patterns
-- [Smart Content Extraction](./design/09-smart-content-extraction.md) - Context-aware DOM extraction for articles and web apps
-- [Token Streaming & API Providers](./design/01-token-streaming-and-providers.md) - Provider architecture and real-time streaming
-- [Visual Layout Architecture](./design/02-visual-layout.md) - Hybrid rendering system combining Electron and Svelte
-- [Flexible Tab System](./design/03-flexible-tab-system.md) - How tabs handle URLs, files, text, and LLM responses
-- [Multi-Window Tab Registry](./design/14-multi-window-tab-registry.md) - Main-process ownership of tabs across windows, with per-window controllers
-- [Session Persistence](./design/10-session-persistence.md) - How tabs, notes, and conversations survive browser restarts
-- [Screenshot Capture](./design/05-screenshot-capture.md) - Native screenshot implementation with region selection
-- [Round-Trip Test Pattern](./design/06-round-trip-test-pattern.md) - Testing pattern for state persistence through navigation
-- [Store Synchronization Across Processes](./design/07-store-synchronization-across-processes.md) - IPC-based state management
-- [Keyboard Shortcuts](./design/08-keyboard-shortcuts.md) - Global shortcuts and focus management with WebContentsView
-- [PDF Content Extraction](./design/11-pdf-content-extraction.md) - Robust PDF text and image extraction for LLM consumption
-- [Model Capability Probing](./design/12-model-capability-probing.md) - Active runtime discovery of vision, PDF, and multimodal support
+- [Design System](./docs/design/13-design-system.md) - Visual design tokens, color palette, typography, spacing, and component patterns
+- [Smart Content Extraction](./docs/design/09-smart-content-extraction.md) - Context-aware DOM extraction for articles and web apps
+- [Token Streaming & API Providers](./docs/design/01-token-streaming-and-providers.md) - Provider architecture and real-time streaming
+- [Visual Layout Architecture](./docs/design/02-visual-layout.md) - Hybrid rendering system combining Electron and Svelte
+- [Flexible Tab System](./docs/design/03-flexible-tab-system.md) - How tabs handle URLs, files, text, and LLM responses
+- [Multi-Window Tab Registry](./docs/design/14-multi-window-tab-registry.md) - Main-process ownership of tabs across windows, with per-window controllers
+- [Session Persistence](./docs/design/10-session-persistence.md) - How tabs, notes, and conversations survive browser restarts
+- [Screenshot Capture](./docs/design/05-screenshot-capture.md) - Native screenshot implementation with region selection
+- [Round-Trip Test Pattern](./docs/design/06-round-trip-test-pattern.md) - Testing pattern for state persistence through navigation
+- [Store Synchronization Across Processes](./docs/design/07-store-synchronization-across-processes.md) - IPC-based state management
+- [Keyboard Shortcuts](./docs/design/08-keyboard-shortcuts.md) - Global shortcuts and focus management with WebContentsView
+- [PDF Content Extraction](./docs/design/11-pdf-content-extraction.md) - Robust PDF text and image extraction for LLM consumption
+- [Model Capability Probing](./docs/design/12-model-capability-probing.md) - Active runtime discovery of vision, PDF, and multimodal support
+- [Provider Duplication Notes](./docs/design/15-provider-duplication-notes.md) - Code duplication analysis and refactoring opportunities in provider implementations
 
 ## Features
 
