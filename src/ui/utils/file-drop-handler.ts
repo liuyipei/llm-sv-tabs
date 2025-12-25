@@ -3,6 +3,25 @@ import type { IPCBridgeAPI } from '$lib/ipc-bridge';
 export type FileType = 'text' | 'pdf' | 'image';
 
 /**
+ * Sanitize file path by removing path traversal sequences.
+ * Prevents potential path traversal attacks by removing ../ and ..\ sequences.
+ *
+ * @param filePath - The file path to sanitize
+ * @returns The sanitized file path
+ */
+export function sanitizeFilePath(filePath: string): string {
+  if (!filePath) return filePath;
+
+  // Remove path traversal sequences (../ and ..\)
+  let sanitized = filePath.replace(/\.\.[\/\\]/g, '');
+
+  // Also remove any remaining standalone .. that could be used for traversal
+  sanitized = sanitized.replace(/\.\./g, '');
+
+  return sanitized;
+}
+
+/**
  * Detect the file type based on MIME type and file extension.
  */
 export function detectFileType(file: File): FileType {
@@ -25,7 +44,10 @@ export function detectFileType(file: File): FileType {
  */
 export async function processDroppedFile(file: File, ipc: IPCBridgeAPI): Promise<void> {
   const fileType = detectFileType(file);
-  const filePath = ipc?.getPathForFile?.(file);
+  const rawFilePath = ipc?.getPathForFile?.(file);
+
+  // Sanitize file path to prevent path traversal attacks
+  const filePath = rawFilePath ? sanitizeFilePath(rawFilePath) : rawFilePath;
 
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
