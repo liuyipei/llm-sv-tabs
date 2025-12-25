@@ -140,13 +140,14 @@ The source of truth is `src/shared/keyboard-shortcuts.ts`. Both the renderer and
 | Focus LLM input | `Ctrl+.` | `Cmd+.` |
 | Find in page | `Ctrl+F` | `Cmd+F` |
 
-### Tab management
+### Tab and window management
 
 | Action | Windows / Linux | macOS |
 | --- | --- | --- |
 | Next tab | `Ctrl+Tab` | `Ctrl+Tab` or `Cmd+Option+Right` |
 | Previous tab | `Ctrl+Shift+Tab` | `Ctrl+Shift+Tab` or `Cmd+Option+Left` |
 | Close active tab | `Ctrl+W` | `Cmd+W` |
+| Open new window | `Ctrl+N` | `Cmd+N` |
 
 ### Navigation and actions
 
