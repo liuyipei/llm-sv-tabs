@@ -58,6 +58,9 @@ export function configureSessionSecurity(appDirectory: string): void {
               "frame-ancestors 'none'",
             ].join('; '),
           ],
+          'X-Content-Type-Options': ['nosniff'],
+          'X-Frame-Options': ['DENY'],
+          'X-XSS-Protection': ['1; mode=block'],
         },
       });
     } else {
