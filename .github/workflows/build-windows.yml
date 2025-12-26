@@ -13,6 +13,7 @@ permissions:
 jobs:
   build-windows:
     runs-on: windows-latest
+    timeout-minutes: 10
     env:
       HAS_SIGNING: ${{ secrets.WINDOWS_CERTIFICATE != '' && secrets.WINDOWS_CERTIFICATE_PASSWORD != '' }}
 

@@ -13,6 +13,7 @@ permissions:
 jobs:
   build-macos:
     runs-on: macos-latest
+    timeout-minutes: 10
     env:
       HAS_SIGNING: ${{ secrets.MACOS_CERTIFICATE != '' && secrets.MACOS_CERTIFICATE_PASSWORD != '' && secrets.APPLE_ID != '' && secrets.APPLE_APP_SPECIFIC_PASSWORD != '' && secrets.APPLE_TEAM_ID != '' }}
 

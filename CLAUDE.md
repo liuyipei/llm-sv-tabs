@@ -16,9 +16,12 @@ npm install --ignore-scripts
 ```bash
 npm run build           # Full build (renderer + main)
 npm run build:renderer  # Vite builds the Svelte UI
-npm run build:main      # TypeScript compiles Electron main process
+npm run build:main      # TypeScript compiles Electron main process + bundles preload scripts
+npm run bundle:preload  # Bundle preload scripts to CommonJS (auto-run by build:main)
 npm run typecheck       # Type checking without emitting files
 ```
+
+**Note on preload scripts**: Electron preload scripts with `sandbox: true` cannot use ES6 `import` statements. The build process automatically bundles them using esbuild to CommonJS format.
 
 ## Testing
 
