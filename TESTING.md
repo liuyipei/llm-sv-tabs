@@ -17,11 +17,30 @@ tests/
 ## Running Tests
 
 ```bash
-npm test                 # Run all tests
-npm run test:watch      # Watch mode
-npm run test:ui         # With UI
-npm run test:coverage   # With coverage
+npm test                 # Run all tests (~80 tests, <10s)
+npm run test:watch       # Watch mode
+npm run test:ui          # With UI
+npm run test:coverage    # With coverage
+npm run test:smoke       # Smoke test (headless Electron launch)
 ```
+
+### Smoke Tests (Headless Mode)
+
+Smoke tests verify the app launches correctly in headless mode on all three platforms (Linux, macOS, Windows):
+
+**Timeout Architecture:**
+- **15s process timeout**: SIGKILL if app doesn't exit (scripts/start-headless.js)
+- **2s success delay**: Cleanup after window loads (smoke-test-exit.ts)
+- **500ms shutdown grace**: Force exit in will-quit handler (shutdown-manager.ts)
+
+**Platform Support:**
+- **Linux**: xvfb-run (virtual framebuffer) or Ozone headless fallback
+- **macOS/Windows**: Offscreen rendering via Electron flags
+- **CI**: All platforms run smoke tests with 10-minute job timeouts
+
+**Common Issues:**
+- Preload script must be bundled to CommonJS (handled by `npm run bundle:preload`)
+- Missing xvfb on Linux: `sudo apt-get install xvfb`
 
 ## Test Philosophy
 
