@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, session } from 'electron';
+import { app, BrowserWindow, dialog, session, Menu } from 'electron';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import TabManager from './tab-manager.js';
@@ -114,41 +114,43 @@ function setupDownloadHandler(): void {
 }
 
 /**
- * Global shortcuts setup (currently disabled).
+ * Keyboard Shortcut Architecture: Application Menu Null
+ * ======================================================
  *
- * This function previously used Electron's globalShortcut API to register
- * OS-level keyboard shortcuts that would intercept keys before any webContents
- * received them. This worked well but was replaced with a different approach:
+ * We disable Electron's default menu via Menu.setApplicationMenu(null).
+ * This gives us full control over keyboard shortcuts without interference
+ * from Electron's menu accelerators.
  *
- * We now use `before-input-event` handlers on each WebContentsView to capture
- * shortcuts when the browser content is focused, combined with renderer-level
- * keyboard handlers for when the UI panel is focused. This provides the same
- * functionality without using global shortcuts.
+ * WHY NOT use Electron's menu accelerators?
+ * - Menu accelerators don't work reliably when focus is inside a webContents
+ * - On Windows, Ctrl+N wouldn't trigger when the Svelte UI has focus
+ * - We want unified shortcut handling across the entire app
  *
- * The global shortcut approach could be re-enabled if needed by uncommenting
- * the registration code below. Global shortcuts are registered on window focus
- * and unregistered on blur to avoid stealing OS-wide shortcuts.
+ * WHY NOT use globalShortcut?
+ * - Intercepts keys system-wide, even when app is not focused
+ * - Can interfere with other applications
+ * - Anti-pattern for desktop apps
  *
- * Shortcuts handled:
- * - Ctrl/Cmd+F: Find in page
- * - Ctrl/Cmd+W: Close active tab
- * - Ctrl/Cmd+T: New tab (focus URL bar)
- * - Ctrl/Cmd+R: Reload current tab
- * - Ctrl/Cmd+L: Focus URL bar
- * - Ctrl/Cmd+.: Focus LLM input
- * - Ctrl/Cmd+D: Bookmark current tab
- * - Ctrl/Cmd+Alt+S: Screenshot
- * - Alt+Left/Right, Cmd+[/]: Navigation back/forward
- * - Ctrl+Tab, Ctrl+Shift+Tab: Tab switching
- * - Cmd+Alt+Left/Right (Mac): Tab switching
+ * OUR APPROACH: Two-layer shortcut handling
+ *
+ * Layer 1: Renderer (src/ui/utils/keyboard-shortcuts.ts)
+ * - Handles shortcuts when the Svelte UI has focus (sidebar, URL bar, etc.)
+ * - Uses window.addEventListener('keydown', ...)
+ * - Defined in src/shared/keyboard-shortcuts.ts
+ *
+ * Layer 2: WebContentsView (src/main/tab-manager.ts setupViewKeyboardShortcuts)
+ * - Handles shortcuts when browser content has focus
+ * - Uses webContents.on('before-input-event', ...)
+ * - Same definitions from src/shared/keyboard-shortcuts.ts
+ *
+ * Both layers use the same shortcut definitions for consistency.
+ * See src/shared/keyboard-shortcuts.ts for the full list.
  */
-function setupGlobalShortcuts(): void {
-  // Global shortcuts are currently disabled. Keyboard shortcuts are now handled by:
-  // 1. Renderer-level handlers in keyboard-shortcuts.ts (when UI panel is focused)
-  // 2. before-input-event handlers on WebContentsView (when browser content is focused)
-  //
-  // To re-enable global shortcuts, uncomment the code below and the focus/blur handlers.
-  console.log('Global shortcuts disabled - using before-input-event handlers instead');
+function disableDefaultMenu(): void {
+  // Disable Electron's default menu to prevent it from consuming keyboard
+  // shortcuts. All shortcuts are handled by our renderer and WebContentsView
+  // handlers instead.
+  Menu.setApplicationMenu(null);
 }
 
 // Disable client hints that would reveal "Electron" in the Sec-CH-UA header.
@@ -173,11 +175,13 @@ app.whenReady().then(async () => {
 
   await createWindow();
 
+  // Disable Electron's default menu - we handle all shortcuts ourselves
+  // See disableDefaultMenu() for the full architecture explanation
+  disableDefaultMenu();
+
   // Set up IPC handlers once (not per-window, as ipcMain.handle registers globally)
   registerIpcHandlers(appContext);
   setupDownloadHandler();
-
-  setupGlobalShortcuts();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

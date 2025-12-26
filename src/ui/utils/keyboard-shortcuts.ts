@@ -29,8 +29,6 @@ export function initKeyboardShortcuts(actions: ShortcutAction): () => void {
 
         if (action && typeof action === 'function') {
           action();
-        } else {
-          console.warn(`No action handler found for: ${shortcut.id}`);
         }
 
         break;

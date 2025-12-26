@@ -245,7 +245,9 @@ class TabManager {
       },
       openNewWindow: () => {
         if (this.openNewWindowCallback) {
-          void this.openNewWindowCallback();
+          void this.openNewWindowCallback().catch((err) => {
+            console.error('Failed to open new window:', err);
+          });
         }
       },
     };
