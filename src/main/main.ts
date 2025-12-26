@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, session, Menu } from 'electron';
+import { app, BrowserWindow, dialog, session, Menu, globalShortcut } from 'electron';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import TabManager from './tab-manager.js';
@@ -247,6 +247,30 @@ function setupApplicationMenu(): void {
   Menu.setApplicationMenu(menu);
 }
 
+/**
+ * Register global keyboard shortcuts that work regardless of focus.
+ * This is needed because menu accelerators don't work reliably when
+ * focus is inside a webContents (renderer or WebContentsView).
+ */
+function registerGlobalShortcuts(): void {
+  // Register Ctrl/Cmd+N for new window
+  const registered = globalShortcut.register('CmdOrCtrl+N', () => {
+    console.log('[DEBUG globalShortcut] Ctrl+N triggered');
+    if (windowFactory) {
+      void windowFactory.createWindow();
+    }
+  });
+
+  if (!registered) {
+    console.warn('Failed to register global shortcut for Ctrl+N');
+  }
+
+  // Unregister shortcuts when app is about to quit
+  app.on('will-quit', () => {
+    globalShortcut.unregisterAll();
+  });
+}
+
 // Disable client hints that would reveal "Electron" in the Sec-CH-UA header.
 // configureSessionSecurity sets a Chrome-like user agent so browsing appears as a real browser.
 app.commandLine.appendSwitch('disable-features', 'UserAgentClientHint');
@@ -269,8 +293,11 @@ app.whenReady().then(async () => {
 
   await createWindow();
 
-  // Set up application menu with Ctrl+N shortcut (must be after createWindow so windowFactory exists)
+  // Set up application menu (must be after createWindow so windowFactory exists)
   setupApplicationMenu();
+
+  // Register global shortcuts for Ctrl+N (works regardless of focus)
+  registerGlobalShortcuts();
 
   // Set up IPC handlers once (not per-window, as ipcMain.handle registers globally)
   registerIpcHandlers(appContext);
