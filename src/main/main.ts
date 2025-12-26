@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, session, Menu, globalShortcut } from 'electron';
+import { app, BrowserWindow, dialog, session, Menu } from 'electron';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import TabManager from './tab-manager.js';
@@ -114,22 +114,32 @@ function setupDownloadHandler(): void {
 }
 
 /**
- * Global shortcuts setup (currently disabled).
+ * Global shortcuts setup (intentionally disabled).
  *
- * This function previously used Electron's globalShortcut API to register
- * OS-level keyboard shortcuts that would intercept keys before any webContents
- * received them. This worked well but was replaced with a different approach:
+ * We explicitly chose NOT to use Electron's globalShortcut API because:
+ * 1. Global shortcuts intercept keys system-wide, even when the app is not focused
+ * 2. This can interfere with other applications
+ * 3. It's an anti-pattern for desktop apps
  *
- * We now use `before-input-event` handlers on each WebContentsView to capture
- * shortcuts when the browser content is focused, combined with renderer-level
- * keyboard handlers for when the UI panel is focused. This provides the same
- * functionality without using global shortcuts.
+ * Instead, we use a layered approach:
+ * 1. Menu accelerators (e.g., File > New Window with Ctrl+N) - works when menu can receive input
+ * 2. `before-input-event` handlers on WebContentsView - works when browser content is focused
+ * 3. Renderer-level keyboard handlers - works when UI elements are focused
  *
- * The global shortcut approach could be re-enabled if needed by uncommenting
- * the registration code below. Global shortcuts are registered on window focus
- * and unregistered on blur to avoid stealing OS-wide shortcuts.
+ * KNOWN LIMITATION (Windows):
+ * Ctrl+N for "New Window" only works when:
+ * - A WebContentsView has focus (browser content area)
+ * - User clicks File > New Window from the menu
  *
- * Shortcuts handled:
+ * Ctrl+N does NOT work when:
+ * - The Svelte UI (sidebar/controls) has focus
+ * - A component-based tab (like aggregate-tabs) is active without a WebContentsView
+ *
+ * This is because menu accelerators don't reliably trigger when focus is inside
+ * a webContents on Windows. A workaround would be to use globalShortcut, but we
+ * intentionally avoid that approach.
+ *
+ * Shortcuts handled via before-input-event and renderer handlers:
  * - Ctrl/Cmd+F: Find in page
  * - Ctrl/Cmd+W: Close active tab
  * - Ctrl/Cmd+T: New tab (focus URL bar)
@@ -141,14 +151,10 @@ function setupDownloadHandler(): void {
  * - Alt+Left/Right, Cmd+[/]: Navigation back/forward
  * - Ctrl+Tab, Ctrl+Shift+Tab: Tab switching
  * - Cmd+Alt+Left/Right (Mac): Tab switching
+ * - Ctrl/Cmd+N: New window (only when WebContentsView focused)
  */
 function setupGlobalShortcuts(): void {
-  // Global shortcuts are currently disabled. Keyboard shortcuts are now handled by:
-  // 1. Renderer-level handlers in keyboard-shortcuts.ts (when UI panel is focused)
-  // 2. before-input-event handlers on WebContentsView (when browser content is focused)
-  //
-  // To re-enable global shortcuts, uncomment the code below and the focus/blur handlers.
-  console.log('Global shortcuts disabled - using before-input-event handlers instead');
+  // Intentionally empty - see comment above for rationale
 }
 
 /**
@@ -247,30 +253,6 @@ function setupApplicationMenu(): void {
   Menu.setApplicationMenu(menu);
 }
 
-/**
- * Register global keyboard shortcuts that work regardless of focus.
- * This is needed because menu accelerators don't work reliably when
- * focus is inside a webContents (renderer or WebContentsView).
- */
-function registerGlobalShortcuts(): void {
-  // Register Ctrl/Cmd+N for new window
-  const registered = globalShortcut.register('CmdOrCtrl+N', () => {
-    console.log('[DEBUG globalShortcut] Ctrl+N triggered');
-    if (windowFactory) {
-      void windowFactory.createWindow();
-    }
-  });
-
-  if (!registered) {
-    console.warn('Failed to register global shortcut for Ctrl+N');
-  }
-
-  // Unregister shortcuts when app is about to quit
-  app.on('will-quit', () => {
-    globalShortcut.unregisterAll();
-  });
-}
-
 // Disable client hints that would reveal "Electron" in the Sec-CH-UA header.
 // configureSessionSecurity sets a Chrome-like user agent so browsing appears as a real browser.
 app.commandLine.appendSwitch('disable-features', 'UserAgentClientHint');
@@ -295,9 +277,6 @@ app.whenReady().then(async () => {
 
   // Set up application menu (must be after createWindow so windowFactory exists)
   setupApplicationMenu();
-
-  // Register global shortcuts for Ctrl+N (works regardless of focus)
-  registerGlobalShortcuts();
 
   // Set up IPC handlers once (not per-window, as ipcMain.handle registers globally)
   registerIpcHandlers(appContext);
