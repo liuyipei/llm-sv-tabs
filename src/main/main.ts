@@ -186,8 +186,12 @@ function setupApplicationMenu(): void {
           label: 'New Window',
           accelerator: 'CmdOrCtrl+N',
           click: () => {
+            console.log('[DEBUG MENU] New Window menu item triggered');
             if (windowFactory) {
+              console.log('[DEBUG MENU] Calling windowFactory.createWindow()');
               void windowFactory.createWindow();
+            } else {
+              console.warn('[DEBUG MENU] windowFactory is null!');
             }
           },
         },
