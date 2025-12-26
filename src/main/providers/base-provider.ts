@@ -5,6 +5,7 @@
 import type { ProviderType, LLMModel, LLMResponse, QueryOptions, MessageContent } from '../../types';
 import type { ProbedCapabilities } from '../../probe/types';
 import { resolveModelCapabilities } from '../services/model-capabilities.js';
+import { TokenBucket } from '../utils/token-bucket.js';
 
 export interface ProviderCapabilities {
   supportsStreaming: boolean;
@@ -20,6 +21,10 @@ export abstract class BaseProvider {
   protected model?: string;
   protected lastRequestTime = 0;
 
+  // Token bucket for rate limiting: 10 requests capacity, refills at 2 per second
+  // This allows bursts of up to 10 requests, then throttles to 2 requests/second
+  private rateLimitBucket: TokenBucket;
+
   constructor(
     protected providerType: ProviderType,
     apiKey?: string,
@@ -27,6 +32,10 @@ export abstract class BaseProvider {
   ) {
     this.apiKey = apiKey;
     this.endpoint = endpoint;
+
+    // Initialize rate limiting with token bucket
+    // Default: 10 tokens capacity, 2 tokens per second refill rate
+    this.rateLimitBucket = new TokenBucket(10, 2);
   }
 
   /**
@@ -108,13 +117,12 @@ export abstract class BaseProvider {
   }
 
   /**
-   * Simple rate-limit delay to avoid rapid bursts.
+   * Rate-limit delay using token bucket algorithm.
+   * This provides more sophisticated rate limiting that allows bursts
+   * while maintaining an average rate limit.
    */
   protected async rateLimitDelay(): Promise<void> {
-    const elapsed = Date.now() - this.lastRequestTime;
-    if (elapsed < 1000) {
-      await new Promise((resolve) => setTimeout(resolve, 1000 - elapsed));
-    }
+    await this.rateLimitBucket.consume(1);
     this.lastRequestTime = Date.now();
   }
 
