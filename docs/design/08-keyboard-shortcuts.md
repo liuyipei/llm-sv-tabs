@@ -26,7 +26,7 @@ We use `Menu.setApplicationMenu(null)` to disable Electron's default menu entire
 - Can interfere with other applications using the same shortcuts
 - Anti-pattern for desktop apps - users don't expect your app to steal global keys
 
-### Our two-layer approach
+### Our three-layer approach
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -35,19 +35,25 @@ We use `Menu.setApplicationMenu(null)` to disable Electron's default menu entire
 │  │   Main webContents    │      WebContentsView          │  │
 │  │   (Svelte UI)         │      (Browser content)        │  │
 │  │                       │                               │  │
-│  │   Layer 1:            │   Layer 2:                    │  │
+│  │   Layer 1: DOM        │   Layer 3:                    │  │
 │  │   window.keydown      │   before-input-event          │  │
+│  │                       │                               │  │
+│  │   Layer 2: Main       │                               │  │
+│  │   before-input-event  │                               │  │
 │  │                       │                               │  │
 │  └───────────────────────┴───────────────────────────────┘  │
 │                                                             │
-│  Both layers import from src/shared/keyboard-shortcuts.ts   │
+│  All layers import from src/shared/keyboard-shortcuts.ts    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-- **Layer 1 (Renderer)**: `src/ui/utils/keyboard-shortcuts.ts` - handles shortcuts when Svelte UI has focus
-- **Layer 2 (WebContentsView)**: `src/main/tab-manager.ts` - handles shortcuts when browser content has focus
+- **Layer 1 (Renderer DOM)**: `src/ui/utils/keyboard-shortcuts.ts` - handles shortcuts via DOM keydown when Svelte UI has focus
+- **Layer 2 (Main window webContents)**: `src/main/services/window-factory.ts` - handles shortcuts via `before-input-event` on the main window's webContents (backup for Layer 1 on Windows)
+- **Layer 3 (WebContentsView)**: `src/main/tab-manager.ts` - handles shortcuts via `before-input-event` when browser content has focus
 
-Both use the same definitions from `src/shared/keyboard-shortcuts.ts`.
+All layers use the same definitions from `src/shared/keyboard-shortcuts.ts`.
+
+**Why Layer 2?** On Windows, DOM keyboard events in the renderer may not fire reliably for certain shortcuts like Ctrl+N. Layer 2 provides a fallback by intercepting keyboard input at the main process level before it reaches the DOM.
 
 ---
 
@@ -94,16 +100,19 @@ Supporting helpers keep platform rules consistent:
 
 ## Where the registry is consumed
 
-- **Renderer key handling (`src/ui/utils/keyboard-shortcuts.ts`)**  
+- **Renderer key handling (`src/ui/utils/keyboard-shortcuts.ts`)**
   Iterates `shortcutDefinitions`, calls `matchesKeyboardShortcut`, and dispatches to the action map. No duplicate per-platform lists are required.
 
-- **WebContentsView handling (`src/main/tab-manager.ts`)**  
+- **Main window webContents (`src/main/services/window-factory.ts`)**
+  Uses `before-input-event` on each BrowserWindow's webContents to handle Ctrl+N when the Svelte UI has focus. This is a fallback for Windows where DOM events may not fire reliably.
+
+- **WebContentsView handling (`src/main/tab-manager.ts`)**
   Uses the same definitions with `matchesInputShortcut` inside `before-input-event`, so browser-focused content honors the same chords as the UI panel. Action handlers (close tab, navigate, bookmark, screenshot, etc.) are keyed by the shared action id.
 
-- **UI help surface (`src/ui/components/common/KeyboardShortcutsPanel.svelte`)**  
+- **UI help surface (`src/ui/components/common/KeyboardShortcutsPanel.svelte`)**
   Renders the live registry grouped by category. The panel is reachable from the sidebar and always reflects the runtime config, including platform-specific alternates like `Cmd+Option+Left/Right` for tab switching on macOS.
 
-- **Documentation (`design/08-keyboard-shortcuts.md`)**  
+- **Documentation (`design/08-keyboard-shortcuts.md`)**
   This document references the shared registry and explains how mappings are generated; no separate markdown file is needed.
 
 ---
@@ -141,9 +150,9 @@ setTimeout(() => {
 
 ---
 
-## Architecture: Two-layer handling, one registry
+## Architecture: Three-layer handling, one registry
 
-Shortcuts flow through two layers—renderer handlers when the UI panel is focused, and `before-input-event` when the browser content is focused. Both layers import the same registry and helpers, so platform translation (`Ctrl → Cmd`, `Alt → Option`, meta handling) and the set of actions cannot drift.
+Shortcuts flow through three layers: renderer DOM handlers, main process handlers for the BrowserWindow's webContents, and `before-input-event` handlers for WebContentsViews. All layers import the same registry and helpers, so platform translation (`Ctrl → Cmd`, `Alt → Option`, meta handling) and the set of actions cannot drift.
 
 The default Electron menu is disabled via `Menu.setApplicationMenu(null)` in `src/main/main.ts`. See "Application Menu Null Architecture" above for rationale.
 
