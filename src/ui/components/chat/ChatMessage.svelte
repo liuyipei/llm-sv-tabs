@@ -1,6 +1,9 @@
 <script lang="ts">
   import type { ChatMessage, MessageContent } from '../../../types';
-  import { renderMarkdown, copyToClipboard } from '../../utils/markdown';
+  import type { RenderMode } from '../../rendering';
+  import { renderMessage } from '../../rendering';
+  import { copyToClipboard } from '../../utils/markdown';
+  import { defaultRenderMode } from '$stores/config';
 
   let { message }: { message: ChatMessage } = $props();
 
@@ -21,11 +24,12 @@
   const isAssistant = $derived(message.role === 'assistant');
   const isError = $derived(textContent.startsWith('Error:'));
 
-  let showRaw = $state(false);
+  // Render mode state - defaults to global preference
+  let renderMode = $state<RenderMode>($defaultRenderMode);
   let copyFeedback = $state(false);
 
   const renderedContent = $derived(
-    isAssistant && !showRaw ? renderMarkdown(textContent) : null
+    isAssistant ? renderMessage(textContent, { mode: renderMode }).html : null
   );
 
   async function handleCopy() {
@@ -38,8 +42,8 @@
     }
   }
 
-  function toggleRaw() {
-    showRaw = !showRaw;
+  function toggleRenderMode() {
+    renderMode = renderMode === 'markdown' ? 'raw' : 'markdown';
   }
 </script>
 
@@ -48,13 +52,24 @@
     <span class="role">{isUser ? 'You' : 'Assistant'}</span>
     <div class="message-controls">
       {#if isAssistant}
-        <button
-          class="control-btn"
-          onclick={toggleRaw}
-          title={showRaw ? 'Show formatted' : 'Show raw text'}
-        >
-          {showRaw ? '📝' : '📄'}
-        </button>
+        <div class="render-mode-toggle" role="group" aria-label="Render mode toggle">
+          <button
+            class="toggle-btn"
+            class:active={renderMode === 'markdown'}
+            onclick={renderMode === 'markdown' ? undefined : toggleRenderMode}
+            title="Markdown view"
+            aria-pressed={renderMode === 'markdown'}
+            disabled={renderMode === 'markdown'}
+          >MD</button>
+          <button
+            class="toggle-btn"
+            class:active={renderMode === 'raw'}
+            onclick={renderMode === 'raw' ? undefined : toggleRenderMode}
+            title="Raw text view"
+            aria-pressed={renderMode === 'raw'}
+            disabled={renderMode === 'raw'}
+          >Raw</button>
+        </div>
       {/if}
       <button
         class="control-btn"
@@ -65,8 +80,8 @@
       </button>
     </div>
   </div>
-  <div class="message-content">
-    {#if renderedContent}
+  <div class="message-content" class:raw-mode={renderMode === 'raw'}>
+    {#if isAssistant && renderedContent}
       {@html renderedContent}
     {:else}
       {textContent}
@@ -130,6 +145,51 @@
   .message-controls {
     display: flex;
     gap: var(--space-4);
+    align-items: center;
+  }
+
+  .render-mode-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    background-color: var(--bg-primary);
+    border-radius: var(--radius-md);
+    padding: 2px;
+    font-size: var(--text-xs);
+  }
+
+  .toggle-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: var(--space-1) var(--space-3);
+    font-size: var(--text-xs);
+    font-weight: var(--font-medium);
+    color: var(--text-secondary);
+    border-radius: var(--radius-default);
+    transition: all var(--transition-fast);
+    min-width: 36px;
+    text-align: center;
+  }
+
+  .toggle-btn:hover:not(:disabled) {
+    color: var(--text-primary);
+    background-color: var(--bg-hover-subtle);
+  }
+
+  .toggle-btn:focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 1px;
+  }
+
+  .toggle-btn.active {
+    background-color: var(--accent-color);
+    color: var(--bg-primary);
+    cursor: default;
+  }
+
+  .toggle-btn:disabled {
+    cursor: default;
   }
 
   .control-btn {
@@ -248,5 +308,21 @@
   .message-content :global(.math-error) {
     color: var(--error-text);
     font-family: var(--font-mono);
+  }
+
+  /* Raw text display styles */
+  .message-content.raw-mode {
+    font-family: var(--font-mono);
+    background-color: var(--bg-primary);
+    padding: var(--space-4);
+    border-radius: var(--radius-md);
+  }
+
+  .message-content :global(.raw-text-content) {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-family: var(--font-mono);
+    font-size: var(--text-md);
+    line-height: var(--leading-relaxed);
   }
 </style>
