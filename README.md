@@ -47,6 +47,7 @@ For a deep dive into the architecture and design philosophy:
 - [Flexible Tab System](./docs/design/03-flexible-tab-system.md) - How tabs handle URLs, files, text, and LLM responses
 - [Multi-Window Tab Registry](./docs/design/14-multi-window-tab-registry.md) - Main-process ownership of tabs across windows, with per-window controllers
 - [Session Persistence](./docs/design/10-session-persistence.md) - How tabs, notes, and conversations survive browser restarts
+- [Testability Refactor Roadmap](./docs/design/17-testability-refactor-roadmap.md) - How to refactor for better unit coverage and what still needs integration tests
 - [Screenshot Capture](./docs/design/05-screenshot-capture.md) - Native screenshot implementation with region selection
 - [Round-Trip Test Pattern](./docs/design/06-round-trip-test-pattern.md) - Testing pattern for state persistence through navigation
 - [Store Synchronization Across Processes](./docs/design/07-store-synchronization-across-processes.md) - IPC-based state management
