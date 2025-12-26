@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, session } from 'electron';
+import { app, BrowserWindow, dialog, Menu, session } from 'electron';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import TabManager from './tab-manager.js';
@@ -156,6 +156,11 @@ function setupGlobalShortcuts(): void {
 app.commandLine.appendSwitch('disable-features', 'UserAgentClientHint');
 
 app.whenReady().then(async () => {
+  // Remove default application menu to prevent it from capturing keyboard shortcuts
+  // like Ctrl+N (New Window) before our before-input-event handlers see them.
+  // All shortcuts are handled by the unified registry in keyboard-shortcuts.ts.
+  Menu.setApplicationMenu(null);
+
   // Setup shutdown handlers first to catch early termination
   shutdownManager.setup();
 

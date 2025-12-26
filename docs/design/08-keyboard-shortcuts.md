@@ -102,12 +102,32 @@ setTimeout(() => {
 
 Shortcuts still flow through two layers—renderer handlers when the UI panel is focused, and `before-input-event` when the browser content is focused. The difference is that both layers now import the same registry and helpers, so platform translation (`Ctrl → Cmd`, `Alt → Option`, meta handling) and the set of actions cannot drift.
 
+### Disabling the default application menu
+
+On Windows and Linux, Electron automatically creates a default application menu with standard accelerators (Ctrl+N, Ctrl+Z, etc.). These menu accelerators intercept keystrokes **before** `before-input-event` handlers see them, causing shortcuts like Ctrl+N to fail silently.
+
+We solve this by calling `Menu.setApplicationMenu(null)` at startup. This:
+
+1. Removes the default menu entirely on Windows/Linux
+2. Allows all keyboard shortcuts to flow through `before-input-event` handlers
+3. Gives full control to the unified shortcut registry
+4. On macOS, removes the menu bar (the app still functions normally)
+
+This design choice aligns with our goal of controlling the browser experience completely and unifying shortcuts across platforms through the single registry.
+
 ### Why not `globalShortcut`?
 
-We continue to prefer `before-input-event` over `globalShortcut`:
-- Only active when the app window is focused (no OS-level interception).
-- Lets us keep focus-aware behaviors (e.g., returning to the URL bar) without stealing system shortcuts.
-- Works uniformly with the shared registry and platform helpers.
+We intentionally avoid `globalShortcut.register()` because:
+
+- **OS-level interception**: Global shortcuts capture keystrokes system-wide, even when other apps are focused. This would steal shortcuts from other applications.
+- **No focus awareness**: Global shortcuts fire regardless of which window or element has focus, making context-sensitive behavior (e.g., "focus URL bar from browser content") harder to implement.
+- **Platform inconsistencies**: Global shortcuts behave differently across platforms and can conflict with OS-level shortcuts.
+- **Unnecessary**: With `Menu.setApplicationMenu(null)` removing the default menu, our `before-input-event` handlers receive all keystrokes when the app is focused—exactly what we need.
+
+Our current approach using `before-input-event` handlers:
+- Only active when the app window is focused (no OS-level interception)
+- Lets us keep focus-aware behaviors (e.g., returning to the URL bar) without stealing system shortcuts
+- Works uniformly with the shared registry and platform helpers
 
 ---
 
@@ -189,7 +209,7 @@ The source of truth is `src/shared/keyboard-shortcuts.ts`. Both the renderer and
 
 - `src/shared/keyboard-shortcuts.ts` - Canonical registry and helpers
 - `src/main/tab-manager.ts` - `before-input-event` handlers for browser views
-- `src/main/main.ts` - Disabled global shortcuts (preserved for reference)
+- `src/main/main.ts` - Disables default menu (`Menu.setApplicationMenu(null)`), disabled global shortcuts
 - `src/main/preload.ts` - IPC bridge for shortcut events
 - `src/ui/utils/keyboard-shortcuts.ts` - Renderer shortcut handler
 - `src/ui/components/common/KeyboardShortcutsPanel.svelte` - Live shortcut help panel
