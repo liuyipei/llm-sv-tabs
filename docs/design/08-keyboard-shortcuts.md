@@ -8,7 +8,7 @@ Browser-style keyboard shortcuts (Ctrl+L, Ctrl+W, etc.) in Electron applications
 
 ---
 
-## The "Kick the Guest Out" Architecture
+## Application Menu Null Architecture
 
 We use `Menu.setApplicationMenu(null)` to disable Electron's default menu entirely. This gives us full control over keyboard shortcuts without interference from Electron's menu accelerators.
 
@@ -145,7 +145,7 @@ setTimeout(() => {
 
 Shortcuts flow through two layers—renderer handlers when the UI panel is focused, and `before-input-event` when the browser content is focused. Both layers import the same registry and helpers, so platform translation (`Ctrl → Cmd`, `Alt → Option`, meta handling) and the set of actions cannot drift.
 
-The default Electron menu is disabled via `Menu.setApplicationMenu(null)` in `src/main/main.ts`. See "The 'Kick the Guest Out' Architecture" above for rationale.
+The default Electron menu is disabled via `Menu.setApplicationMenu(null)` in `src/main/main.ts`. See "Application Menu Null Architecture" above for rationale.
 
 ---
 

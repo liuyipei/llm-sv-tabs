@@ -114,12 +114,12 @@ function setupDownloadHandler(): void {
 }
 
 /**
- * Keyboard Shortcut Architecture
- * ==============================
+ * Keyboard Shortcut Architecture: Application Menu Null
+ * ======================================================
  *
- * We use a "kick the guest out" approach: Menu.setApplicationMenu(null)
- * This disables Electron's default menu and its accelerators, giving us
- * full control over keyboard shortcuts in our own code.
+ * We disable Electron's default menu via Menu.setApplicationMenu(null).
+ * This gives us full control over keyboard shortcuts without interference
+ * from Electron's menu accelerators.
  *
  * WHY NOT use Electron's menu accelerators?
  * - Menu accelerators don't work reliably when focus is inside a webContents
