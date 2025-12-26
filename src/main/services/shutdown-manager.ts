@@ -93,6 +93,16 @@ export class ShutdownManager {
     process.on('SIGINT', () => {
       console.log('ShutdownManager: SIGINT received');
       this.shutdown();
+
+      // On Windows, SIGINT handling can leave the terminal hanging
+      // Force exit after a short delay to ensure clean terminal return
+      if (process.platform === 'win32') {
+        const exitTimer = setTimeout(() => {
+          console.log('ShutdownManager: Force exit after SIGINT on Windows');
+          process.exit(0);
+        }, 1000);
+        exitTimer.unref?.();
+      }
     });
 
     // Handle SIGTERM
@@ -112,10 +122,12 @@ export class ShutdownManager {
       console.log('ShutdownManager: will-quit event');
       // Give a small grace period then force exit
       // This ensures no zombie processes remain on Windows
-      setTimeout(() => {
+      // Use .unref() so this timer doesn't keep the event loop alive
+      const timer = setTimeout(() => {
         console.log('ShutdownManager: Force exiting process...');
         process.exit(0);
       }, 500);
+      timer.unref?.();
     });
 
     // Handle all windows closed
