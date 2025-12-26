@@ -130,12 +130,36 @@ export function registerSecureStorageHandlers(): void {
 
   ipcMain.handle('secure-storage-decrypt', (_event, data: Record<string, string>) => {
     try {
-      // Deserialize base64 strings back to buffers and decrypt
-      const encryptedRecord: Record<string, Buffer> = {};
-      for (const [key, base64] of Object.entries(data)) {
-        encryptedRecord[key] = Buffer.from(base64, 'base64');
+      const decryptedRecord: Record<string, string> = {};
+
+      for (const [key, value] of Object.entries(data)) {
+        // Check if this looks like valid base64-encoded encrypted data
+        // Valid base64 only contains A-Z, a-z, 0-9, +, /, and = (padding)
+        // API keys often contain hyphens, underscores, or other non-base64 chars
+        const isValidBase64 = /^[A-Za-z0-9+/]+=*$/.test(value) && value.length > 20;
+
+        if (isValidBase64) {
+          // Try to decode as base64 and decrypt
+          try {
+            const buffer = Buffer.from(value, 'base64');
+            const decrypted = secureStorage.decryptString(buffer);
+
+            // Verify the decrypted value doesn't contain replacement characters
+            // which would indicate corrupted/misinterpreted data
+            if (!decrypted.includes('\uFFFD')) {
+              decryptedRecord[key] = decrypted;
+              continue;
+            }
+          } catch {
+            // Fall through to plaintext handling
+          }
+        }
+
+        // Treat as plaintext (legacy storage format or non-base64 value)
+        console.warn(`SecureStorage: Value for "${key}" appears to be plaintext (legacy format)`);
+        decryptedRecord[key] = value;
       }
-      const decryptedRecord = secureStorage.decryptRecord(encryptedRecord);
+
       return { success: true, data: decryptedRecord };
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : String(error) };
