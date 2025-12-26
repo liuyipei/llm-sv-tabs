@@ -1,4 +1,5 @@
 import { WebContentsView } from 'electron';
+import type { ViewHandle } from '../../types.js';
 import type { ExtractedContent, SerializedDOM, TabData } from '../../types';
 import { ImageResizer } from './image-resizer.js';
 import { SmartContentExtractor } from './smart-content-extractor.js';
@@ -24,19 +25,20 @@ export class ContentExtractor {
    * This is the recommended extraction method.
    */
   static async extractFromTab(
-    view: WebContentsView,
+    view: WebContentsView | ViewHandle,
     _tabId: string,
     includeScreenshot = false
   ): Promise<ExtractedContent> {
+    const nativeView = (view as ViewHandle).getNativeView?.() ?? view;
     const url = view.webContents.getURL();
 
     // Use smart extraction
-    const smartContent = await SmartContentExtractor.extract(view);
+    const smartContent = await SmartContentExtractor.extract(nativeView as WebContentsView);
 
     // Capture screenshot if requested
     let screenshot: string | undefined;
     if (includeScreenshot) {
-      screenshot = await this.captureScreenshot(view);
+      screenshot = await this.captureScreenshot(nativeView as WebContentsView);
     }
 
     return {
@@ -58,20 +60,22 @@ export class ContentExtractor {
    * @deprecated Use extractFromTab() which uses SmartContentExtractor
    */
   static async extractFromTabLegacy(
-    view: WebContentsView,
+    view: WebContentsView | ViewHandle,
     _tabId: string,
     includeScreenshot = false
   ): Promise<ExtractedContent> {
+    const nativeView = (view as ViewHandle).getNativeView?.() ?? view;
+    const webContentsView = nativeView as WebContentsView;
     const url = view.webContents.getURL();
     const title = view.webContents.getTitle();
 
     // Execute DOM serialization in the page context
-    const serializedDOM = await this.serializeDOM(view);
+    const serializedDOM = await this.serializeDOM(webContentsView);
 
     // Capture screenshot if requested
     let screenshot: string | undefined;
     if (includeScreenshot) {
-      screenshot = await this.captureScreenshot(view);
+      screenshot = await this.captureScreenshot(webContentsView);
     }
 
     return {

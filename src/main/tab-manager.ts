@@ -2,7 +2,6 @@ import { BrowserWindow } from 'electron';
 import type { TabData, TabMetadata, TabType, TabWithView, ViewHandle } from '../types';
 import { SessionManager } from './services/session-manager.js';
 import { tempFileService } from './services/temp-file-service.js';
-import { createNoteHTML } from './templates/note-template.js';
 import { createDebugInfoHTML } from './templates/debug-info-template.js';
 import { LLMTabService } from './tab-manager/llm-tab-service.js';
 import { FindInPageService } from './tab-manager/find-in-page-service.js';
@@ -88,7 +87,7 @@ class TabManager {
     this.sessionManager = options.createSessionManager?.() ?? new SessionManager();
     this.lastMetadataUpdate = new Map();
     this.abortControllers = new Map();
-    this.viewFactory = options.viewFactory ?? ((windowId?: WindowId) => this.createDefaultView(windowId, this.windowHandleFactory));
+    this.viewFactory = options.viewFactory ?? ((windowId?: WindowId) => this.createDefaultView(windowId));
 
     const {
       createLlmTabs,
@@ -127,7 +126,6 @@ class TabManager {
       sendToRenderer: (channel, payload, windowId) => this.sendToRenderer(channel, payload, windowId),
       openUrl: (url, autoSelect, targetWindowId) => this.openUrl(url, autoSelect, targetWindowId),
       createView: (targetWindowId) => this.viewFactory(targetWindowId),
-      createNoteHTML: (title, content, fileType) => createNoteHTML(title, content, fileType as 'text' | 'pdf' | 'image'),
       setTabOwner: (tabId, windowId) => this.windowRegistry.setTabOwner(tabId, windowId),
     });
 
@@ -234,7 +232,7 @@ class TabManager {
     return this.windowRegistry.getTabIdsForWindow(windowId);
   }
 
-  private createDefaultView(windowId?: WindowId, createWindowHandle?: (window: BrowserWindow) => WindowHandle): ViewHandle {
+  private createDefaultView(windowId?: WindowId): ViewHandle {
     const openUrlInNewWindow = this.openUrlInNewWindowCallback
       ? (url: string) => {
           this.openUrlInNewWindowCallback!(url);
@@ -908,8 +906,9 @@ class TabManager {
     return this.navigation.copyTabUrl(tabId);
   }
 
-  getTabView(tabId: string): ViewHandle | null {
-    return this.navigation.getTabView(tabId);
+  getTabView(tabId: string): any | null {
+    const view = this.navigation.getTabView(tabId);
+    return view?.getNativeView?.() ?? view ?? null;
   }
 
   private inferWindowIdFromPayload(payload: any): WindowId {

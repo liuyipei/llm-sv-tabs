@@ -24,6 +24,8 @@ npm run test:coverage    # With coverage
 npm run test:smoke       # Smoke test (headless Electron launch)
 ```
 
+> ℹ️ Note: Our current Vitest version does not support `--runInBand` or the thread pool flags (`--pool=threads`/`--poolOptions.threads.*`). Use the plain `npm test` invocation above for consistent results.
+
 ### Smoke Tests (Headless Mode)
 
 Smoke tests verify the app launches correctly in headless mode on all three platforms (Linux, macOS, Windows):

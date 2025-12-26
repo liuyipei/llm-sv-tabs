@@ -1,19 +1,13 @@
+import type { WebContents, WebContentsView } from 'electron';
+
 export interface ViewHandle {
-  webContents: {
-    isDestroyed(): boolean;
-    loadURL(url: string): any;
-    reload(): any;
-    focus(): void;
-    send?(channel: string, data?: any): void;
-    removeAllListeners?(): void;
-    on?(event: string, listener: (...args: any[]) => void): void;
-  };
+  webContents: WebContents;
   setBounds(bounds: { x: number; y: number; width: number; height: number }): void;
   /**
    * Return the underlying platform view for adapters that need to attach to native containers.
    * Implementations should return undefined when running in headless tests.
    */
-  getNativeView?(): unknown;
+  getNativeView?(): WebContentsView | undefined;
 }
 
 /**

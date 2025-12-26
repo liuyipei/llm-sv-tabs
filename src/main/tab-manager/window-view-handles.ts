@@ -1,8 +1,8 @@
-import type { BrowserWindow, WebContentsView } from 'electron';
+import type { BrowserWindow, WebContents, WebContentsView } from 'electron';
 import type { ViewHandle } from '../../types.js';
 
 export interface WindowHandle {
-  on(event: 'resize' | 'close', listener: () => void): void;
+  on(event: string, listener: (...args: any[]) => void): void;
   getContentBounds(): { width: number; height: number };
   addChildView(view: ViewHandle): void;
   removeChildView(view: ViewHandle): void;
@@ -18,15 +18,9 @@ export interface WindowHandle {
 export class ElectronViewHandle implements ViewHandle {
   constructor(private readonly view: WebContentsView) {}
 
-  webContents = {
-    isDestroyed: () => this.view.webContents.isDestroyed(),
-    loadURL: (url: string) => this.view.webContents.loadURL(url),
-    reload: () => this.view.webContents.reload(),
-    focus: () => this.view.webContents.focus(),
-    send: (channel: string, data?: any) => this.view.webContents.send(channel, data),
-    removeAllListeners: () => this.view.webContents.removeAllListeners(),
-    on: (event: string, listener: (...args: any[]) => void) => this.view.webContents.on(event, listener),
-  };
+  get webContents(): WebContents {
+    return this.view.webContents;
+  }
 
   setBounds(bounds: { x: number; y: number; width: number; height: number }): void {
     this.view.setBounds(bounds);
@@ -41,7 +35,7 @@ export class ElectronWindowHandle implements WindowHandle {
   constructor(private readonly window: BrowserWindow) {}
 
   on(event: 'resize' | 'close', listener: () => void): void {
-    this.window.on(event, listener);
+    (this.window as any).on(event, listener);
   }
 
   getContentBounds(): { width: number; height: number } {

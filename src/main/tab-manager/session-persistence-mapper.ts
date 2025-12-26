@@ -1,4 +1,4 @@
-import type { TabData, TabType } from '../../types.js';
+import type { TabData } from '../../types.js';
 
 /**
  * Pure mapper that decides which tabs should be persisted and how their payloads
