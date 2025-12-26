@@ -244,12 +244,17 @@
   }
 
   async function openNewWindow(): Promise<void> {
+    console.log('[DEBUG UI] openNewWindow called, ipc exists:', !!ipc);
     if (ipc) {
       try {
-        await ipc.openNewWindow();
+        console.log('[DEBUG UI] Calling ipc.openNewWindow()...');
+        const result = await ipc.openNewWindow();
+        console.log('[DEBUG UI] ipc.openNewWindow() result:', result);
       } catch (error) {
-        console.error('Failed to open new window:', error);
+        console.error('[DEBUG UI] Failed to open new window:', error);
       }
+    } else {
+      console.warn('[DEBUG UI] ipc is null!');
     }
   }
 

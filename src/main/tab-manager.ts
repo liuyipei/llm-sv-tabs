@@ -244,23 +244,50 @@ class TabManager {
         targetWindow.webContents.send('navigate-previous-tab');
       },
       openNewWindow: () => {
+        console.log('[DEBUG] openNewWindow handler called, callback exists:', !!this.openNewWindowCallback);
         if (this.openNewWindowCallback) {
-          void this.openNewWindowCallback();
+          console.log('[DEBUG] Calling openNewWindowCallback...');
+          void this.openNewWindowCallback().then(() => {
+            console.log('[DEBUG] openNewWindowCallback completed successfully');
+          }).catch((err) => {
+            console.error('[DEBUG] openNewWindowCallback failed:', err);
+          });
+        } else {
+          console.warn('[DEBUG] openNewWindowCallback is null!');
         }
       },
     };
 
     view.webContents.on('before-input-event', (event, input) => {
+      // Debug: log all Ctrl+N key events on Windows
+      if (input.control && input.key.toLowerCase() === 'n') {
+        console.log('[DEBUG] before-input-event Ctrl+N detected:', {
+          key: input.key,
+          type: input.type,
+          control: input.control,
+          alt: input.alt,
+          shift: input.shift,
+          meta: input.meta,
+          platform,
+        });
+      }
+
       const matched = shortcutDefinitions.find((definition) =>
         matchesInputShortcut(input, definition, platform)
       );
 
       if (!matched) return;
 
+      console.log('[DEBUG] Matched shortcut:', matched.id);
+
       const handler = handlers[matched.id];
-      if (!handler) return;
+      if (!handler) {
+        console.log('[DEBUG] No handler for:', matched.id);
+        return;
+      }
 
       event.preventDefault();
+      console.log('[DEBUG] Calling handler for:', matched.id);
       handler();
     });
   }
