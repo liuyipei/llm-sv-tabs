@@ -8,6 +8,49 @@ Browser-style keyboard shortcuts (Ctrl+L, Ctrl+W, etc.) in Electron applications
 
 ---
 
+## The "Kick the Guest Out" Architecture
+
+We use `Menu.setApplicationMenu(null)` to disable Electron's default menu entirely. This gives us full control over keyboard shortcuts without interference from Electron's menu accelerators.
+
+### Why disable the default menu?
+
+1. **Menu accelerators are unreliable**: On Windows, menu accelerators (like `Ctrl+N`) don't trigger when focus is inside a webContents (renderer or WebContentsView). The key is captured but nothing happens.
+
+2. **Unified control**: By handling all shortcuts ourselves, we ensure consistent behavior regardless of where focus is in the app.
+
+3. **Simpler mental model**: Two layers (renderer + WebContentsView), one registry, no menu accelerator surprises.
+
+### Why not use `globalShortcut`?
+
+- Intercepts keys **system-wide**, even when the app is not focused
+- Can interfere with other applications using the same shortcuts
+- Anti-pattern for desktop apps - users don't expect your app to steal global keys
+
+### Our two-layer approach
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    BrowserWindow                            │
+│  ┌───────────────────────┬───────────────────────────────┐  │
+│  │   Main webContents    │      WebContentsView          │  │
+│  │   (Svelte UI)         │      (Browser content)        │  │
+│  │                       │                               │  │
+│  │   Layer 1:            │   Layer 2:                    │  │
+│  │   window.keydown      │   before-input-event          │  │
+│  │                       │                               │  │
+│  └───────────────────────┴───────────────────────────────┘  │
+│                                                             │
+│  Both layers import from src/shared/keyboard-shortcuts.ts   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+- **Layer 1 (Renderer)**: `src/ui/utils/keyboard-shortcuts.ts` - handles shortcuts when Svelte UI has focus
+- **Layer 2 (WebContentsView)**: `src/main/tab-manager.ts` - handles shortcuts when browser content has focus
+
+Both use the same definitions from `src/shared/keyboard-shortcuts.ts`.
+
+---
+
 ## Canonical shortcut registry
 
 All shortcut definitions live in `src/shared/keyboard-shortcuts.ts`. Each entry contains an action id, a category, and one or more platform-aware chords. The same data powers the renderer, main process, and UI help surface.
@@ -100,14 +143,9 @@ setTimeout(() => {
 
 ## Architecture: Two-layer handling, one registry
 
-Shortcuts still flow through two layers—renderer handlers when the UI panel is focused, and `before-input-event` when the browser content is focused. The difference is that both layers now import the same registry and helpers, so platform translation (`Ctrl → Cmd`, `Alt → Option`, meta handling) and the set of actions cannot drift.
+Shortcuts flow through two layers—renderer handlers when the UI panel is focused, and `before-input-event` when the browser content is focused. Both layers import the same registry and helpers, so platform translation (`Ctrl → Cmd`, `Alt → Option`, meta handling) and the set of actions cannot drift.
 
-### Why not `globalShortcut`?
-
-We continue to prefer `before-input-event` over `globalShortcut`:
-- Only active when the app window is focused (no OS-level interception).
-- Lets us keep focus-aware behaviors (e.g., returning to the URL bar) without stealing system shortcuts.
-- Works uniformly with the shared registry and platform helpers.
+The default Electron menu is disabled via `Menu.setApplicationMenu(null)` in `src/main/main.ts`. See "The 'Kick the Guest Out' Architecture" above for rationale.
 
 ---
 
@@ -188,10 +226,10 @@ The source of truth is `src/shared/keyboard-shortcuts.ts`. Both the renderer and
 ## Related Files
 
 - `src/shared/keyboard-shortcuts.ts` - Canonical registry and helpers
-- `src/main/tab-manager.ts` - `before-input-event` handlers for browser views
-- `src/main/main.ts` - Disabled global shortcuts (preserved for reference)
+- `src/main/tab-manager.ts` - `before-input-event` handlers for browser views (Layer 2)
+- `src/main/main.ts` - `disableDefaultMenu()` and architecture documentation
 - `src/main/preload.ts` - IPC bridge for shortcut events
-- `src/ui/utils/keyboard-shortcuts.ts` - Renderer shortcut handler
+- `src/ui/utils/keyboard-shortcuts.ts` - Renderer shortcut handler (Layer 1)
 - `src/ui/components/common/KeyboardShortcutsPanel.svelte` - Live shortcut help panel
 - `src/ui/App.svelte` - IPC listener setup and Escape handler
 

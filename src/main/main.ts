@@ -114,143 +114,43 @@ function setupDownloadHandler(): void {
 }
 
 /**
- * Global shortcuts setup (intentionally disabled).
+ * Keyboard Shortcut Architecture
+ * ==============================
  *
- * We explicitly chose NOT to use Electron's globalShortcut API because:
- * 1. Global shortcuts intercept keys system-wide, even when the app is not focused
- * 2. This can interfere with other applications
- * 3. It's an anti-pattern for desktop apps
+ * We use a "kick the guest out" approach: Menu.setApplicationMenu(null)
+ * This disables Electron's default menu and its accelerators, giving us
+ * full control over keyboard shortcuts in our own code.
  *
- * Instead, we use a layered approach:
- * 1. Menu accelerators (e.g., File > New Window with Ctrl+N) - works when menu can receive input
- * 2. `before-input-event` handlers on WebContentsView - works when browser content is focused
- * 3. Renderer-level keyboard handlers - works when UI elements are focused
+ * WHY NOT use Electron's menu accelerators?
+ * - Menu accelerators don't work reliably when focus is inside a webContents
+ * - On Windows, Ctrl+N wouldn't trigger when the Svelte UI has focus
+ * - We want unified shortcut handling across the entire app
  *
- * KNOWN LIMITATION (Windows):
- * Ctrl+N for "New Window" only works when:
- * - A WebContentsView has focus (browser content area)
- * - User clicks File > New Window from the menu
+ * WHY NOT use globalShortcut?
+ * - Intercepts keys system-wide, even when app is not focused
+ * - Can interfere with other applications
+ * - Anti-pattern for desktop apps
  *
- * Ctrl+N does NOT work when:
- * - The Svelte UI (sidebar/controls) has focus
- * - A component-based tab (like aggregate-tabs) is active without a WebContentsView
+ * OUR APPROACH: Two-layer shortcut handling
  *
- * This is because menu accelerators don't reliably trigger when focus is inside
- * a webContents on Windows. A workaround would be to use globalShortcut, but we
- * intentionally avoid that approach.
+ * Layer 1: Renderer (src/ui/utils/keyboard-shortcuts.ts)
+ * - Handles shortcuts when the Svelte UI has focus (sidebar, URL bar, etc.)
+ * - Uses window.addEventListener('keydown', ...)
+ * - Defined in src/shared/keyboard-shortcuts.ts
  *
- * Shortcuts handled via before-input-event and renderer handlers:
- * - Ctrl/Cmd+F: Find in page
- * - Ctrl/Cmd+W: Close active tab
- * - Ctrl/Cmd+T: New tab (focus URL bar)
- * - Ctrl/Cmd+R: Reload current tab
- * - Ctrl/Cmd+L: Focus URL bar
- * - Ctrl/Cmd+.: Focus LLM input
- * - Ctrl/Cmd+D: Bookmark current tab
- * - Ctrl/Cmd+Alt+S: Screenshot
- * - Alt+Left/Right, Cmd+[/]: Navigation back/forward
- * - Ctrl+Tab, Ctrl+Shift+Tab: Tab switching
- * - Cmd+Alt+Left/Right (Mac): Tab switching
- * - Ctrl/Cmd+N: New window (only when WebContentsView focused)
+ * Layer 2: WebContentsView (src/main/tab-manager.ts setupViewKeyboardShortcuts)
+ * - Handles shortcuts when browser content has focus
+ * - Uses webContents.on('before-input-event', ...)
+ * - Same definitions from src/shared/keyboard-shortcuts.ts
+ *
+ * Both layers use the same shortcut definitions for consistency.
+ * See src/shared/keyboard-shortcuts.ts for the full list.
  */
-function setupGlobalShortcuts(): void {
-  // Intentionally empty - see comment above for rationale
-}
-
-/**
- * Set up the application menu with keyboard shortcuts.
- * This provides native OS-level handling of accelerators like Ctrl+N.
- */
-function setupApplicationMenu(): void {
-  const isMac = process.platform === 'darwin';
-
-  const template: Electron.MenuItemConstructorOptions[] = [
-    // App menu (macOS only)
-    ...(isMac
-      ? [
-          {
-            label: app.name,
-            submenu: [
-              { role: 'about' as const },
-              { type: 'separator' as const },
-              { role: 'services' as const },
-              { type: 'separator' as const },
-              { role: 'hide' as const },
-              { role: 'hideOthers' as const },
-              { role: 'unhide' as const },
-              { type: 'separator' as const },
-              { role: 'quit' as const },
-            ],
-          },
-        ]
-      : []),
-    // File menu
-    {
-      label: 'File',
-      submenu: [
-        {
-          label: 'New Window',
-          accelerator: 'CmdOrCtrl+N',
-          click: () => {
-            console.log('[DEBUG MENU] New Window menu item triggered');
-            if (windowFactory) {
-              console.log('[DEBUG MENU] Calling windowFactory.createWindow()');
-              void windowFactory.createWindow();
-            } else {
-              console.warn('[DEBUG MENU] windowFactory is null!');
-            }
-          },
-        },
-        { type: 'separator' },
-        isMac ? { role: 'close' } : { role: 'quit' },
-      ],
-    },
-    // Edit menu
-    {
-      label: 'Edit',
-      submenu: [
-        { role: 'undo' },
-        { role: 'redo' },
-        { type: 'separator' },
-        { role: 'cut' },
-        { role: 'copy' },
-        { role: 'paste' },
-        { role: 'selectAll' },
-      ],
-    },
-    // View menu
-    {
-      label: 'View',
-      submenu: [
-        { role: 'reload' },
-        { role: 'forceReload' },
-        { role: 'toggleDevTools' },
-        { type: 'separator' },
-        { role: 'resetZoom' },
-        { role: 'zoomIn' },
-        { role: 'zoomOut' },
-        { type: 'separator' },
-        { role: 'togglefullscreen' },
-      ],
-    },
-    // Window menu
-    {
-      label: 'Window',
-      submenu: [
-        { role: 'minimize' },
-        { role: 'zoom' },
-        ...(isMac
-          ? [
-              { type: 'separator' as const },
-              { role: 'front' as const },
-            ]
-          : [{ role: 'close' as const }]),
-      ],
-    },
-  ];
-
-  const menu = Menu.buildFromTemplate(template);
-  Menu.setApplicationMenu(menu);
+function disableDefaultMenu(): void {
+  // Disable Electron's default menu to prevent it from consuming keyboard
+  // shortcuts. All shortcuts are handled by our renderer and WebContentsView
+  // handlers instead.
+  Menu.setApplicationMenu(null);
 }
 
 // Disable client hints that would reveal "Electron" in the Sec-CH-UA header.
@@ -275,14 +175,13 @@ app.whenReady().then(async () => {
 
   await createWindow();
 
-  // Set up application menu (must be after createWindow so windowFactory exists)
-  setupApplicationMenu();
+  // Disable Electron's default menu - we handle all shortcuts ourselves
+  // See disableDefaultMenu() for the full architecture explanation
+  disableDefaultMenu();
 
   // Set up IPC handlers once (not per-window, as ipcMain.handle registers globally)
   registerIpcHandlers(appContext);
   setupDownloadHandler();
-
-  setupGlobalShortcuts();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

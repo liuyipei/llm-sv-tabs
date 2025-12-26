@@ -59,22 +59,17 @@ export class WindowFactory {
    * @returns The window ID and optionally the tab ID if a URL was provided
    */
   async createWindow(url?: string): Promise<{ windowId: WindowId; tabId?: string }> {
-    console.log('[DEBUG WindowFactory] createWindow called, url:', url);
     const newWindow = new BrowserWindow(this.createWindowConfig());
-    console.log('[DEBUG WindowFactory] BrowserWindow created');
     this.loadUI(newWindow);
-    console.log('[DEBUG WindowFactory] UI loaded');
 
     // Register the window with the tab manager
     const tabManager = this.deps.getTabManager();
     const windowId = tabManager.registerNewWindow(newWindow, false);
-    console.log('[DEBUG WindowFactory] Window registered, id:', windowId);
 
     // Explicitly show and focus the window to ensure it appears on Windows
     // On Windows, new windows may not automatically come to the foreground
     newWindow.show();
     newWindow.focus();
-    console.log('[DEBUG WindowFactory] Window shown and focused');
 
     // If a URL was provided, open it in the new window after the UI loads
     let tabId: string | undefined;
