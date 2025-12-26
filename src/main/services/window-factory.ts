@@ -66,6 +66,11 @@ export class WindowFactory {
     const tabManager = this.deps.getTabManager();
     const windowId = tabManager.registerNewWindow(newWindow, false);
 
+    // Explicitly show and focus the window to ensure it appears on Windows
+    // On Windows, new windows may not automatically come to the foreground
+    newWindow.show();
+    newWindow.focus();
+
     // If a URL was provided, open it in the new window after the UI loads
     let tabId: string | undefined;
     if (url) {
