@@ -954,7 +954,11 @@ class TabManager {
 
     // Restore each tab without auto-selecting
     for (const tabData of session.tabs) {
-      const targetWindowId = sessionTabToWindow.get(tabData.id) ?? this.windowRegistry.getPrimaryWindowId();
+      const savedWindowId = sessionTabToWindow.get(tabData.id);
+      // Verify the saved window still exists; fall back to primary window if not
+      const targetWindowId = (savedWindowId && this.windowRegistry.hasWindow(savedWindowId))
+        ? savedWindowId
+        : this.windowRegistry.getPrimaryWindowId();
       const tabId = this.sessionPersistence.restoreTab(tabData, targetWindowId);
       if (tabId) {
         restoredTabIds.push(tabId);
@@ -969,11 +973,20 @@ class TabManager {
 
     // Determine active tab per window (fallback to legacy single activeTabId)
     const activeTargets = new Map<WindowId, string | null>();
+    const primaryWindowId = this.windowRegistry.getPrimaryWindowId();
     if (session.windows?.length) {
       for (const window of session.windows) {
+        // Skip windows that no longer exist (tabs were migrated to primary window)
+        if (!this.windowRegistry.hasWindow(window.id)) {
+          continue;
+        }
         const restoredActive = window.activeTabId ? restoredTabIdMap.get(window.activeTabId) ?? null : null;
         const fallbackTab = restoredByWindow.get(window.id)?.[0] ?? null;
         activeTargets.set(window.id, restoredActive ?? fallbackTab ?? null);
+      }
+      // If all saved windows were from previous session, ensure primary window gets an active tab
+      if (!activeTargets.has(primaryWindowId) && restoredTabIds.length > 0) {
+        activeTargets.set(primaryWindowId, restoredTabIds[0]);
       }
     } else {
       const activeTabIndex = session.activeTabId
@@ -983,7 +996,7 @@ class TabManager {
         activeTabIndex >= 0 && activeTabIndex < restoredTabIds.length
           ? restoredTabIds[activeTabIndex]
           : restoredTabIds[0];
-      activeTargets.set(this.windowRegistry.getPrimaryWindowId(), activeTabId ?? null);
+      activeTargets.set(primaryWindowId, activeTabId ?? null);
     }
 
     // Activate tabs per window

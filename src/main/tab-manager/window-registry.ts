@@ -62,6 +62,10 @@ export class WindowRegistry {
     return this.primaryWindowId;
   }
 
+  hasWindow(windowId: WindowId): boolean {
+    return this.windows.has(windowId);
+  }
+
   getWindowIdFor(window: BrowserWindow | null): WindowId {
     return (window && this.windowLookup.get(window)) || this.primaryWindowId;
   }
