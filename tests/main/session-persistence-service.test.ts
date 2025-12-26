@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
+import { SessionPersistenceMapper } from '../../src/main/tab-manager/session-persistence-mapper.js';
 import type { TabData } from '../../src/types';
 
 /**
@@ -13,18 +14,9 @@ import type { TabData } from '../../src/types';
  */
 
 describe('SessionPersistenceService - Persistence Logic', () => {
-  // Test the persistence filtering and preparation logic directly
-  // without needing to mock fs module
+  const mapper = new SessionPersistenceMapper();
 
   describe('isPersistable logic', () => {
-    // Testing the logic that would be in isPersistable
-    function isPersistable(tab: TabData): boolean {
-      if (tab.type === 'upload' && !tab.metadata?.filePath) return false;
-      if (tab.component === 'api-key-instructions') return false;
-      if (tab.url?.startsWith('raw-message://')) return false;
-      return true;
-    }
-
     it('should include file tabs that have a filePath', () => {
       const fileTab: TabData = {
         id: 'tab-1',
@@ -39,7 +31,7 @@ describe('SessionPersistenceService - Persistence Logic', () => {
         },
       };
 
-      expect(isPersistable(fileTab)).toBe(true);
+      expect(mapper.isPersistable(fileTab)).toBe(true);
     });
 
     it('should include upload tabs with filePath', () => {
@@ -54,7 +46,7 @@ describe('SessionPersistenceService - Persistence Logic', () => {
         },
       };
 
-      expect(isPersistable(uploadTab)).toBe(true);
+      expect(mapper.isPersistable(uploadTab)).toBe(true);
     });
 
     it('should exclude upload tabs without filePath', () => {
@@ -66,7 +58,7 @@ describe('SessionPersistenceService - Persistence Logic', () => {
         metadata: {},
       };
 
-      expect(isPersistable(uploadTab)).toBe(false);
+      expect(mapper.isPersistable(uploadTab)).toBe(false);
     });
 
     it('should exclude api-key-instructions tabs', () => {
@@ -78,7 +70,7 @@ describe('SessionPersistenceService - Persistence Logic', () => {
         component: 'api-key-instructions',
       };
 
-      expect(isPersistable(instructionsTab)).toBe(false);
+      expect(mapper.isPersistable(instructionsTab)).toBe(false);
     });
 
     it('should exclude raw-message viewer tabs', () => {
@@ -89,7 +81,7 @@ describe('SessionPersistenceService - Persistence Logic', () => {
         type: 'notes',
       };
 
-      expect(isPersistable(rawMessageTab)).toBe(false);
+      expect(mapper.isPersistable(rawMessageTab)).toBe(false);
     });
 
     it('should include regular note tabs', () => {
@@ -105,7 +97,7 @@ describe('SessionPersistenceService - Persistence Logic', () => {
         },
       };
 
-      expect(isPersistable(noteTab)).toBe(true);
+      expect(mapper.isPersistable(noteTab)).toBe(true);
     });
 
     it('should include webpage tabs', () => {
@@ -116,26 +108,11 @@ describe('SessionPersistenceService - Persistence Logic', () => {
         type: 'webpage',
       };
 
-      expect(isPersistable(webpageTab)).toBe(true);
+      expect(mapper.isPersistable(webpageTab)).toBe(true);
     });
   });
 
   describe('prepareTabForPersistence logic', () => {
-    // Testing the logic that would be in prepareTabForPersistence
-    function prepareTabForPersistence(tab: TabData): TabData {
-      if (tab.metadata?.filePath && tab.metadata?.fileType) {
-        const { imageData, noteContent, ...restMetadata } = tab.metadata;
-        return {
-          ...tab,
-          metadata: {
-            ...restMetadata,
-            noteContent: tab.metadata.fileType === 'text' ? noteContent : undefined,
-          },
-        };
-      }
-      return tab;
-    }
-
     it('should strip imageData from image tabs with filePath', () => {
       const imageTab: TabData = {
         id: 'tab-1',
@@ -150,7 +127,7 @@ describe('SessionPersistenceService - Persistence Logic', () => {
         },
       };
 
-      const result = prepareTabForPersistence(imageTab);
+      const result = mapper.prepareTabForPersistence(imageTab);
 
       expect(result.metadata?.filePath).toBe('/path/to/image.png');
       expect(result.metadata?.imageData).toBeUndefined();
@@ -171,7 +148,7 @@ describe('SessionPersistenceService - Persistence Logic', () => {
         },
       };
 
-      const result = prepareTabForPersistence(textTab);
+      const result = mapper.prepareTabForPersistence(textTab);
 
       expect(result.metadata?.filePath).toBe('/path/to/file.txt');
       expect(result.metadata?.noteContent).toBe('file contents here');
@@ -190,7 +167,7 @@ describe('SessionPersistenceService - Persistence Logic', () => {
         },
       };
 
-      const result = prepareTabForPersistence(noteTab);
+      const result = mapper.prepareTabForPersistence(noteTab);
 
       expect(result).toEqual(noteTab);
     });
@@ -209,7 +186,7 @@ describe('SessionPersistenceService - Persistence Logic', () => {
         },
       };
 
-      const result = prepareTabForPersistence(pdfTab);
+      const result = mapper.prepareTabForPersistence(pdfTab);
 
       expect(result.metadata?.filePath).toBe('/path/to/document.pdf');
       expect(result.metadata?.imageData).toBeUndefined();
@@ -217,11 +194,6 @@ describe('SessionPersistenceService - Persistence Logic', () => {
   });
 
   describe('file tab detection logic', () => {
-    // Testing the logic for detecting file tabs that need restoration
-    function isFileTab(tabData: TabData): boolean {
-      return !!(tabData.metadata?.filePath && tabData.metadata?.fileType);
-    }
-
     it('should detect text file tabs', () => {
       const textTab: TabData = {
         id: 'tab-1',
@@ -235,7 +207,7 @@ describe('SessionPersistenceService - Persistence Logic', () => {
         },
       };
 
-      expect(isFileTab(textTab)).toBe(true);
+      expect(mapper.isFileTab(textTab)).toBe(true);
     });
 
     it('should detect image file tabs', () => {
@@ -250,7 +222,7 @@ describe('SessionPersistenceService - Persistence Logic', () => {
         },
       };
 
-      expect(isFileTab(imageTab)).toBe(true);
+      expect(mapper.isFileTab(imageTab)).toBe(true);
     });
 
     it('should not detect regular note tabs as file tabs', () => {
@@ -266,7 +238,7 @@ describe('SessionPersistenceService - Persistence Logic', () => {
         },
       };
 
-      expect(isFileTab(noteTab)).toBe(false);
+      expect(mapper.isFileTab(noteTab)).toBe(false);
     });
 
     it('should not detect webpage tabs as file tabs', () => {
@@ -277,7 +249,7 @@ describe('SessionPersistenceService - Persistence Logic', () => {
         type: 'webpage',
       };
 
-      expect(isFileTab(webpageTab)).toBe(false);
+      expect(mapper.isFileTab(webpageTab)).toBe(false);
     });
 
     it('should detect PDF tabs (which have component: undefined)', () => {
@@ -295,31 +267,13 @@ describe('SessionPersistenceService - Persistence Logic', () => {
         },
       };
 
-      expect(isFileTab(pdfTab)).toBe(true);
+      expect(mapper.isFileTab(pdfTab)).toBe(true);
     });
   });
 
   describe('persistence round-trip integrity', () => {
     // These tests ensure that critical fields survive the persistence cycle
     // If these break, file tabs won't restore after browser restart
-
-    function prepareTabForPersistence(tab: TabData): TabData {
-      if (tab.metadata?.filePath && tab.metadata?.fileType) {
-        const { imageData, noteContent, ...restMetadata } = tab.metadata;
-        return {
-          ...tab,
-          metadata: {
-            ...restMetadata,
-            noteContent: tab.metadata.fileType === 'text' ? noteContent : undefined,
-          },
-        };
-      }
-      return tab;
-    }
-
-    function isFileTab(tabData: TabData): boolean {
-      return !!(tabData.metadata?.filePath && tabData.metadata?.fileType);
-    }
 
     it('should preserve filePath through persistence for PDF tabs', () => {
       const pdfTab: TabData = {
@@ -334,7 +288,7 @@ describe('SessionPersistenceService - Persistence Logic', () => {
         },
       };
 
-      const prepared = prepareTabForPersistence(pdfTab);
+      const prepared = mapper.prepareTabForPersistence(pdfTab);
 
       // Simulate JSON serialization (what happens when saving to session.json)
       const serialized = JSON.stringify(prepared);
@@ -342,7 +296,7 @@ describe('SessionPersistenceService - Persistence Logic', () => {
 
       // Critical: filePath must survive the round-trip
       expect(restored.metadata?.filePath).toBe('C:\\Users\\test\\document.pdf');
-      expect(isFileTab(restored)).toBe(true);
+      expect(mapper.isFileTab(restored)).toBe(true);
     });
 
     it('should preserve fileType through persistence for image tabs', () => {
@@ -358,13 +312,13 @@ describe('SessionPersistenceService - Persistence Logic', () => {
         },
       };
 
-      const prepared = prepareTabForPersistence(imageTab);
+      const prepared = mapper.prepareTabForPersistence(imageTab);
       const serialized = JSON.stringify(prepared);
       const restored: TabData = JSON.parse(serialized);
 
       // Critical: fileType must survive (needed for restore logic)
       expect(restored.metadata?.fileType).toBe('image');
-      expect(isFileTab(restored)).toBe(true);
+      expect(mapper.isFileTab(restored)).toBe(true);
     });
 
     it('should strip binary imageData but keep filePath and fileType', () => {
@@ -381,7 +335,7 @@ describe('SessionPersistenceService - Persistence Logic', () => {
         },
       };
 
-      const prepared = prepareTabForPersistence(imageTab);
+      const prepared = mapper.prepareTabForPersistence(imageTab);
 
       // Binary data should be stripped (saves storage space)
       expect(prepared.metadata?.imageData).toBeUndefined();
@@ -405,10 +359,10 @@ describe('SessionPersistenceService - Persistence Logic', () => {
         },
       };
 
-      const prepared = prepareTabForPersistence(noteTab);
+      const prepared = mapper.prepareTabForPersistence(noteTab);
 
       // Should not be detected as file tab
-      expect(isFileTab(prepared)).toBe(false);
+      expect(mapper.isFileTab(prepared)).toBe(false);
 
       // Content should be preserved for manual notes
       expect(prepared.metadata?.noteContent).toBe('User typed this manually');
@@ -416,26 +370,6 @@ describe('SessionPersistenceService - Persistence Logic', () => {
   });
 
   describe('restore condition precedence', () => {
-    // The restore logic checks conditions in a specific order.
-    // These tests ensure file tabs don't accidentally match other handlers.
-
-    function getRestoreHandler(tabData: TabData): string {
-      // Simulates the condition checking in restoreTab
-      if (tabData.component === 'llm-response' && tabData.metadata?.isLLMResponse) {
-        return 'llm-response';
-      }
-      if (tabData.metadata?.filePath && tabData.metadata?.fileType) {
-        return 'file-tab';
-      }
-      if (tabData.component === 'note' && tabData.type === 'notes') {
-        return 'note-tab';
-      }
-      if (tabData.type === 'webpage') {
-        return 'webpage';
-      }
-      return 'unknown';
-    }
-
     it('should route text file with filePath to file-tab handler, not note-tab', () => {
       const textFile: TabData = {
         id: 'tab-1',
@@ -451,7 +385,7 @@ describe('SessionPersistenceService - Persistence Logic', () => {
       };
 
       // Even though it has component: 'note', the filePath should take precedence
-      expect(getRestoreHandler(textFile)).toBe('file-tab');
+      expect(mapper.getRestoreHandler(textFile)).toBe('file-tab');
     });
 
     it('should route PDF to file-tab handler', () => {
@@ -467,7 +401,7 @@ describe('SessionPersistenceService - Persistence Logic', () => {
         },
       };
 
-      expect(getRestoreHandler(pdfFile)).toBe('file-tab');
+      expect(mapper.getRestoreHandler(pdfFile)).toBe('file-tab');
     });
 
     it('should route manual note (no filePath) to note-tab handler', () => {
@@ -483,7 +417,7 @@ describe('SessionPersistenceService - Persistence Logic', () => {
         },
       };
 
-      expect(getRestoreHandler(manualNote)).toBe('note-tab');
+      expect(mapper.getRestoreHandler(manualNote)).toBe('note-tab');
     });
 
     it('should not route file tabs to unknown even if missing component', () => {
@@ -501,8 +435,8 @@ describe('SessionPersistenceService - Persistence Logic', () => {
         },
       };
 
-      expect(getRestoreHandler(imageFile)).toBe('file-tab');
-      expect(getRestoreHandler(imageFile)).not.toBe('unknown');
+      expect(mapper.getRestoreHandler(imageFile)).toBe('file-tab');
+      expect(mapper.getRestoreHandler(imageFile)).not.toBe('unknown');
     });
   });
 });

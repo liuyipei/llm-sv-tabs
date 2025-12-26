@@ -1,4 +1,14 @@
-import type { WebContentsView } from 'electron';
+import type { WebContents, WebContentsView } from 'electron';
+
+export interface ViewHandle {
+  webContents: WebContents;
+  setBounds(bounds: { x: number; y: number; width: number; height: number }): void;
+  /**
+   * Return the underlying platform view for adapters that need to attach to native containers.
+   * Implementations should return undefined when running in headless tests.
+   */
+  getNativeView?(): WebContentsView | undefined;
+}
 
 /**
  * Core type definitions for llm-sv-tabs
@@ -27,7 +37,7 @@ export interface Tab {
 }
 
 export interface TabWithView extends Tab {
-  view?: WebContentsView; // Optional for Svelte-rendered tabs
+  view?: ViewHandle; // Optional for Svelte-rendered tabs
 }
 
 // Info about a context tab used in an LLM query (persisted for reference)

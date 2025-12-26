@@ -35,10 +35,12 @@ class FakeWindowRegistry {
       window: {
         on: vi.fn(),
         getContentBounds: vi.fn(() => ({ width: 1200, height: 800 })),
-        contentView: { removeChildView: vi.fn(), addChildView: vi.fn() },
+        removeChildView: vi.fn(),
+        addChildView: vi.fn(),
         webContents: { focus: vi.fn(), send: vi.fn() },
         show: vi.fn(),
         focus: vi.fn(),
+        getNativeWindow: vi.fn(),
       },
       activeTabId: null,
       isSearchBarVisible: false,
@@ -70,6 +72,7 @@ const createMockView = () => ({
   webContents: {
     loadURL: vi.fn(),
     on: vi.fn(),
+    reload: vi.fn(),
     isDestroyed: vi.fn(() => false),
     removeAllListeners: vi.fn(),
   },
@@ -80,8 +83,19 @@ describe('TabManager viewFactory seam', () => {
   it('invokes injected viewFactory for new tabs and wires loadURL', () => {
     const viewFactory = vi.fn(() => createMockView());
     const windowRegistry = new FakeWindowRegistry();
+    const stubHandle = {
+      on: vi.fn(),
+      getContentBounds: vi.fn(() => ({ width: 1200, height: 800 })),
+      addChildView: vi.fn(),
+      removeChildView: vi.fn(),
+      webContents: { focus: vi.fn(), send: vi.fn() },
+      show: vi.fn(),
+      focus: vi.fn(),
+      getNativeWindow: vi.fn(),
+    };
 
     const manager = new TabManager({} as any, {
+      createWindowHandle: () => stubHandle as any,
       createWindowRegistry: () => windowRegistry as any,
       viewFactory,
     });

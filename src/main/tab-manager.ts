@@ -1,8 +1,7 @@
-import { WebContentsView, BrowserWindow } from 'electron';
-import type { TabData, TabMetadata, TabType, TabWithView } from '../types';
+import { BrowserWindow } from 'electron';
+import type { TabData, TabMetadata, TabType, TabWithView, ViewHandle } from '../types';
 import { SessionManager } from './services/session-manager.js';
 import { tempFileService } from './services/temp-file-service.js';
-import { createNoteHTML } from './templates/note-template.js';
 import { createDebugInfoHTML } from './templates/debug-info-template.js';
 import { LLMTabService } from './tab-manager/llm-tab-service.js';
 import { FindInPageService } from './tab-manager/find-in-page-service.js';
@@ -12,6 +11,7 @@ import { createConfiguredView } from './tab-manager/web-contents-view-factory.js
 import { NoteTabService } from './tab-manager/note-tab-service.js';
 import { WindowRegistry, type WindowContext, type WindowId } from './tab-manager/window-registry.js';
 import { AggregateTabService } from './tab-manager/aggregate-tab-service.js';
+import { ElectronViewHandle, ElectronWindowHandle, type WindowHandle } from './tab-manager/window-view-handles.js';
 import {
   matchesInputShortcut,
   shortcutDefinitions,
@@ -37,17 +37,19 @@ class TabManager {
   private aggregateTabs: AggregateTabService;
   private openUrlInNewWindowCallback: ((url: string) => Promise<void>) | null = null;
   private openNewWindowCallback: (() => Promise<void>) | null = null;
-  private readonly viewFactory: (windowId?: WindowId) => WebContentsView;
+  private readonly viewFactory: (windowId?: WindowId) => ViewHandle;
+  private readonly windowHandleFactory: (window: BrowserWindow) => WindowHandle;
 
   constructor(
-    mainWindow: BrowserWindow,
+    mainWindow: BrowserWindow | WindowHandle,
     options: {
+      createWindowHandle?: (window: BrowserWindow) => WindowHandle;
       createWindowRegistry?: (
-        mainWindow: BrowserWindow,
+        mainWindow: WindowHandle,
         callbacks: { onResize: (windowId: WindowId) => void; onClose: (windowId: WindowId) => void }
       ) => WindowRegistry;
       createSessionManager?: () => SessionManager;
-      viewFactory?: (windowId?: WindowId) => WebContentsView;
+      viewFactory?: (windowId?: WindowId) => ViewHandle;
       services?: {
         createLlmTabs?: (deps: ConstructorParameters<typeof LLMTabService>[0]) => LLMTabService;
         createFindInPageService?: (
@@ -71,9 +73,15 @@ class TabManager {
       onClose: (windowId: WindowId) => this.handleWindowClosed(windowId),
     };
 
+    this.windowHandleFactory =
+      options.createWindowHandle ?? ((window: BrowserWindow) => new ElectronWindowHandle(window));
+    const primaryWindowHandle = (mainWindow as any).getNativeWindow
+      ? (mainWindow as WindowHandle)
+      : this.windowHandleFactory(mainWindow as BrowserWindow);
+
     this.windowRegistry =
-      options.createWindowRegistry?.(mainWindow, windowCallbacks) ??
-      new WindowRegistry(mainWindow, windowCallbacks);
+      options.createWindowRegistry?.(primaryWindowHandle, windowCallbacks) ??
+      new WindowRegistry(primaryWindowHandle, windowCallbacks);
     this.tabs = new Map();
     this.tabCounter = 0;
     this.sessionManager = options.createSessionManager?.() ?? new SessionManager();
@@ -118,7 +126,6 @@ class TabManager {
       sendToRenderer: (channel, payload, windowId) => this.sendToRenderer(channel, payload, windowId),
       openUrl: (url, autoSelect, targetWindowId) => this.openUrl(url, autoSelect, targetWindowId),
       createView: (targetWindowId) => this.viewFactory(targetWindowId),
-      createNoteHTML: (title, content, fileType) => createNoteHTML(title, content, fileType as 'text' | 'pdf' | 'image'),
       setTabOwner: (tabId, windowId) => this.windowRegistry.setTabOwner(tabId, windowId),
     });
 
@@ -158,10 +165,10 @@ class TabManager {
     }
 
     // Detach active view if present
-    const activeView = (context as WindowContext & { activeWebContentsView?: WebContentsView }).activeWebContentsView;
+    const activeView = (context as WindowContext & { activeWebContentsView?: ViewHandle }).activeWebContentsView;
     if (activeView) {
       try {
-        context.window.contentView.removeChildView(activeView);
+        context.window.removeChildView(activeView);
       } catch (error) {
         console.warn(`Failed to remove view during window close for ${windowId}`, error);
       }
@@ -217,7 +224,7 @@ class TabManager {
     return this.windowRegistry.getWindowIdForTab(tabId, fallbackWindowId);
   }
 
-  getWindowIdFor(window: BrowserWindow | null): WindowId {
+  getWindowIdFor(window: BrowserWindow | WindowHandle | null): WindowId {
     return this.windowRegistry.getWindowIdFor(window);
   }
 
@@ -225,7 +232,7 @@ class TabManager {
     return this.windowRegistry.getTabIdsForWindow(windowId);
   }
 
-  private createDefaultView(windowId?: WindowId): WebContentsView {
+  private createDefaultView(windowId?: WindowId): ViewHandle {
     const openUrlInNewWindow = this.openUrlInNewWindowCallback
       ? (url: string) => {
           this.openUrlInNewWindowCallback!(url);
@@ -233,7 +240,7 @@ class TabManager {
       : undefined;
     const view = createConfiguredView((url) => this.openUrl(url, true, windowId), openUrlInNewWindow);
     this.setupViewKeyboardShortcuts(view, windowId);
-    return view;
+    return new ElectronViewHandle(view);
   }
 
   /**
@@ -241,7 +248,7 @@ class TabManager {
    * These handlers intercept keyboard events before they reach the page,
    * allowing shortcuts to work when the browser content is focused.
    */
-  private setupViewKeyboardShortcuts(view: WebContentsView, windowId?: WindowId): void {
+  private setupViewKeyboardShortcuts(view: ViewHandle, windowId?: WindowId): void {
     const platform = process.platform;
 
     const handlers: Record<ShortcutActionId, () => void> = {
@@ -639,7 +646,7 @@ class TabManager {
       try {
         // Remove all event listeners before destroying view
         tab.view.webContents.removeAllListeners();
-        context.window.contentView.removeChildView(tab.view);
+        context.window.removeChildView(tab.view);
       } catch (error) {
         console.warn(`Failed to remove view for tab ${tabId} during close`, error);
       }
@@ -681,14 +688,14 @@ class TabManager {
     this.windowRegistry.setTabOwner(tabId, context.id);
 
     // Hide previous WebContentsView if there was one
-    const activeView = (context as WindowContext & { activeWebContentsView?: WebContentsView }).activeWebContentsView;
+    const activeView = (context as WindowContext & { activeWebContentsView?: ViewHandle }).activeWebContentsView;
     if (activeView) {
       try {
-        context.window.contentView.removeChildView(activeView);
+        context.window.removeChildView(activeView);
       } catch (error) {
         console.warn(`Failed to remove previous view during activation for window ${context.id}`, error);
       }
-      (context as WindowContext & { activeWebContentsView?: WebContentsView }).activeWebContentsView = undefined;
+      (context as WindowContext & { activeWebContentsView?: ViewHandle }).activeWebContentsView = undefined;
     }
 
     // Show new active tab
@@ -722,8 +729,8 @@ class TabManager {
 
       try {
         // Traditional WebContentsView tab (webpage, notes, uploads)
-        context.window.contentView.addChildView(tab.view);
-        (context as WindowContext & { activeWebContentsView?: WebContentsView }).activeWebContentsView = tab.view;
+        context.window.addChildView(tab.view);
+        (context as WindowContext & { activeWebContentsView?: ViewHandle }).activeWebContentsView = tab.view;
 
         // Position the view to the right of the sidebar and below the header (and search bar if visible)
         const bounds = context.window.getContentBounds();
@@ -752,7 +759,7 @@ class TabManager {
     } else {
       // Svelte component tab (LLM responses)
       // Renderer will show Svelte component in the content area
-      (context as WindowContext & { activeWebContentsView?: WebContentsView }).activeWebContentsView = undefined;
+      (context as WindowContext & { activeWebContentsView?: ViewHandle }).activeWebContentsView = undefined;
     }
 
     // Notify renderer
@@ -899,8 +906,9 @@ class TabManager {
     return this.navigation.copyTabUrl(tabId);
   }
 
-  getTabView(tabId: string): WebContentsView | null {
-    return this.navigation.getTabView(tabId);
+  getTabView(tabId: string): any | null {
+    const view = this.navigation.getTabView(tabId);
+    return view?.getNativeView?.() ?? view ?? null;
   }
 
   private inferWindowIdFromPayload(payload: any): WindowId {
@@ -1123,8 +1131,9 @@ class TabManager {
    * @param isPrimary Whether this should become the primary window
    * @returns The window ID for the registered window
    */
-  registerNewWindow(window: BrowserWindow, isPrimary: boolean = false): string {
-    const windowId = this.windowRegistry.registerWindow(window, isPrimary, {
+  registerNewWindow(window: BrowserWindow | WindowHandle, isPrimary: boolean = false): string {
+    const handle = (window as any).getNativeWindow ? (window as WindowHandle) : this.windowHandleFactory(window as BrowserWindow);
+    const windowId = this.windowRegistry.registerWindow(handle, isPrimary, {
       onResize: (wId) => this.updateWebContentsViewBounds(wId),
       onClose: (wId) => this.handleWindowClosed(wId),
     });
