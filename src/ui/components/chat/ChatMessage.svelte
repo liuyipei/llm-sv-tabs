@@ -1,9 +1,15 @@
 <script lang="ts">
+  import { getContext } from 'svelte';
   import type { ChatMessage, MessageContent } from '../../../types';
   import type { RenderMode } from '../../rendering';
   import { renderMessage } from '../../rendering';
   import { copyToClipboard } from '../../utils/markdown';
   import { defaultRenderMode } from '$stores/config';
+  import { toastStore } from '$stores/toast';
+  import type { IPCBridgeAPI } from '$lib/ipc-bridge';
+
+  // Get IPC bridge from context
+  const ipc = getContext<IPCBridgeAPI>('ipc');
 
   let { message }: { message: ChatMessage } = $props();
 
@@ -45,9 +51,52 @@
   function toggleRenderMode() {
     renderMode = renderMode === 'markdown' ? 'raw' : 'markdown';
   }
+
+  /**
+   * Handle code block action button clicks (copy, open-as-note)
+   */
+  async function handleCodeBlockAction(event: MouseEvent): Promise<void> {
+    const target = event.target as HTMLElement;
+    const button = target.closest('.code-action-btn') as HTMLElement | null;
+    if (!button) return;
+
+    const action = button.dataset.action;
+    const encodedCode = button.dataset.code;
+    if (!encodedCode) return;
+
+    // Decode the base64 encoded code
+    const code = decodeURIComponent(escape(atob(encodedCode)));
+
+    if (action === 'copy') {
+      const success = await copyToClipboard(code);
+      if (success) {
+        // Show copied feedback on button
+        const copyIcon = button.querySelector('.copy-icon') as HTMLElement;
+        const copiedIcon = button.querySelector('.copied-icon') as HTMLElement;
+        if (copyIcon && copiedIcon) {
+          copyIcon.style.display = 'none';
+          copiedIcon.style.display = 'inline';
+          setTimeout(() => {
+            copyIcon.style.display = 'inline';
+            copiedIcon.style.display = 'none';
+          }, 2000);
+        }
+        // Show toast
+        toastStore.show('Code copied to clipboard', 'success', 2000);
+      }
+    } else if (action === 'open-note' && ipc) {
+      const lang = button.dataset.lang || 'text';
+      const noteId = Date.now();
+      const title = `Code (${lang})`;
+      // Open in background (autoSelect = false)
+      await ipc.openNoteTab(noteId, title, code, 'text', undefined, false);
+      toastStore.show('Code opened in new note', 'success', 2000);
+    }
+  }
 </script>
 
-<div class="chat-message" class:user={isUser} class:assistant={isAssistant} class:error={isError}>
+<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+<div class="chat-message" class:user={isUser} class:assistant={isAssistant} class:error={isError} onclick={handleCodeBlockAction}>
   <div class="message-header">
     <span class="role">{isUser ? 'You' : 'Assistant'}</span>
     <div class="message-controls">
@@ -255,12 +304,76 @@
     font-size: 0.9em;
   }
 
+  /* Code block wrapper - header-based design */
+  .message-content :global(.code-block-wrapper) {
+    margin: var(--space-6) 0;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    background-color: var(--bg-primary);
+  }
+
+  .message-content :global(.code-block-header) {
+    /* Layout handled by inline styles, this is for hover effects */
+    background-color: transparent;
+  }
+
+  .message-content :global(.code-block-actions) {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 4px !important;
+    opacity: 0.6;
+    transition: opacity 0.15s ease;
+  }
+
+  .message-content :global(.code-block-wrapper:hover .code-block-actions) {
+    opacity: 1;
+  }
+
+  .message-content :global(.code-lang-label) {
+    font-size: 12px;
+    font-family: var(--font-mono);
+    color: var(--text-secondary);
+    text-transform: lowercase;
+  }
+
+  .message-content :global(.code-action-btn) {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    color: var(--text-secondary);
+    border-radius: var(--radius-default);
+    transition: all 0.15s ease;
+  }
+
+  .message-content :global(.code-action-btn:hover) {
+    color: var(--text-primary);
+    background-color: var(--bg-hover);
+  }
+
+  .message-content :global(.code-action-btn svg) {
+    display: block;
+  }
+
   .message-content :global(pre) {
     background-color: var(--bg-primary);
     padding: var(--space-6);
     border-radius: var(--radius-lg);
     overflow-x: auto;
     margin: var(--space-6) 0;
+    border: 1px solid var(--border-color);
+  }
+
+  /* Override pre styles when inside code-block-wrapper */
+  .message-content :global(.code-block-wrapper pre) {
+    margin: 0;
+    border: none;
+    border-radius: 0;
   }
 
   .message-content :global(pre code) {

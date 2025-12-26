@@ -114,8 +114,8 @@ export const createElectronAPI = (transport: IpcTransport = defaultTransport) =>
       transport.invoke('open-url-in-new-window', url),
 
     // Note tabs
-    openNoteTab: (noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image', filePath?: string): Promise<IPCResponse<{ tabId: string; tab: TabData }>> =>
-      transport.invoke('open-note-tab', noteId, title, content, fileType, filePath),
+    openNoteTab: (noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image', filePath?: string, autoSelect: boolean = true): Promise<IPCResponse<{ tabId: string; tab: TabData }>> =>
+      transport.invoke('open-note-tab', noteId, title, content, fileType, filePath, autoSelect),
 
     updateNoteContent: (tabId: string, content: string): Promise<IPCResponse> =>
       transport.invoke('update-note-content', tabId, content),

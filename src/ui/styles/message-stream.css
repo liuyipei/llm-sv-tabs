@@ -330,6 +330,62 @@
   margin-bottom: var(--space-8);
 }
 
+/* Code block wrapper - header-based design */
+:global(.code-block-wrapper) {
+  margin-bottom: var(--space-8);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  background-color: var(--bg-primary);
+}
+
+:global(.code-block-header) {
+  /* Layout handled by inline styles, this is for hover effects */
+  background-color: transparent;
+}
+
+:global(.code-block-actions) {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 4px !important;
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+}
+
+:global(.code-block-wrapper:hover .code-block-actions) {
+  opacity: 1;
+}
+
+:global(.code-lang-label) {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  text-transform: lowercase;
+}
+
+:global(.code-action-btn) {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: var(--text-secondary);
+  border-radius: var(--radius-default);
+  transition: all 0.15s ease;
+}
+
+:global(.code-action-btn:hover) {
+  color: var(--text-primary);
+  background-color: var(--bg-hover);
+}
+
+:global(.code-action-btn svg) {
+  display: block;
+}
+
 :global(.llm-message-stream pre) {
   background-color: var(--bg-primary);
   border: 1px solid var(--border-color);
@@ -337,6 +393,13 @@
   padding: var(--space-8);
   overflow-x: auto;
   margin-bottom: var(--space-8);
+}
+
+/* Override pre styles when inside code-block-wrapper */
+:global(.code-block-wrapper pre) {
+  margin: 0;
+  border: none;
+  border-radius: 0;
 }
 
 :global(.llm-message-stream code) {
