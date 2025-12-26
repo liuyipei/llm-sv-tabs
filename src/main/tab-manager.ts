@@ -37,19 +37,60 @@ class TabManager {
   private aggregateTabs: AggregateTabService;
   private openUrlInNewWindowCallback: ((url: string) => Promise<void>) | null = null;
   private openNewWindowCallback: (() => Promise<void>) | null = null;
+  private readonly viewFactory: (windowId?: WindowId) => WebContentsView;
 
-  constructor(mainWindow: BrowserWindow) {
-    this.windowRegistry = new WindowRegistry(mainWindow, {
-      onResize: (windowId) => this.updateWebContentsViewBounds(windowId),
-      onClose: (windowId) => this.handleWindowClosed(windowId),
-    });
+  constructor(
+    mainWindow: BrowserWindow,
+    options: {
+      createWindowRegistry?: (
+        mainWindow: BrowserWindow,
+        callbacks: { onResize: (windowId: WindowId) => void; onClose: (windowId: WindowId) => void }
+      ) => WindowRegistry;
+      createSessionManager?: () => SessionManager;
+      viewFactory?: (windowId?: WindowId) => WebContentsView;
+      services?: {
+        createLlmTabs?: (deps: ConstructorParameters<typeof LLMTabService>[0]) => LLMTabService;
+        createFindInPageService?: (
+          deps: ConstructorParameters<typeof FindInPageService>[0]
+        ) => FindInPageService;
+        createNavigationService?: (
+          deps: ConstructorParameters<typeof NavigationService>[0]
+        ) => NavigationService;
+        createSessionPersistence?: (
+          deps: ConstructorParameters<typeof SessionPersistenceService>[0]
+        ) => SessionPersistenceService;
+        createNoteTabs?: (deps: ConstructorParameters<typeof NoteTabService>[0]) => NoteTabService;
+        createAggregateTabs?: (
+          deps: ConstructorParameters<typeof AggregateTabService>[0]
+        ) => AggregateTabService;
+      };
+    } = {}
+  ) {
+    const windowCallbacks = {
+      onResize: (windowId: WindowId) => this.updateWebContentsViewBounds(windowId),
+      onClose: (windowId: WindowId) => this.handleWindowClosed(windowId),
+    };
+
+    this.windowRegistry =
+      options.createWindowRegistry?.(mainWindow, windowCallbacks) ??
+      new WindowRegistry(mainWindow, windowCallbacks);
     this.tabs = new Map();
     this.tabCounter = 0;
-    this.sessionManager = new SessionManager();
+    this.sessionManager = options.createSessionManager?.() ?? new SessionManager();
     this.lastMetadataUpdate = new Map();
     this.abortControllers = new Map();
+    this.viewFactory = options.viewFactory ?? ((windowId?: WindowId) => this.createDefaultView(windowId));
 
-    this.llmTabs = new LLMTabService({
+    const {
+      createLlmTabs,
+      createFindInPageService,
+      createNavigationService,
+      createSessionPersistence,
+      createNoteTabs,
+      createAggregateTabs,
+    } = options.services ?? {};
+
+    this.llmTabs = (createLlmTabs ?? ((deps) => new LLMTabService(deps)))({
       tabs: this.tabs,
       createTabId: () => this.createTabId(),
       getTabData: (tabId) => this.getTabData(tabId),
@@ -61,35 +102,37 @@ class TabManager {
       openUrl: (url, autoSelect) => this.openUrl(url, autoSelect),
     });
 
-    this.findInPageService = new FindInPageService({
+    this.findInPageService = (createFindInPageService ?? ((deps) => new FindInPageService(deps)))({
       tabs: this.tabs,
       sendToRenderer: (channel, payload) => this.sendToRenderer(channel, payload),
     });
 
-    this.navigation = new NavigationService({ tabs: this.tabs });
+    this.navigation = (createNavigationService ?? ((deps) => new NavigationService(deps)))({
+      tabs: this.tabs,
+    });
 
-    this.sessionPersistence = new SessionPersistenceService({
+    this.sessionPersistence = (createSessionPersistence ?? ((deps) => new SessionPersistenceService(deps)))({
       tabs: this.tabs,
       createTabId: () => this.createTabId(),
       getTabData: (tabId) => this.getTabData(tabId),
       sendToRenderer: (channel, payload, windowId) => this.sendToRenderer(channel, payload, windowId),
       openUrl: (url, autoSelect, targetWindowId) => this.openUrl(url, autoSelect, targetWindowId),
-      createView: (targetWindowId) => this.createView(targetWindowId),
+      createView: (targetWindowId) => this.viewFactory(targetWindowId),
       createNoteHTML: (title, content, fileType) => createNoteHTML(title, content, fileType as 'text' | 'pdf' | 'image'),
       setTabOwner: (tabId, windowId) => this.windowRegistry.setTabOwner(tabId, windowId),
     });
 
-    this.noteTabs = new NoteTabService({
+    this.noteTabs = (createNoteTabs ?? ((deps) => new NoteTabService(deps)))({
       tabs: this.tabs,
       createTabId: () => this.createTabId(),
       getTabData: (tabId) => this.getTabData(tabId),
       sendToRenderer: (channel, payload) => this.sendToRenderer(channel, payload),
       saveSession: () => this.saveSession(),
       setActiveTab: (tabId, windowId) => this.setActiveTab(tabId, windowId),
-      createView: (windowId) => this.createView(windowId),
+      createView: (windowId) => this.viewFactory(windowId),
     });
 
-    this.aggregateTabs = new AggregateTabService({
+    this.aggregateTabs = (createAggregateTabs ?? ((deps) => new AggregateTabService(deps)))({
       tabs: this.tabs,
       createTabId: () => this.createTabId(),
       getTabData: (tabId) => this.getTabData(tabId),
@@ -182,7 +225,7 @@ class TabManager {
     return this.windowRegistry.getTabIdsForWindow(windowId);
   }
 
-  private createView(windowId?: WindowId): WebContentsView {
+  private createDefaultView(windowId?: WindowId): WebContentsView {
     const openUrlInNewWindow = this.openUrlInNewWindowCallback
       ? (url: string) => {
           this.openUrlInNewWindowCallback!(url);
@@ -285,7 +328,7 @@ class TabManager {
     const context = this.windowRegistry.getWindowContext(windowId);
     const tabId = this.createTabId();
 
-    const view = this.createView(context.id);
+    const view = this.viewFactory(context.id);
 
     const tab: TabWithView = {
       id: tabId,

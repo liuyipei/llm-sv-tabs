@@ -12,6 +12,13 @@ This document consolidates the refactor proposals and remaining integration-only
 - **Injectable IPC transports.** Let preload/renderer bridge constructors accept a transport abstraction so store-sync and shortcut IPC listeners can be exercised without `ipcRenderer`/`ipcMain`, keeping the documented listener invariants intact.【F:docs/design/14-multi-window-tab-registry.md†L82-L147】【F:src/main/preload.ts†L200-L257】
 - **Service dependency injection surfaces.** Keep `TabManager` services (LLM, navigation, persistence) fully parameterized so tests can stub throttling, aborts, and tab mutations while matching production behavior.【F:src/main/tab-manager.ts†L21-L105】【F:src/main/tab-manager.ts†L454-L476】
 
+## Progress update
+
+- Dependency-injection seams are now wired for headless tests:
+  - `createSecurePersistedStore` accepts injected storage/availability/crypto adapters so tests can bypass `window`/`electronAPI` while still exercising encryption fallbacks.【F:src/ui/utils/secure-persisted-store.ts†L9-L127】
+  - `createElectronAPI` builds the renderer bridge from an injectable IPC transport, letting tests supply stubbed `invoke/on` handlers without touching `ipcRenderer`.【F:src/main/preload.ts†L16-L173】
+  - `TabManager` now accepts factories for the window registry, view creation, and its service dependencies (LLM, navigation, persistence, etc.) so tests can substitute throttling/mutation/failure behaviors directly.【F:src/main/tab-manager.ts†L21-L132】
+
 ## Integration-only gaps and what they require
 
 - **OS/Electron shortcut interception (global/menu accelerators).** Electron or the OS can pre-consume chords before `before-input-event` fires. Only a real `BrowserWindow` driven by Electron/Playwright can reveal collisions; refactors alone cannot surface this to unit tests.【F:docs/design/08-keyboard-shortcuts.md†L101-L185】
