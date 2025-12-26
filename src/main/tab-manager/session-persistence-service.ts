@@ -1,8 +1,9 @@
-import { readFileSync, existsSync } from 'fs';
 import { basename } from 'path';
-import type { TabData, TabType, TabWithView } from '../../types';
+import { existsSync, readFileSync } from 'fs';
+import type { TabData, TabType, TabWithView, ViewHandle } from '../../types.js';
 import { tempFileService } from '../services/temp-file-service.js';
 import { getMimeType, createFileErrorHTML } from '../utils/file-utils.js';
+import { SessionPersistenceMapper } from './session-persistence-mapper.js';
 
 interface SessionPersistenceServiceDeps {
   tabs: Map<string, TabWithView>;
@@ -10,9 +11,19 @@ interface SessionPersistenceServiceDeps {
   getTabData: (tabId: string) => TabData | null;
   sendToRenderer: (channel: string, payload: any, windowId?: string) => void;
   openUrl: (url: string, autoSelect: boolean, windowId?: string) => { tabId: string; tab: TabData };
-  createView: (windowId?: string) => any; // WebContentsView factory
-  createNoteHTML: (title: string, content: string, fileType: string) => string;
+  createView: (windowId?: string) => ViewHandle;
   setTabOwner: (tabId: string, windowId: string) => void;
+  io?: SessionPersistenceIO;
+}
+
+export interface SessionPersistenceIO {
+  exists(filePath: string): boolean;
+  readText(filePath: string): string;
+  readBinary(filePath: string): Buffer;
+  createView(windowId?: string): ViewHandle;
+  writeTempFile(tabId: string, content: string, fileType: 'pdf' | 'image'): string;
+  loadURL(view: ViewHandle, url: string): void;
+  createFileErrorHTML(title: string, error: string, path: string): string;
 }
 
 /**
@@ -22,50 +33,33 @@ interface SessionPersistenceServiceDeps {
  * Excludes: uploads without filePath (binary data only), api-key-instructions (ephemeral), raw-message viewer (reopenable)
  */
 export class SessionPersistenceService {
-  constructor(private readonly deps: SessionPersistenceServiceDeps) {}
+  private readonly mapper: SessionPersistenceMapper;
+  private readonly io: SessionPersistenceIO;
+
+  constructor(private readonly deps: SessionPersistenceServiceDeps, mapper = new SessionPersistenceMapper()) {
+    this.mapper = mapper;
+    this.io = deps.io ?? {
+      exists: (filePath) => existsSync(filePath),
+      readText: (filePath) => readFileSync(filePath, 'utf-8'),
+      readBinary: (filePath) => readFileSync(filePath),
+      createView: (windowId?: string) => this.deps.createView(windowId),
+      writeTempFile: (tabId, content, fileType) => tempFileService.writeToTempFile(tabId, content, fileType),
+      loadURL: (view, url) => view.webContents.loadURL(url),
+      createFileErrorHTML: (title, error, filePath) => createFileErrorHTML(title, error, filePath),
+    };
+  }
 
   /**
    * Filter tabs to get only those that should be persisted.
    * Excludes upload tabs without file paths, ephemeral helper tabs, and raw message viewers.
    */
   getTabsForPersistence(): TabData[] {
-    return Array.from(this.deps.tabs.values())
-      .map((tab) => this.deps.getTabData(tab.id)!)
-      .filter((tab) => this.isPersistable(tab))
-      .map((tab) => this.prepareTabForPersistence(tab));
-  }
-
-  /**
-   * Prepare a tab for persistence by stripping large binary data.
-   * File tabs with filePath don't need the actual content stored - we'll reload from disk.
-   */
-  private prepareTabForPersistence(tab: TabData): TabData {
-    // If this is a file tab with a path, strip the binary content to save space
-    if (tab.metadata?.filePath && tab.metadata?.fileType) {
-      const { imageData, noteContent, ...restMetadata } = tab.metadata;
-      // Keep noteContent for text files since they're small, strip imageData for images/PDFs
-      return {
-        ...tab,
-        metadata: {
-          ...restMetadata,
-          noteContent: tab.metadata.fileType === 'text' ? noteContent : undefined,
-        },
-      };
+    const inMemoryTabs = new Map<string, TabData>();
+    for (const tab of this.deps.tabs.values()) {
+      const data = this.deps.getTabData(tab.id);
+      if (data) inMemoryTabs.set(tab.id, data);
     }
-    return tab;
-  }
-
-  /**
-   * Check if a tab should be persisted to session storage.
-   */
-  private isPersistable(tab: TabData): boolean {
-    // Exclude upload tabs without file path (binary data that can't be reloaded)
-    if (tab.type === 'upload' && !tab.metadata?.filePath) return false;
-    // Exclude ephemeral helper tabs
-    if (tab.component === 'api-key-instructions') return false;
-    // Exclude raw message viewer (can be reopened from source tab)
-    if (tab.url?.startsWith('raw-message://')) return false;
-    return true;
+    return this.mapper.getTabsForPersistence(inMemoryTabs);
   }
 
   /**
@@ -230,7 +224,7 @@ export class SessionPersistenceService {
     const title = tabData.title || basename(filePath);
 
     // Check if file exists
-    if (!existsSync(filePath)) {
+    if (!this.io.exists(filePath)) {
       // File no longer exists - create tab with error state
       console.warn(`File no longer exists: ${filePath}`);
       return this.createErrorFileTab(tabId, tabData, `File not found: ${filePath}`, windowId);
@@ -243,7 +237,7 @@ export class SessionPersistenceService {
 
       if (fileType === 'text') {
         // Read text file
-        content = readFileSync(filePath, 'utf-8');
+        content = this.io.readText(filePath);
 
         const tab: TabWithView = {
           id: tabId,
@@ -271,7 +265,7 @@ export class SessionPersistenceService {
         return tabId;
       } else {
         // Read binary file (image or PDF) as base64
-        const buffer = readFileSync(filePath);
+        const buffer = this.io.readBinary(filePath);
         mimeType = getMimeType(filePath, fileType);
         content = `data:${mimeType};base64,${buffer.toString('base64')}`;
 
@@ -280,7 +274,7 @@ export class SessionPersistenceService {
           title,
           url: `note://${Date.now()}`,
           type: 'notes' as TabType,
-          view: this.deps.createView(windowId),
+          view: this.io.createView(windowId),
           created: tabData.created || Date.now(),
           lastViewed: tabData.lastViewed || Date.now(),
           metadata: {
@@ -301,8 +295,8 @@ export class SessionPersistenceService {
         // Write to temp file and load via file:// protocol
         // This avoids Chromium's ~2MB data URL limit that causes large files to fail
         if (tab.view) {
-          const fileUrl = tempFileService.writeToTempFile(tabId, content, fileType as 'pdf' | 'image');
-          tab.view.webContents.loadURL(fileUrl);
+          const fileUrl = this.io.writeTempFile(tabId, content, fileType as 'pdf' | 'image');
+          this.io.loadURL(tab.view, fileUrl);
         }
 
         this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) }, windowId);
@@ -355,7 +349,7 @@ export class SessionPersistenceService {
         title: tabData.title,
         url: `note://error`,
         type: 'notes' as TabType,
-        view: this.deps.createView(windowId),
+        view: this.io.createView(windowId),
         created: tabData.created || Date.now(),
         lastViewed: tabData.lastViewed || Date.now(),
         metadata: {
@@ -373,9 +367,9 @@ export class SessionPersistenceService {
 
       // Load error HTML into WebContentsView
       if (tab.view) {
-        const errorHtml = createFileErrorHTML(tabData.title, errorMessage, metadata.filePath!);
+        const errorHtml = this.io.createFileErrorHTML(tabData.title, errorMessage, metadata.filePath!);
         const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(errorHtml);
-        tab.view.webContents.loadURL(dataUrl);
+        this.io.loadURL(tab.view, dataUrl);
       }
 
       this.deps.sendToRenderer('tab-created', { tab: this.deps.getTabData(tabId) }, windowId);

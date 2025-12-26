@@ -35,10 +35,12 @@ class FakeWindowRegistry {
       window: {
         on: vi.fn(),
         getContentBounds: vi.fn(() => ({ width: 1200, height: 800 })),
-        contentView: { removeChildView: vi.fn(), addChildView: vi.fn() },
+        removeChildView: vi.fn(),
+        addChildView: vi.fn(),
         webContents: { focus: vi.fn(), send: vi.fn() },
         show: vi.fn(),
         focus: vi.fn(),
+        getNativeWindow: vi.fn(),
       },
       activeTabId: null,
       isSearchBarVisible: false,
@@ -70,6 +72,7 @@ const createMockView = () => ({
   webContents: {
     loadURL: vi.fn(),
     on: vi.fn(),
+    reload: vi.fn(),
     isDestroyed: vi.fn(() => false),
     removeAllListeners: vi.fn(),
   },

@@ -1,13 +1,15 @@
-import { BrowserWindow, type WebContentsView } from 'electron';
+import type { BrowserWindow } from 'electron';
+import type { ViewHandle } from '../../types.js';
+import { isElectronWindowHandle, type WindowHandle } from './window-view-handles.js';
 
 export type WindowId = string;
 
 export interface WindowContext {
   id: WindowId;
-  window: BrowserWindow;
+  window: WindowHandle;
   activeTabId: string | null;
   isSearchBarVisible: boolean;
-  activeWebContentsView?: WebContentsView | null;
+  activeWebContentsView?: ViewHandle | null;
 }
 
 export interface WindowRegistryHandlers {
@@ -17,16 +19,17 @@ export interface WindowRegistryHandlers {
 
 export class WindowRegistry {
   private windows = new Map<WindowId, WindowContext>();
-  private windowLookup = new WeakMap<BrowserWindow, WindowId>();
+  private windowLookup = new WeakMap<WindowHandle, WindowId>();
+  private nativeLookup = new WeakMap<BrowserWindow, WindowId>();
   private tabToWindow = new Map<string, WindowId>();
   private primaryWindowId: WindowId;
   private windowCounter = 0;
 
-  constructor(primaryWindow: BrowserWindow, handlers: WindowRegistryHandlers) {
+  constructor(primaryWindow: WindowHandle, handlers: WindowRegistryHandlers) {
     this.primaryWindowId = this.registerWindow(primaryWindow, true, handlers);
   }
 
-  registerWindow(window: BrowserWindow, isPrimary: boolean, handlers: WindowRegistryHandlers): WindowId {
+  registerWindow(window: WindowHandle, isPrimary: boolean, handlers: WindowRegistryHandlers): WindowId {
     const windowId: WindowId = `window-${++this.windowCounter}`;
     const context: WindowContext = {
       id: windowId,
@@ -37,6 +40,10 @@ export class WindowRegistry {
 
     this.windows.set(windowId, context);
     this.windowLookup.set(window, windowId);
+    const native = isElectronWindowHandle(window) ? window.getNativeWindow() : undefined;
+    if (native) {
+      this.nativeLookup.set(native, windowId);
+    }
 
     if (handlers.onResize) {
       window.on('resize', () => handlers.onResize?.(windowId));
@@ -66,8 +73,12 @@ export class WindowRegistry {
     return this.windows.has(windowId);
   }
 
-  getWindowIdFor(window: BrowserWindow | null): WindowId {
-    return (window && this.windowLookup.get(window)) || this.primaryWindowId;
+  getWindowIdFor(window: WindowHandle | BrowserWindow | null): WindowId {
+    if (!window) return this.primaryWindowId;
+    if (isElectronWindowHandle(window)) {
+      return this.windowLookup.get(window) ?? this.primaryWindowId;
+    }
+    return this.nativeLookup.get(window as BrowserWindow) ?? this.primaryWindowId;
   }
 
   getWindowContext(windowId?: WindowId): WindowContext {

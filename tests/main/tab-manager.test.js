@@ -27,6 +27,7 @@ class MockWebContentsView {
       isDevToolsOpened: vi.fn().mockReturnValue(false),
       openDevTools: vi.fn(),
       isDestroyed: vi.fn().mockReturnValue(false), // Add isDestroyed check
+      removeAllListeners: vi.fn(),
     };
     this.setBounds = vi.fn();
     this.setAutoResize = vi.fn();
@@ -65,7 +66,10 @@ describe('TabManager', () => {
       on: vi.fn(), // For event listeners
       webContents: {
         send: vi.fn(),
+        focus: vi.fn(),
       },
+      show: vi.fn(),
+      focus: vi.fn(),
     };
 
     tabManager = new TabManager(mockWindow);

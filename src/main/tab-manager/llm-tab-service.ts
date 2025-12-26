@@ -1,9 +1,9 @@
 import { createRawMessageViewerHTML } from '../templates/raw-message-template.js';
-import type { TabData, TabMetadata, TabWithView } from '../../types';
-import type { WebContentsView } from 'electron';
+import type { TabData, TabMetadata, TabWithView, ViewHandle } from '../../types';
 import { createConfiguredView } from './web-contents-view-factory.js';
 import { generateLLMTabIdentifiers } from '../utils/tab-id-generator.js';
 import type { WindowId } from './window-registry.js';
+import { ElectronViewHandle } from './window-view-handles.js';
 
 interface LLMTabDependencies {
   tabs: Map<string, TabWithView>;
@@ -169,7 +169,7 @@ export class LLMTabService {
     if (!tab.metadata?.isLLMResponse) return { success: false, error: 'Not an LLM response tab' };
 
     const rawViewId = this.deps.createTabId();
-    const view: WebContentsView = createConfiguredView(this.deps.openUrl);
+    const viewHandle: ViewHandle = new ElectronViewHandle(createConfiguredView(this.deps.openUrl));
 
     const timestamp = Date.now();
     const rawTab: TabWithView = {
@@ -177,7 +177,7 @@ export class LLMTabService {
       title: 'Raw Message View',
       url: `raw-message://${timestamp}`,
       type: 'notes',
-      view,
+      view: viewHandle,
       created: timestamp,
       lastViewed: timestamp,
     };
@@ -186,7 +186,7 @@ export class LLMTabService {
 
     const htmlContent = createRawMessageViewerHTML(tab.metadata);
     const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent);
-    view.webContents.loadURL(dataUrl);
+    viewHandle.webContents.loadURL(dataUrl);
 
     if (autoSelect) {
       this.deps.setActiveTab(rawViewId);

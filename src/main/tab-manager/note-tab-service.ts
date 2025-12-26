@@ -1,7 +1,6 @@
-import { WebContentsView } from 'electron';
 import { readFileSync, existsSync } from 'fs';
 import { extname, normalize as normalizePath } from 'path';
-import type { TabData, TabMetadata, TabType, TabWithView } from '../../types';
+import type { TabData, TabMetadata, TabType, TabWithView, ViewHandle } from '../../types';
 import { tempFileService } from '../services/temp-file-service.js';
 
 interface NoteTabServiceDeps {
@@ -11,7 +10,7 @@ interface NoteTabServiceDeps {
   sendToRenderer: (channel: string, payload: any) => void;
   saveSession: () => Promise<void> | void;
   setActiveTab: (tabId: string, windowId?: string) => void;
-  createView: (windowId?: string) => WebContentsView;
+  createView: (windowId?: string) => ViewHandle;
 }
 
 type NoteTabType = 'text' | 'pdf' | 'image';
