@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, session } from 'electron';
+import { app, BrowserWindow, dialog, session, Menu } from 'electron';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import TabManager from './tab-manager.js';
@@ -156,6 +156,13 @@ function setupGlobalShortcuts(): void {
 app.commandLine.appendSwitch('disable-features', 'UserAgentClientHint');
 
 app.whenReady().then(async () => {
+  // Remove default application menu to prevent it from consuming keyboard shortcuts
+  // On Windows, the default menu has accelerators that intercept keys like Ctrl+N
+  // before they reach our custom handlers
+  if (process.platform === 'win32') {
+    Menu.setApplicationMenu(null);
+  }
+
   // Setup shutdown handlers first to catch early termination
   shutdownManager.setup();
 
