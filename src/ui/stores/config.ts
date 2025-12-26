@@ -1,11 +1,16 @@
 import { get } from 'svelte/store';
 import type { ProviderType, LLMModel } from '../../types';
+import type { RenderMode } from '../rendering';
 import { createPersistedStore } from '../utils/persisted-store';
 import { createSecurePersistedStore } from '../utils/secure-persisted-store';
 import { loadCapabilitiesFromCache, probeAndStoreCapabilities, getCapabilities as getCachedCapabilities, isCapabilityStale as isCapabilityStaleCached } from './capabilities.js';
 
 // Configuration stores
 export const provider = createPersistedStore<ProviderType>('provider', 'openai');
+
+// Rendering preferences
+// Default render mode for new assistant messages ('markdown' | 'raw')
+export const defaultRenderMode = createPersistedStore<RenderMode>('defaultRenderMode', 'markdown');
 export const model = createPersistedStore<string | null>('model', null);
 // API keys are stored securely using encryption (if available)
 export const apiKeys = createSecurePersistedStore<Record<string, string>>('apiKeys', {});

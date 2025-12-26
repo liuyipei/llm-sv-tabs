@@ -1,9 +1,10 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { marked } from 'marked';
-  import DOMPurify from 'dompurify';
   import { activeTabs } from '$stores/tabs';
+  import { defaultRenderMode } from '$stores/config';
   import type { ContextTabInfo, Tab } from '../../../types';
+  import type { RenderMode } from '../../rendering';
+  import { renderMessage, escapeHtml } from '../../rendering';
   import { searchState, updateSearchResults } from '$stores/search';
   import { createDOMSearch, type DOMSearchInstance } from '$lib/dom-search';
   import '../../styles/message-stream.css';
@@ -11,6 +12,7 @@
   import IdentifiersSection from './message-stream/IdentifiersSection.svelte';
   import ContextTabsSection from './message-stream/ContextTabsSection.svelte';
   import ResponseMetadata from './message-stream/ResponseMetadata.svelte';
+  import RenderModeToggle from './message-stream/RenderModeToggle.svelte';
 
   declare global {
     interface Window {
@@ -33,6 +35,15 @@
   let fullText = $state('');
   let stableHtml = $state('');
   let unstableHtml = $state('');
+
+  // Render mode state - defaults to global preference
+  let renderMode = $state<RenderMode>($defaultRenderMode);
+
+  function toggleRenderMode() {
+    renderMode = renderMode === 'markdown' ? 'raw' : 'markdown';
+    // Re-render with new mode
+    updateBuffers();
+  }
 
   let unsubscribe: (() => void) | null = null;
   let tabsUnsubscribe: (() => void) | null = null;
@@ -144,13 +155,28 @@
   });
 
   function updateBuffers() {
-    // Simple block split: last blank line as boundary
-    const splitIdx = fullText.lastIndexOf('\n\n');
-    const stableMd = splitIdx === -1 ? '' : fullText.slice(0, splitIdx);
-    const unstableMd = splitIdx === -1 ? fullText : fullText.slice(splitIdx);
+    if (renderMode === 'raw') {
+      // Raw mode: render as escaped text, no splitting needed
+      stableHtml = '';
+      unstableHtml = renderMessage(fullText, {
+        mode: 'raw',
+        metadata: { isStreaming: metadata?.isStreaming }
+      }).html;
+    } else {
+      // Markdown mode: split by last blank line as boundary for stable/unstable
+      const splitIdx = fullText.lastIndexOf('\n\n');
+      const stableMd = splitIdx === -1 ? '' : fullText.slice(0, splitIdx);
+      const unstableMd = splitIdx === -1 ? fullText : fullText.slice(splitIdx);
 
-    stableHtml = DOMPurify.sanitize(marked.parse(stableMd) as string);
-    unstableHtml = DOMPurify.sanitize(marked.parse(unstableMd) as string);
+      stableHtml = renderMessage(stableMd, {
+        mode: 'markdown',
+        metadata: { isStreaming: metadata?.isStreaming }
+      }).html;
+      unstableHtml = renderMessage(unstableMd, {
+        mode: 'markdown',
+        metadata: { isStreaming: metadata?.isStreaming }
+      }).html;
+    }
 
     // Auto-scroll if user is near bottom
     if (container) {
@@ -264,11 +290,14 @@
   {:else}
     <div class="response-card">
       <div class="response-header">
-        <div class="response-label">Response</div>
+        <div class="response-label-row">
+          <div class="response-label">Response</div>
+          <RenderModeToggle mode={renderMode} onToggle={toggleRenderMode} />
+        </div>
         <ResponseMetadata {model} tokensIn={tokensIn} tokensOut={tokensOut} {isStreaming} />
       </div>
 
-      <div class="response-content">
+      <div class="response-content" class:raw-mode={renderMode === 'raw'}>
         <div class="stable">{@html stableHtml}</div>
         <div class="unstable">{@html unstableHtml}</div>
       </div>

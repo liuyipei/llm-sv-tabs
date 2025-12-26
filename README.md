@@ -54,6 +54,7 @@ For a deep dive into the architecture and design philosophy:
 - [PDF Content Extraction](./docs/design/11-pdf-content-extraction.md) - Robust PDF text and image extraction for LLM consumption
 - [Model Capability Probing](./docs/design/12-model-capability-probing.md) - Active runtime discovery of vision, PDF, and multimodal support
 - [Provider Duplication Notes](./docs/design/15-provider-duplication-notes.md) - Code duplication analysis and refactoring opportunities in provider implementations
+- [Message Rendering Modes](./docs/design/17-message-rendering-modes.md) - Per-message Markdown/Raw toggle with extensible rendering pipeline
 
 ## Features
 
