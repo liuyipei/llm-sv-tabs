@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
+import type { IpcRendererEvent } from 'electron';
 import type {
   IPCResponse,
   TabData,
@@ -21,224 +22,261 @@ import type {
 
 console.log('Preload script is running!');
 
-const addListener = <T = any>(channel: string, callback: (data: T) => void): (() => void) => {
-  const handler = (_event: unknown, data: T) => callback(data);
-  ipcRenderer.on(channel, handler);
-  return () => ipcRenderer.off(channel, handler);
+export type IpcTransport = {
+  invoke: (channel: string, ...args: any[]) => Promise<any>;
+  on: (
+    channel: string,
+    listener: (event: IpcRendererEvent, ...args: any[]) => void
+  ) => void;
+  off: (
+    channel: string,
+    listener: (event: IpcRendererEvent, ...args: any[]) => void
+  ) => void;
+  removeListener: (
+    channel: string,
+    listener: (event: IpcRendererEvent, ...args: any[]) => void
+  ) => void;
 };
 
-// Expose protected methods that allow the renderer process to use
-// the ipcRenderer without exposing the entire object
-const electronAPI = {
-  // Tab management
-  openUrl: (url: string): Promise<IPCResponse<{ tabId: string; tab: TabData }>> =>
-    ipcRenderer.invoke('open-url', url),
+const defaultTransport: IpcTransport = {
+  invoke: ipcRenderer.invoke.bind(ipcRenderer),
+  on: ipcRenderer.on.bind(ipcRenderer),
+  off: ipcRenderer.off.bind(ipcRenderer),
+  removeListener: ipcRenderer.removeListener.bind(ipcRenderer),
+};
 
-  closeTab: (tabId: string): Promise<IPCResponse> =>
-    ipcRenderer.invoke('close-tab', tabId),
+const createAddListener =
+  (transport: IpcTransport) =>
+  <T = any>(channel: string, callback: (data: T) => void): (() => void) => {
+    const handler = (_event: unknown, data: T) => callback(data);
+    transport.on(channel, handler as any);
+    return () => transport.off(channel, handler as any);
+  };
 
-  getActiveTabs: (): Promise<IPCResponse<{ tabs: TabData[]; activeTabId: string | null }>> =>
-    ipcRenderer.invoke('get-active-tabs'),
+export const createElectronAPI = (transport: IpcTransport = defaultTransport) => {
+  const addListener = createAddListener(transport);
 
-  setActiveTab: (tabId: string): Promise<IPCResponse> =>
-    ipcRenderer.invoke('set-active-tab', tabId),
+  return {
+    // Tab management
+    openUrl: (url: string): Promise<IPCResponse<{ tabId: string; tab: TabData }>> =>
+      transport.invoke('open-url', url),
 
-  focusActiveWebContents: (): Promise<IPCResponse> =>
-    ipcRenderer.invoke('focus-active-web-contents'),
+    closeTab: (tabId: string): Promise<IPCResponse> =>
+      transport.invoke('close-tab', tabId),
 
-  selectTabs: (tabIds: string[]): Promise<IPCResponse<{ success: boolean; selectedTabs: string[] }>> =>
-    ipcRenderer.invoke('select-tabs', tabIds),
+    getActiveTabs: (): Promise<IPCResponse<{ tabs: TabData[]; activeTabId: string | null }>> =>
+      transport.invoke('get-active-tabs'),
 
-  reloadTab: (tabId: string): Promise<IPCResponse> =>
-    ipcRenderer.invoke('reload-tab', tabId),
+    setActiveTab: (tabId: string): Promise<IPCResponse> =>
+      transport.invoke('set-active-tab', tabId),
 
-  goBack: (tabId: string): Promise<IPCResponse> =>
-    ipcRenderer.invoke('go-back', tabId),
+    focusActiveWebContents: (): Promise<IPCResponse> =>
+      transport.invoke('focus-active-web-contents'),
 
-  goForward: (tabId: string): Promise<IPCResponse> =>
-    ipcRenderer.invoke('go-forward', tabId),
+    selectTabs: (tabIds: string[]): Promise<IPCResponse<{ success: boolean; selectedTabs: string[] }>> =>
+      transport.invoke('select-tabs', tabIds),
 
-  getNavigationState: (tabId: string): Promise<IPCResponse<{ canGoBack: boolean; canGoForward: boolean }>> =>
-    ipcRenderer.invoke('get-navigation-state', tabId),
+    reloadTab: (tabId: string): Promise<IPCResponse> =>
+      transport.invoke('reload-tab', tabId),
 
-  nextTab: (): Promise<IPCResponse<{ tabId: string }>> =>
-    ipcRenderer.invoke('next-tab'),
+    goBack: (tabId: string): Promise<IPCResponse> =>
+      transport.invoke('go-back', tabId),
 
-  previousTab: (): Promise<IPCResponse<{ tabId: string }>> =>
-    ipcRenderer.invoke('previous-tab'),
+    goForward: (tabId: string): Promise<IPCResponse> =>
+      transport.invoke('go-forward', tabId),
 
-  updateTabTitle: (tabId: string, title: string): Promise<IPCResponse> =>
-    ipcRenderer.invoke('update-tab-title', tabId, title),
+    getNavigationState: (tabId: string): Promise<IPCResponse<{ canGoBack: boolean; canGoForward: boolean }>> =>
+      transport.invoke('get-navigation-state', tabId),
 
-  copyTabUrl: (tabId: string): Promise<IPCResponse<{ url?: string }>> =>
-    ipcRenderer.invoke('copy-tab-url', tabId),
+    nextTab: (): Promise<IPCResponse<{ tabId: string }>> =>
+      transport.invoke('next-tab'),
 
-  openAggregateTab: (): Promise<IPCResponse<{ tabId: string; tab: TabData }>> =>
-    ipcRenderer.invoke('open-aggregate-tab'),
+    previousTab: (): Promise<IPCResponse<{ tabId: string }>> =>
+      transport.invoke('previous-tab'),
 
-  getTabRegistrySnapshot: (): Promise<IPCResponse<TabRegistrySnapshot>> =>
-    ipcRenderer.invoke('get-tab-registry-snapshot'),
+    updateTabTitle: (tabId: string, title: string): Promise<IPCResponse> =>
+      transport.invoke('update-tab-title', tabId, title),
 
-  // Window management
-  openNewWindow: (): Promise<IPCResponse<{ windowId: string }>> =>
-    ipcRenderer.invoke('open-new-window'),
+    copyTabUrl: (tabId: string): Promise<IPCResponse<{ url?: string }>> =>
+      transport.invoke('copy-tab-url', tabId),
 
-  openUrlInNewWindow: (url: string): Promise<IPCResponse<{ windowId: string; tabId?: string }>> =>
-    ipcRenderer.invoke('open-url-in-new-window', url),
+    openAggregateTab: (): Promise<IPCResponse<{ tabId: string; tab: TabData }>> =>
+      transport.invoke('open-aggregate-tab'),
 
-  // Note tabs
-  openNoteTab: (noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image', filePath?: string): Promise<IPCResponse<{ tabId: string; tab: TabData }>> =>
-    ipcRenderer.invoke('open-note-tab', noteId, title, content, fileType, filePath),
+    getTabRegistrySnapshot: (): Promise<IPCResponse<TabRegistrySnapshot>> =>
+      transport.invoke('get-tab-registry-snapshot'),
 
-  updateNoteContent: (tabId: string, content: string): Promise<IPCResponse> =>
-    ipcRenderer.invoke('update-note-content', tabId, content),
+    // Window management
+    openNewWindow: (): Promise<IPCResponse<{ windowId: string }>> =>
+      transport.invoke('open-new-window'),
 
-  // LLM Response tabs
-  openLLMResponseTab: (query: string, response?: string, error?: string): Promise<IPCResponse<{ tabId: string; tab: TabData }>> =>
-    ipcRenderer.invoke('open-llm-response-tab', query, response, error),
+    openUrlInNewWindow: (url: string): Promise<IPCResponse<{ windowId: string; tabId?: string }>> =>
+      transport.invoke('open-url-in-new-window', url),
 
-  updateLLMResponseTab: (tabId: string, response: string, metadata?: any): Promise<IPCResponse> =>
-    ipcRenderer.invoke('update-llm-response-tab', tabId, response, metadata),
+    // Note tabs
+    openNoteTab: (noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image', filePath?: string): Promise<IPCResponse<{ tabId: string; tab: TabData }>> =>
+      transport.invoke('open-note-tab', noteId, title, content, fileType, filePath),
 
-  updateLLMMetadata: (tabId: string, metadata: any): Promise<IPCResponse> =>
-    ipcRenderer.invoke('update-llm-metadata', tabId, metadata),
+    updateNoteContent: (tabId: string, content: string): Promise<IPCResponse> =>
+      transport.invoke('update-note-content', tabId, content),
 
-  openRawMessageViewer: (tabId: string): Promise<IPCResponse> =>
-    ipcRenderer.invoke('open-raw-message-viewer', tabId),
+    // LLM Response tabs
+    openLLMResponseTab: (query: string, response?: string, error?: string): Promise<IPCResponse<{ tabId: string; tab: TabData }>> =>
+      transport.invoke('open-llm-response-tab', query, response, error),
 
-  openDebugInfoWindow: (tabId: string): Promise<IPCResponse> =>
-    ipcRenderer.invoke('open-debug-info-window', tabId),
+    updateLLMResponseTab: (tabId: string, response: string, metadata?: any): Promise<IPCResponse> =>
+      transport.invoke('update-llm-response-tab', tabId, response, metadata),
 
-  // Content extraction
-  extractContent: (tabId: string): Promise<IPCResponse<ExtractedContent>> =>
-    ipcRenderer.invoke('extract-content', tabId),
+    updateLLMMetadata: (tabId: string, metadata: any): Promise<IPCResponse> =>
+      transport.invoke('update-llm-metadata', tabId, metadata),
 
-  // Bookmarks
-  getBookmarks: (): Promise<IPCResponse<Bookmark[]>> =>
-    ipcRenderer.invoke('get-bookmarks'),
+    openRawMessageViewer: (tabId: string): Promise<IPCResponse> =>
+      transport.invoke('open-raw-message-viewer', tabId),
 
-  addBookmark: (bookmark: Omit<Bookmark, 'id' | 'created'>): Promise<IPCResponse<BookmarkResult>> =>
-    ipcRenderer.invoke('add-bookmark', bookmark),
+    openDebugInfoWindow: (tabId: string): Promise<IPCResponse> =>
+      transport.invoke('open-debug-info-window', tabId),
 
-  deleteBookmark: (id: string): Promise<IPCResponse> =>
-    ipcRenderer.invoke('delete-bookmark', id),
+    // Content extraction
+    extractContent: (tabId: string): Promise<IPCResponse<ExtractedContent>> =>
+      transport.invoke('extract-content', tabId),
 
-  openBookmark: (bookmark: Bookmark): Promise<IPCResponse<{ tabId: string; tab: TabData }>> =>
-    ipcRenderer.invoke('open-bookmark', bookmark),
+    // Bookmarks
+    getBookmarks: (): Promise<IPCResponse<Bookmark[]>> =>
+      transport.invoke('get-bookmarks'),
 
-  // LLM Query
-  sendQuery: (query: string, options?: QueryOptions): Promise<LLMResponse> =>
-    ipcRenderer.invoke('send-query', query, options),
+    addBookmark: (bookmark: Omit<Bookmark, 'id' | 'created'>): Promise<IPCResponse<BookmarkResult>> =>
+      transport.invoke('add-bookmark', bookmark),
 
-  // Model discovery
-  discoverModels: (provider: ProviderType, apiKey?: string, endpoint?: string): Promise<IPCResponse<LLMModel[]>> =>
-    ipcRenderer.invoke('discover-models', provider, apiKey, endpoint),
+    deleteBookmark: (id: string): Promise<IPCResponse> =>
+      transport.invoke('delete-bookmark', id),
 
-  // Screenshot capture
-  triggerScreenshot: (): Promise<IPCResponse<{ success: boolean }>> =>
-    ipcRenderer.invoke('trigger-screenshot'),
+    openBookmark: (bookmark: Bookmark): Promise<IPCResponse<{ tabId: string; tab: TabData }>> =>
+      transport.invoke('open-bookmark', bookmark),
 
-  // Find in page
-  findInPage: (tabId: string, text: string): Promise<IPCResponse<{ requestId?: number }>> =>
-    ipcRenderer.invoke('find-in-page', tabId, text),
+    // LLM Query
+    sendQuery: (query: string, options?: QueryOptions): Promise<LLMResponse> =>
+      transport.invoke('send-query', query, options),
 
-  findNext: (tabId: string): Promise<IPCResponse> =>
-    ipcRenderer.invoke('find-next', tabId),
+    // Model discovery
+    discoverModels: (provider: ProviderType, apiKey?: string, endpoint?: string): Promise<IPCResponse<LLMModel[]>> =>
+      transport.invoke('discover-models', provider, apiKey, endpoint),
 
-  findPrevious: (tabId: string): Promise<IPCResponse> =>
-    ipcRenderer.invoke('find-previous', tabId),
+    // Screenshot capture
+    triggerScreenshot: (): Promise<IPCResponse<{ success: boolean }>> =>
+      transport.invoke('trigger-screenshot'),
 
-  stopFindInPage: (tabId: string): Promise<IPCResponse> =>
-    ipcRenderer.invoke('stop-find-in-page', tabId),
+    // Find in page
+    findInPage: (tabId: string, text: string): Promise<IPCResponse<{ requestId?: number }>> =>
+      transport.invoke('find-in-page', tabId, text),
 
-  setSearchBarVisible: (visible: boolean): Promise<IPCResponse> =>
-    ipcRenderer.invoke('set-search-bar-visible', visible),
+    findNext: (tabId: string): Promise<IPCResponse> =>
+      transport.invoke('find-next', tabId),
 
-  // Event listeners (from main to renderer)
-  onTabCreated: (callback: (data: TabCreatedEvent) => void): () => void => addListener('tab-created', callback),
+    findPrevious: (tabId: string): Promise<IPCResponse> =>
+      transport.invoke('find-previous', tabId),
 
-  onTabUpdated: (callback: (data: TabUpdatedEvent) => void): () => void => addListener('tab-updated', callback),
+    stopFindInPage: (tabId: string): Promise<IPCResponse> =>
+      transport.invoke('stop-find-in-page', tabId),
 
-  onTabClosed: (callback: (data: TabClosedEvent) => void): () => void => addListener('tab-closed', callback),
+    setSearchBarVisible: (visible: boolean): Promise<IPCResponse> =>
+      transport.invoke('set-search-bar-visible', visible),
 
-  onTabTitleUpdated: (callback: (data: TabTitleUpdatedEvent) => void): () => void =>
-    addListener('tab-title-updated', callback),
+    // Event listeners (from main to renderer)
+    onTabCreated: (callback: (data: TabCreatedEvent) => void): () => void =>
+      addListener('tab-created', callback),
 
-  onTabUrlUpdated: (callback: (data: TabUrlUpdatedEvent) => void): () => void =>
-    addListener('tab-url-updated', callback),
+    onTabUpdated: (callback: (data: TabUpdatedEvent) => void): () => void =>
+      addListener('tab-updated', callback),
 
-  onActiveTabChanged: (callback: (data: ActiveTabChangedEvent) => void): () => void =>
-    addListener('active-tab-changed', callback),
+    onTabClosed: (callback: (data: TabClosedEvent) => void): () => void =>
+      addListener('tab-closed', callback),
 
-  onNavigationStateUpdated: (callback: (data: NavigationStateUpdatedEvent) => void): () => void =>
-    addListener('navigation-state-updated', callback),
+    onTabTitleUpdated: (callback: (data: TabTitleUpdatedEvent) => void): () => void =>
+      addListener('tab-title-updated', callback),
 
-  onFocusUrlBar: (callback: () => void): () => void => addListener('focus-url-bar', callback),
+    onTabUrlUpdated: (callback: (data: TabUrlUpdatedEvent) => void): () => void =>
+      addListener('tab-url-updated', callback),
 
-  onFocusSearchBar: (callback: () => void): () => void => addListener('focus-search-bar', callback),
+    onActiveTabChanged: (callback: (data: ActiveTabChangedEvent) => void): () => void =>
+      addListener('active-tab-changed', callback),
 
-  onFocusLLMInput: (callback: () => void): () => void => addListener('focus-llm-input', callback),
+    onNavigationStateUpdated: (callback: (data: NavigationStateUpdatedEvent) => void): () => void =>
+      addListener('navigation-state-updated', callback),
 
-  onNavigateNextTab: (callback: () => void): () => void => addListener('navigate-next-tab', callback),
+    onFocusUrlBar: (callback: () => void): () => void =>
+      addListener('focus-url-bar', callback),
 
-  onNavigatePreviousTab: (callback: () => void): () => void => addListener('navigate-previous-tab', callback),
+    onFocusSearchBar: (callback: () => void): () => void =>
+      addListener('focus-search-bar', callback),
 
-  onBookmarkTab: (callback: () => void): () => void => addListener('bookmark-tab', callback),
+    onFocusLLMInput: (callback: () => void): () => void =>
+      addListener('focus-llm-input', callback),
 
-  onTriggerScreenshot: (callback: () => void): () => void => addListener('trigger-screenshot', callback),
+    onNavigateNextTab: (callback: () => void): () => void =>
+      addListener('navigate-next-tab', callback),
 
-  onFoundInPage: (callback: (data: { activeMatchOrdinal: number; matches: number }) => void): () => void =>
-    addListener('found-in-page', callback),
+    onNavigatePreviousTab: (callback: () => void): () => void =>
+      addListener('navigate-previous-tab', callback),
 
-  onLLMChunk: (callback: (payload: { tabId: string; chunk: string }) => void) => {
-    const handler = (_event: unknown, payload: { tabId: string; chunk: string }) => {
-      callback(payload);
-    };
-    ipcRenderer.on('llm-stream-chunk', handler);
+    onBookmarkTab: (callback: () => void): () => void =>
+      addListener('bookmark-tab', callback),
 
-    // Return unsubscribe function
-    return () => ipcRenderer.removeListener('llm-stream-chunk', handler);
-  },
+    onTriggerScreenshot: (callback: () => void): () => void =>
+      addListener('trigger-screenshot', callback),
 
-  onTabLoadError: (callback: (data: { id: string; errorCode: number; errorDescription: string; url: string }) => void): void => {
-    ipcRenderer.on('tab-load-error', (_event, data) => callback(data));
-  },
+    onFoundInPage: (callback: (data: { activeMatchOrdinal: number; matches: number }) => void): () => void =>
+      addListener('found-in-page', callback),
 
-  onTabFaviconUpdated: (callback: (data: { id: string; favicon: string }) => void): void => {
-    ipcRenderer.on('tab-favicon-updated', (_event, data) => callback(data));
-  },
+    onLLMChunk: (callback: (payload: { tabId: string; chunk: string }) => void) => {
+      const handler = (_event: unknown, payload: { tabId: string; chunk: string }) => {
+        callback(payload);
+      };
+      transport.on('llm-stream-chunk', handler as any);
 
-  // File utilities
-  getPathForFile: (file: File): string => {
-    return webUtils.getPathForFile(file);
-  },
+      // Return unsubscribe function
+      return () => transport.removeListener('llm-stream-chunk', handler as any);
+    },
 
-  // Quick list sync for CLI probe tool
-  syncQuickList: (models: Array<{ provider: ProviderType; model: string }>): Promise<IPCResponse> =>
-    ipcRenderer.invoke('sync-quick-list', models),
+    onTabLoadError: (callback: (data: { id: string; errorCode: number; errorDescription: string; url: string }) => void): void => {
+      transport.on('tab-load-error', (_event, data) => callback(data));
+    },
 
-  // Capability probing
-  probeModel: (
-    provider: ProviderType,
-    model: string,
-    apiKey?: string,
-    endpoint?: string,
-  ) => ipcRenderer.invoke('probe-model', provider, model, apiKey, endpoint),
-  loadCapabilityCache: (): Promise<any> => ipcRenderer.invoke('load-capability-cache'),
+    onTabFaviconUpdated: (callback: (data: { id: string; favicon: string }) => void): void => {
+      transport.on('tab-favicon-updated', (_event, data) => callback(data));
+    },
 
-  // Secure storage for sensitive data (API keys)
-  encryptSecureData: (data: Record<string, string>): Promise<{ success: boolean; data?: Record<string, string>; error?: string }> =>
-    ipcRenderer.invoke('secure-storage-encrypt', data),
+    // File utilities
+    getPathForFile: (file: File): string => {
+      return webUtils.getPathForFile(file);
+    },
 
-  decryptSecureData: (data: Record<string, string>): Promise<{ success: boolean; data?: Record<string, string>; error?: string }> =>
-    ipcRenderer.invoke('secure-storage-decrypt', data),
+    // Quick list sync for CLI probe tool
+    syncQuickList: (models: Array<{ provider: ProviderType; model: string }>): Promise<IPCResponse> =>
+      transport.invoke('sync-quick-list', models),
 
-  isSecureStorageAvailable: (): Promise<boolean> =>
-    ipcRenderer.invoke('secure-storage-is-available'),
+    // Capability probing
+    probeModel: (
+      provider: ProviderType,
+      model: string,
+      apiKey?: string,
+      endpoint?: string,
+    ) => transport.invoke('probe-model', provider, model, apiKey, endpoint),
+    loadCapabilityCache: (): Promise<any> => transport.invoke('load-capability-cache'),
+
+    // Secure storage for sensitive data (API keys)
+    encryptSecureData: (data: Record<string, string>): Promise<{ success: boolean; data?: Record<string, string>; error?: string }> =>
+      transport.invoke('secure-storage-encrypt', data),
+
+    decryptSecureData: (data: Record<string, string>): Promise<{ success: boolean; data?: Record<string, string>; error?: string }> =>
+      transport.invoke('secure-storage-decrypt', data),
+
+    isSecureStorageAvailable: (): Promise<boolean> =>
+      transport.invoke('secure-storage-is-available'),
+  };
 };
 
 // Diagnostic: log every tab-updated payload to trace streaming completion signals
-ipcRenderer.on('tab-updated', (_event, rawData) => {
+defaultTransport.on('tab-updated', (_event, rawData) => {
   const tabData = (rawData as any)?.tab ?? rawData;
   const metadata = tabData?.metadata ?? {};
   const { response: _response, ...metadataWithoutResponse } = metadata;
@@ -252,8 +290,9 @@ ipcRenderer.on('tab-updated', (_event, rawData) => {
   });
 });
 
+const electronAPI = createElectronAPI();
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);
 console.log('Preload: electronAPI exposed to window');
 
 // Type definition for window.electronAPI
-export type ElectronAPI = typeof electronAPI;
+export type ElectronAPI = ReturnType<typeof createElectronAPI>;
