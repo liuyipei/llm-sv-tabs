@@ -40,6 +40,7 @@ export class SecureStorageService {
 
   /**
    * Decrypt sensitive data
+   * Handles migration from plaintext storage when encryption becomes available
    */
   decryptString(encryptedBuffer: Buffer): string {
     if (!this.isEncryptionAvailable) {
@@ -50,6 +51,15 @@ export class SecureStorageService {
     try {
       return safeStorage.decryptString(encryptedBuffer);
     } catch (error) {
+      // Check if this is plaintext data stored before encryption was available
+      // This handles migration: data stored as plaintext, now encryption is available
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('does not appear to be encrypted') ||
+          errorMessage.includes('Ciphertext')) {
+        console.warn('SecureStorage: Data appears to be unencrypted (legacy storage). Reading as plaintext.');
+        return encryptedBuffer.toString('utf-8');
+      }
+
       console.error('SecureStorage: Decryption failed:', error);
       throw new Error('Failed to decrypt sensitive data');
     }
