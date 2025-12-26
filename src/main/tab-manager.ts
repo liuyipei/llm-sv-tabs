@@ -39,6 +39,7 @@ class TabManager {
   private openUrlInNewWindowCallback: ((url: string) => Promise<void>) | null = null;
   private openNewWindowCallback: (() => Promise<void>) | null = null;
   private readonly viewFactory: (windowId?: WindowId) => ViewHandle;
+  private readonly windowHandleFactory: (window: BrowserWindow) => WindowHandle;
 
   constructor(
     mainWindow: BrowserWindow | WindowHandle,
@@ -73,8 +74,11 @@ class TabManager {
       onClose: (windowId: WindowId) => this.handleWindowClosed(windowId),
     };
 
-    const createWindowHandle = options.createWindowHandle ?? ((window: BrowserWindow) => new ElectronWindowHandle(window));
-    const primaryWindowHandle = (mainWindow as any).getNativeWindow ? (mainWindow as WindowHandle) : createWindowHandle(mainWindow as BrowserWindow);
+    this.windowHandleFactory =
+      options.createWindowHandle ?? ((window: BrowserWindow) => new ElectronWindowHandle(window));
+    const primaryWindowHandle = (mainWindow as any).getNativeWindow
+      ? (mainWindow as WindowHandle)
+      : this.windowHandleFactory(mainWindow as BrowserWindow);
 
     this.windowRegistry =
       options.createWindowRegistry?.(primaryWindowHandle, windowCallbacks) ??
@@ -84,7 +88,7 @@ class TabManager {
     this.sessionManager = options.createSessionManager?.() ?? new SessionManager();
     this.lastMetadataUpdate = new Map();
     this.abortControllers = new Map();
-    this.viewFactory = options.viewFactory ?? ((windowId?: WindowId) => this.createDefaultView(windowId, createWindowHandle));
+    this.viewFactory = options.viewFactory ?? ((windowId?: WindowId) => this.createDefaultView(windowId, this.windowHandleFactory));
 
     const {
       createLlmTabs,
@@ -1128,8 +1132,9 @@ class TabManager {
    * @param isPrimary Whether this should become the primary window
    * @returns The window ID for the registered window
    */
-  registerNewWindow(window: BrowserWindow, isPrimary: boolean = false): string {
-    const windowId = this.windowRegistry.registerWindow(window, isPrimary, {
+  registerNewWindow(window: BrowserWindow | WindowHandle, isPrimary: boolean = false): string {
+    const handle = (window as any).getNativeWindow ? (window as WindowHandle) : this.windowHandleFactory(window as BrowserWindow);
+    const windowId = this.windowRegistry.registerWindow(handle, isPrimary, {
       onResize: (wId) => this.updateWebContentsViewBounds(wId),
       onClose: (wId) => this.handleWindowClosed(wId),
     });
