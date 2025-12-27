@@ -109,7 +109,103 @@ The current system (`content-extractor.ts`, `query-handlers.ts`) extracts conten
 
 ## Core Types
 
-### Source
+### v1 Simplified Source (Recommended for Initial Implementation)
+
+For v1, use a **discriminated union** that's simpler than the normalized Source/Artifact model.
+This reduces complexity while still providing anchors and provenance:
+
+```typescript
+// src/types/context-ir.ts
+
+type SourceId = `src:${string}`;  // 8-char hash
+
+type Source =
+  | WebpageSource
+  | PdfSource
+  | ImageSource
+  | NoteSource
+  | ChatlogSource;
+
+interface BaseSource {
+  source_id: SourceId;
+  title: string;
+  url?: string;
+  captured_at: number;
+  tab_id?: string;
+}
+
+interface WebpageSource extends BaseSource {
+  kind: 'webpage';
+  /** Extracted markdown content */
+  markdown: string;
+  /** Optional screenshot for vision models */
+  screenshot?: BinaryBlob;
+  /** Extraction method used */
+  extraction_type: 'article' | 'app';
+  quality: QualityHint;
+}
+
+interface PdfSource extends BaseSource {
+  kind: 'pdf';
+  /** Original PDF bytes (for native PDF support) */
+  pdf_bytes?: BinaryBlob;
+  /** Per-page content */
+  pages: Array<{
+    page_number: number;
+    /** Extracted text */
+    text?: string;
+    /** Rendered page image */
+    image?: BinaryBlob;
+    quality?: QualityHint;
+  }>;
+}
+
+interface ImageSource extends BaseSource {
+  kind: 'image';
+  /** The image data */
+  image: BinaryBlob;
+  /** Alt text or description (for text-only models) */
+  alt_text?: string;
+}
+
+interface NoteSource extends BaseSource {
+  kind: 'note';
+  /** Plain text or markdown content */
+  text: string;
+}
+
+interface ChatlogSource extends BaseSource {
+  kind: 'chatlog';
+  /** Messages in the conversation */
+  messages: Array<{
+    index: number;
+    role: 'user' | 'assistant';
+    content: string;
+  }>;
+}
+
+interface BinaryBlob {
+  data: string;        // base64
+  mime_type: string;
+  byte_size: number;
+}
+```
+
+This flattened structure:
+- Eliminates the Artifact indirection for v1
+- Makes each source type self-describing
+- Still supports anchors via `source_id` + location specifiers
+- Can be evolved to the full Source/Artifact model in v2 if needed
+
+---
+
+### Full Source/Artifact Model (v2)
+
+The normalized model below provides more flexibility for complex scenarios
+(multiple extraction methods per source, caching individual artifacts, etc.).
+**Consider this for v2.**
+
+#### Source
 
 A **Source** is the canonical representation of any content brought into context.
 
@@ -118,8 +214,11 @@ A **Source** is the canonical representation of any content brought into context
 
 /**
  * Unique identifier for a source, derived from content hash.
- * Format: "src:<sha256-first-12-chars>"
- * Example: "src:9f3a7b2c1d4e"
+ * Format: "src:<sha256-first-8-chars>"
+ * Example: "src:9f3a7b2c"
+ *
+ * 8 hex chars = 4 billion combinations, sufficient for deduplication
+ * while keeping anchors readable in prompts.
  */
 export type SourceId = `src:${string}`;
 
@@ -196,9 +295,30 @@ export type ArtifactType =
   | 'screenshot'     // Full page screenshot
   | 'thumbnail'      // Resized preview image
   | 'raw_image'      // Original uploaded image
+  | 'raw_pdf'        // Original PDF bytes (for native PDF support)
   | 'table_json';    // Structured table data
 
 export type QualityHint = 'good' | 'mixed' | 'low' | 'ocr_like';
+
+/**
+ * Quality hint heuristics (computed during extraction):
+ *
+ * 'good':     - Text density > 50 chars per line average
+ *             - < 5% non-ASCII characters
+ *             - Recognizable word patterns
+ *
+ * 'mixed':    - Some garbled text or encoding issues
+ *             - Inconsistent spacing/formatting
+ *             - 5-20% non-ASCII characters
+ *
+ * 'low':      - Sparse text with lots of whitespace
+ *             - > 20% non-ASCII or control characters
+ *             - Very short average word length (< 3 chars)
+ *
+ * 'ocr_like': - Detected OCR patterns (single-char words, unusual spacing)
+ *             - Common OCR errors (rn→m, l→1, O→0)
+ *             - No embedded fonts in PDF source
+ */
 
 export interface Artifact {
   /** Hash of artifact content */
@@ -381,7 +501,7 @@ Anchors are the key to citation and provenance. They must be:
 <source_id>#<location_specifier>
 
 Where:
-  source_id    = "src:" + sha256(canonical_bytes)[0:12]
+  source_id    = "src:" + sha256(canonical_bytes)[0:8]
   location     = page | section | message | region
 
   page         = "p=" + page_number
@@ -393,11 +513,11 @@ Where:
 ### Examples
 
 ```
-src:9f3a7b2c1d4e                    # Whole PDF document
-src:9f3a7b2c1d4e#p=12               # Page 12 of PDF
-src:1ab2cd3ef456#sec=H2.3           # 3rd section under 2nd H2
-src:7890abcdef12#msg=5              # Message 5 in chat log
-src:3456789abcde#r=100,200,300,400  # Region in image
+src:9f3a7b2c                    # Whole PDF document
+src:9f3a7b2c#p=12               # Page 12 of PDF
+src:1ab2cd3e#sec=H2.3           # 3rd section under 2nd H2
+src:7890abcd#msg=5              # Message 5 in chat log
+src:3456789a#r=100,200,300,400  # Region in image
 ```
 
 ### Cite Instruction
@@ -472,7 +592,7 @@ The system applies increasingly aggressive truncation as token limits are reache
 |-------|----------|------------------|
 | **0** | Full content | Everything |
 | **1** | Remove low-ranked chunks | Chunk headers as "[omitted]" |
-| **2** | Summarize low-ranked sources | Anchors in summaries |
+| **2** | Extractive summary of low-ranked sources | First 2-3 sentences + anchors |
 | **3** | Reduce to top-K pages/chunks | Page list in index |
 | **4** | Hard truncate at boundaries | Chunk headers with "[truncated]" |
 | **5** | Minimal | Context Index + Task only |
@@ -485,14 +605,33 @@ No matter how aggressive the truncation:
 2. **Anchors** - Every remaining reference is citable
 3. **Task** - The user's query is never truncated
 
-### Summarization Rules
+### Extractive Summarization (Stage 2)
 
-When summarizing content (Stage 2), always preserve anchor tokens:
+**v1 uses extractive summaries** - no LLM call required. This avoids circular dependencies
+and keeps the pipeline deterministic.
 
+Strategy:
+1. Take first 2-3 sentences of the content (or first paragraph)
+2. Append anchor references for remaining content
+3. Mark as `[extractive summary]` so the model knows it's incomplete
+
+```typescript
+function extractiveSummary(chunk: ContextChunk): string {
+  const sentences = chunk.content.split(/[.!?]+\s+/).slice(0, 3);
+  const summary = sentences.join('. ').trim();
+
+  return `${summary}... [extractive summary, see ${chunk.anchor} for full content]`;
+}
 ```
-❌ Bad:  "The document discusses pricing terms on several pages."
-✅ Good: "src:9f3a... discusses pricing terms (see #p=3, #p=4), details omitted for space."
+
+Example output:
 ```
+src:9f3a7b2c discusses Q3 financial results. Revenue increased 15% quarter-over-quarter.
+The board approved a dividend increase... [extractive summary, see src:9f3a7b2c for full content]
+```
+
+**Note**: LLM-generated abstractive summaries could be added in v2 as an opt-in feature,
+but v1 prioritizes determinism and speed.
 
 ---
 
@@ -566,8 +705,8 @@ interface RenderPreferences {
   /** Order of content parts */
   contentOrder: 'text_first' | 'images_first' | 'interleaved';
 
-  /** How to include images */
-  imageFormat: 'base64' | 'url' | 'file_id';
+  /** How to include images (v1: base64 only) */
+  imageFormat: 'base64';  // 'url' | 'file_id' deferred to v2
 
   /** Maximum image dimension */
   maxImagePx: number;
@@ -575,6 +714,30 @@ interface RenderPreferences {
   /** Use native PDF when available */
   preferNativePdf: boolean;
 }
+
+/**
+ * v2 Scope: Provider File APIs
+ *
+ * Both OpenAI and Gemini support File APIs for reusing uploaded content:
+ * - OpenAI: Files API with file_id references
+ * - Gemini: Files API with URI references
+ *
+ * Benefits:
+ * - Avoid re-uploading same content across requests
+ * - Reduced request payload sizes
+ * - Potential cost savings
+ *
+ * Implementation would add:
+ * - FileUploadCache: Map<source_id, { provider, file_id, expires_at }>
+ * - imageFormat: 'file_id' option
+ * - Automatic upload on first use, reference on subsequent uses
+ * - TTL management (OpenAI files expire, Gemini has storage limits)
+ *
+ * Deferred to v2 because:
+ * - Base64 inline works for all providers
+ * - File API semantics vary significantly between providers
+ * - Adds complexity around cache invalidation and quota management
+ */
 ```
 
 ### OpenAI Adapter
@@ -769,7 +932,7 @@ function computeSourceId(extracted: ExtractedContent): SourceId {
       ? extracted.content
       : JSON.stringify(extracted.content)
   });
-  const hash = sha256(canonical).substring(0, 12);
+  const hash = sha256(canonical).substring(0, 8);  // 8 chars = 4B combinations
   return `src:${hash}`;
 }
 ```
@@ -860,34 +1023,57 @@ const FIXTURES = {
 
 ## Implementation Phases
 
-### Phase 1: Core Types and Source Building
-- Define all types in `context-ir.ts`
-- Implement `source-builder.ts`
-- Add anchor utilities
+### v1 Scope (Simplified, Deterministic)
+
+#### Phase 1: Core Types and Source Building
+- Define v1 discriminated union types in `context-ir.ts`
+- Implement `source-builder.ts` (ExtractedContent → Source)
+- Add anchor utilities (8-char hashes, location parsing)
+- Quality hint heuristics
 - Tests for source/anchor generation
 
-### Phase 2: Context Envelope and Rendering
-- Implement `context-ir-builder.ts`
-- Text rendering format
-- Basic adapters (text output only)
+#### Phase 2: Context Envelope and Rendering
+- Implement `context-ir-builder.ts` (Source[] → ContextEnvelope)
+- Text rendering format (Context Index + Chunks + Attachments)
 - Integration with existing `query-handlers.ts`
+- Tests for envelope building
 
-### Phase 3: Token Budgeting
-- Implement degrade ladder in `token-budget.ts`
-- Summarization with anchor preservation
+#### Phase 3: Token Budgeting
+- Implement 5-stage degrade ladder in `token-budget.ts`
+- Extractive summarization (no LLM calls)
+- Semantic boundary detection (headings, paragraphs, page breaks)
 - Tests for all degrade stages
 
-### Phase 4: Provider Adapters
-- Full OpenAI adapter with images
-- Full Anthropic adapter with native PDF
-- Gemini adapter
+#### Phase 4: Provider Adapters
+- OpenAI adapter (text + base64 images)
+- Anthropic adapter (text + base64 images + native PDF)
+- Gemini adapter (images-first ordering)
 - Wire into existing provider flow
 
-### Phase 5: Advanced Features
-- Relevance ranking for chunks
-- Semantic boundary detection for truncation
-- Caching and idempotence
-- PII/credential detection hints
+---
+
+### v2 Scope (Enhanced, Opt-in Complexity)
+
+#### Phase 5: Advanced Source Model
+- Full Source/Artifact normalization (if needed)
+- Multiple extraction methods per source
+- Artifact-level caching
+
+#### Phase 6: Provider File APIs
+- OpenAI Files API integration
+- Gemini Files API integration
+- FileUploadCache with TTL management
+- `imageFormat: 'file_id'` support
+
+#### Phase 7: LLM-Assisted Features
+- Abstractive summarization (opt-in)
+- Relevance ranking via embeddings
+- Query-aware chunk selection
+
+#### Phase 8: Safety and Trust
+- PII detection hints
+- Credential detection
+- Origin-based trust levels
 
 ---
 
@@ -895,12 +1081,23 @@ const FIXTURES = {
 
 This design introduces a **provider-agnostic Context IR** that:
 
-1. **Anchors everything** with stable, citable identifiers
+1. **Anchors everything** with stable, citable identifiers (8-char hashes)
 2. **Preserves provenance** through extraction metadata
-3. **Degrades gracefully** while keeping the model informed of what exists
-4. **Separates concerns** between content representation and provider formatting
-5. **Enables citations** that survive summarization and truncation
+3. **Degrades gracefully** with a 5-stage degrade ladder
+4. **Stays deterministic** - v1 uses extractive summaries, no LLM calls in the pipeline
+5. **Separates concerns** between content representation and provider formatting
+6. **Enables citations** that survive summarization and truncation
 
-The key insight is: **the model should always know what context exists, even if it can't see all of it**. The Context Index and anchor system make this possible.
+### v1 Design Principles
 
-By implementing this as a layer on top of existing extraction, we get incremental adoption without breaking current functionality.
+- **Simplicity over flexibility**: Discriminated union Source type, not normalized artifacts
+- **Determinism over intelligence**: Extractive summaries, not LLM-generated
+- **Inline over external**: Base64 images, not File API references
+- **Incremental adoption**: Layers on existing `ExtractedContent` without breaking it
+
+### Key Insight
+
+**The model should always know what context exists, even if it can't see all of it.**
+
+The Context Index and anchor system make this possible - even at Stage 5 (maximum truncation),
+the model sees a complete index of sources and can request more detail if needed.
