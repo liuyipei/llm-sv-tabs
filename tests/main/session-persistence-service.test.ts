@@ -112,6 +112,31 @@ describe('SessionPersistenceService - Persistence Logic', () => {
     });
   });
 
+  describe('getTabsForPersistence', () => {
+    it('filters out non-persistable tabs while keeping eligible ones intact', () => {
+      const tabs = new Map<string, TabData>();
+      const keepTab: TabData = {
+        id: 'keep-1',
+        title: 'Example',
+        url: 'https://example.com',
+        type: 'webpage',
+      };
+      const dropTab: TabData = {
+        id: 'drop-1',
+        title: 'Raw Message',
+        url: 'raw-message://tab-5',
+        type: 'notes',
+      };
+      tabs.set(keepTab.id, keepTab);
+      tabs.set(dropTab.id, dropTab);
+
+      const persisted = mapper.getTabsForPersistence(tabs);
+
+      expect(persisted).toHaveLength(1);
+      expect(persisted[0].id).toBe('keep-1');
+    });
+  });
+
   describe('prepareTabForPersistence logic', () => {
     it('should strip imageData from image tabs with filePath', () => {
       const imageTab: TabData = {

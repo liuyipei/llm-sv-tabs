@@ -32,6 +32,7 @@ describe('keyboard-shortcuts', () => {
     const openNewWindowShortcut = shortcutDefinitions.find(
       (s) => s.id === 'openNewWindow'
     )!;
+    const goBackShortcut = shortcutDefinitions.find((s) => s.id === 'goBack')!;
 
     it('should match Ctrl+N on Windows', () => {
       const input = {
@@ -115,6 +116,19 @@ describe('keyboard-shortcuts', () => {
         meta: false,
       };
       expect(matchesInputShortcut(input, openNewWindowShortcut, 'linux')).toBe(true);
+    });
+
+    it('should respect platform-scoped chords (meta+[ only on mac)', () => {
+      const macChordInput = {
+        key: '[',
+        type: 'keyDown' as const,
+        control: false,
+        alt: false,
+        shift: false,
+        meta: true,
+      };
+      expect(matchesInputShortcut(macChordInput, goBackShortcut, 'darwin')).toBe(true);
+      expect(matchesInputShortcut(macChordInput, goBackShortcut, 'windows')).toBe(false);
     });
   });
 

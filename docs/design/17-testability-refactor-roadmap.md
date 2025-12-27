@@ -19,6 +19,9 @@ This document consolidates the refactor proposals and remaining integration-only
   - `createElectronAPI` builds the renderer bridge from an injectable IPC transport, letting tests supply stubbed `invoke/on` handlers without touching `ipcRenderer`.【F:src/main/preload.ts†L16-L173】
   - `TabManager` now accepts factories for the window registry, view creation, and its service dependencies (LLM, navigation, persistence, etc.) so tests can substitute throttling/mutation/failure behaviors directly.【F:src/main/tab-manager.ts†L21-L132】
   - Session persistence logic is factored into a pure mapper with injected IO so serialize/deserialize can be round-tripped in unit tests without touching the filesystem, and a lightweight harness exercises load → save → restore flows headlessly.【F:src/main/tab-manager/session-persistence-mapper.ts†L7-L54】【F:tests/main/session-persistence-harness.test.ts†L42-L118】
+  - The round-trip harness now covers multi-window ownership and active-tab restoration using stub window handles and a stub session manager, keeping per-window state deterministic without Electron.【F:tests/main/session-persistence-harness.test.ts†L120-L215】
+  - Platform-scoped shortcut chords (e.g., mac-only meta+[) are validated through the pure matcher to prevent cross-platform collisions before Electron binding.【F:tests/shared/keyboard-shortcuts.test.ts†L23-L79】
+  - Persistence filters are asserted against mixed eligible/ineligible tabs to ensure only persistable entries survive save cycles.【F:tests/main/session-persistence-service.test.ts†L20-L96】
   - BrowserWindow/WebContentsView are wrapped in `WindowHandle`/`ViewHandle` adapters, letting TabManager attach/detach/resize/close views in tests without Electron while keeping the multi-window registry contract intact.【F:src/main/tab-manager/window-view-handles.ts†L4-L81】【F:tests/main/window-view-handles.test.ts†L63-L96】
 
 ## Integration-only gaps and what they require
