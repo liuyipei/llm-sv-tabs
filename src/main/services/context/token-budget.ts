@@ -49,7 +49,7 @@ export function applyTokenBudget(envelope: ContextEnvelope, options: TokenBudget
   let result = tryStage1(envelope, contentBudget, minChunks);
   if (result.fits) return finalize(envelope, result.chunks, result.cuts, 1, maxTokens, baseTokens);
 
-  result = tryStage2(envelope, result.chunks, contentBudget, minChunks);
+  result = tryStage2(result.chunks, contentBudget, minChunks);
   if (result.fits) return finalize(envelope, result.chunks, result.cuts, 2, maxTokens, baseTokens);
 
   result = tryStage3(result.chunks, contentBudget, minChunks);
@@ -92,7 +92,7 @@ function tryStage1(envelope: ContextEnvelope, budget: number, minKeep: number): 
 }
 
 /** Stage 2: Extractive summary for remaining low-value chunks */
-function tryStage2(envelope: ContextEnvelope, chunks: ContextChunk[], budget: number, minKeep: number): StageResult {
+function tryStage2(chunks: ContextChunk[], budget: number, minKeep: number): StageResult {
   const sorted = [...chunks].sort((a, b) => (b.relevance_score ?? 0) - (a.relevance_score ?? 0));
   const result: ContextChunk[] = [];
   const cuts: TokenBudgetCut[] = [];
