@@ -40,6 +40,9 @@ function scheduleQuickListSync(triggeredForceProbe = false): void {
 
   if (syncTimeout) clearTimeout(syncTimeout);
   syncTimeout = setTimeout(() => {
+    // Skip if not in browser environment (e.g., during tests)
+    if (typeof window === 'undefined') return;
+
     const electronAPI = (window as any).electronAPI;
     const models = get(quickSwitchModels);
     const keys = get(apiKeys);
