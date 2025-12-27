@@ -343,58 +343,27 @@ The main topic is climate change.`,
   });
 
   describe('getSourceQuality', () => {
-    it('should return quality from webpage source', () => {
-      const source: WebpageSource = {
+    it('should always return good (quality assessment deferred)', () => {
+      const webpageSource: WebpageSource = {
         kind: 'webpage',
         source_id: 'src:12345678',
         title: 'Test',
         captured_at: Date.now(),
         markdown: 'Content',
         extraction_type: 'article',
-        quality: 'mixed',
+        quality: 'good',
       };
 
-      expect(getSourceQuality(source)).toBe('mixed');
-    });
-
-    it('should return worst quality from PDF pages', () => {
-      const source: PdfSource = {
-        kind: 'pdf',
-        source_id: 'src:12345678',
-        title: 'Test',
-        captured_at: Date.now(),
-        pages: [
-          { page_number: 1, text: 'Good page', quality: 'good' },
-          { page_number: 2, text: 'Bad page', quality: 'low' },
-          { page_number: 3, text: 'Okay page', quality: 'mixed' },
-        ],
-      };
-
-      expect(getSourceQuality(source)).toBe('low');
-    });
-
-    it('should return good for image sources', () => {
-      const source: ImageSource = {
-        kind: 'image',
-        source_id: 'src:12345678',
-        title: 'Test',
-        captured_at: Date.now(),
-        image: { data: '', mime_type: 'image/png', byte_size: 0 },
-      };
-
-      expect(getSourceQuality(source)).toBe('good');
-    });
-
-    it('should assess quality for note sources', () => {
-      const source: NoteSource = {
+      const noteSource: NoteSource = {
         kind: 'note',
         source_id: 'src:12345678',
         title: 'Test',
         captured_at: Date.now(),
-        text: 'This is well-formatted note content with proper sentences.',
+        text: 'Note content',
       };
 
-      expect(getSourceQuality(source)).toBe('good');
+      expect(getSourceQuality(webpageSource)).toBe('good');
+      expect(getSourceQuality(noteSource)).toBe('good');
     });
   });
 

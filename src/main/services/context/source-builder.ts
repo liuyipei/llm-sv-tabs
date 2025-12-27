@@ -26,7 +26,6 @@ import type {
   QualityHint,
 } from '../../../types/context-ir.js';
 import { computeSourceId } from './anchor-utils.js';
-import { assessQuality } from './quality-hints.js';
 
 // ============================================================================
 // Main Builder Function
@@ -91,14 +90,13 @@ function buildWebpageSource(
   baseProps: BaseSourceProps
 ): WebpageSource {
   const markdown = extractMarkdownContent(extracted);
-  const quality = assessQuality(markdown);
 
   const source: WebpageSource = {
     ...baseProps,
     kind: 'webpage',
     markdown,
     extraction_type: (extracted.metadata?.extractionType as 'article' | 'app') || 'article',
-    quality,
+    quality: 'good', // Quality assessment deferred to future implementation
   };
 
   // Add screenshot if available
@@ -125,14 +123,12 @@ function buildPdfSource(
     pages.push({
       page_number: 1,
       text: pdfContent.text,
-      quality: assessQuality(pdfContent.text),
     });
   } else if (typeof extracted.content === 'string') {
     // Text-only extraction
     pages.push({
       page_number: 1,
       text: extracted.content,
-      quality: assessQuality(extracted.content),
     });
   }
 
@@ -168,7 +164,6 @@ function buildPdfSource(
         pages.push({
           page_number: parsedPage.pageNumber,
           text: parsedPage.text,
-          quality: assessQuality(parsedPage.text),
         });
       }
     }
@@ -484,34 +479,11 @@ export function getSourceText(source: Source): string {
 }
 
 /**
- * Get a quality hint for the entire source
+ * Get a quality hint for the entire source.
+ *
+ * Note: Quality assessment is deferred to future implementation.
+ * Currently always returns 'good'.
  */
-export function getSourceQuality(source: Source): QualityHint {
-  switch (source.kind) {
-    case 'webpage':
-      return source.quality;
-
-    case 'pdf': {
-      // Return worst quality among pages, or 'good' if no text
-      const qualities = source.pages
-        .map((p) => p.quality)
-        .filter((q): q is QualityHint => q !== undefined);
-      if (qualities.length === 0) return 'good';
-      if (qualities.includes('low')) return 'low';
-      if (qualities.includes('ocr_like')) return 'ocr_like';
-      if (qualities.includes('mixed')) return 'mixed';
-      return 'good';
-    }
-
-    case 'image':
-      // Images don't have text quality
-      return 'good';
-
-    case 'note':
-      return assessQuality(source.text);
-
-    case 'chatlog':
-      // Chatlogs are typically good quality (LLM output)
-      return 'good';
-  }
+export function getSourceQuality(_source: Source): QualityHint {
+  return 'good';
 }

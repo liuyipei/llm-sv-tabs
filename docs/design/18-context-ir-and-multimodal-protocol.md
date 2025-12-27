@@ -1029,16 +1029,14 @@ const FIXTURES = {
 - Define v1 discriminated union types in `context-ir.ts`
 - Implement `source-builder.ts` (ExtractedContent → Source)
 - Add anchor utilities (8-char hashes, location parsing)
-- Quality hint heuristics
 - Tests for source/anchor generation
 
 **Implemented files:**
 - `src/types/context-ir.ts` - Core type definitions
 - `src/main/services/context/anchor-utils.ts` - Source ID and anchor utilities
-- `src/main/services/context/quality-hints.ts` - Text quality assessment
 - `src/main/services/context/source-builder.ts` - ExtractedContent → Source conversion
 - `src/main/services/context/index.ts` - Public exports
-- `tests/context-ir/*.test.ts` - 69 tests covering all Phase 1 functionality
+- `tests/context-ir/*.test.ts` - Tests covering Phase 1 functionality
 
 #### Phase 2: Context Envelope and Rendering
 - Implement `context-ir-builder.ts` (Source[] → ContextEnvelope)
@@ -1082,6 +1080,12 @@ const FIXTURES = {
 - PII detection hints
 - Credential detection
 - Origin-based trust levels
+
+#### Phase 9: Quality Hints (Deferred)
+- Text quality assessment heuristics (good/mixed/low/ocr_like)
+- OCR detection patterns
+- Guidance for when to prefer images over text
+- Requires real usage data to tune thresholds effectively
 
 ---
 

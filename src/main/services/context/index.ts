@@ -7,7 +7,6 @@
  * - Source types (discriminated unions for different content types)
  * - Source building (ExtractedContent → Source conversion)
  * - Anchor utilities (stable content identifiers)
- * - Quality hints (text extraction quality assessment)
  *
  * See docs/design/18-context-ir-and-multimodal-protocol.md
  */
@@ -43,13 +42,6 @@ export {
   type SourceIdInput,
   type LocationSpec,
 } from './anchor-utils.js';
-
-// Quality hints
-export {
-  assessQuality,
-  describeQuality,
-  isQualitySufficientForText,
-} from './quality-hints.js';
 
 // Source building
 export {
