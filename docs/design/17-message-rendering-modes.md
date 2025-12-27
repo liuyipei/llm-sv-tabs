@@ -328,6 +328,84 @@ npm test -- tests/rendering/render-message.test.ts
 
 ---
 
+## Styling Dynamic Content: Common Pitfalls
+
+When styling dynamically-rendered markdown content (like code blocks with action buttons), several non-obvious issues can arise. This section documents lessons learned.
+
+### 1. DOMPurify Silently Strips Elements
+
+**Problem:** DOMPurify removes any HTML elements or attributes not in its allowlist. Your carefully crafted wrapper `<div>` or `<svg>` icons simply disappear.
+
+**Symptoms:**
+- Elements appear in the renderer output but not in the DOM
+- Layout breaks because wrapper elements are missing
+- SVG icons don't appear
+
+**Solution:** Explicitly add all needed tags and attributes to DOMPurify config:
+
+```typescript
+DOMPurify.sanitize(html, {
+  ALLOWED_TAGS: [
+    // ... existing tags ...
+    'div', 'span', 'button',
+    'svg', 'path', 'rect', 'circle', 'g', // For icons
+  ],
+  ALLOWED_ATTR: [
+    // ... existing attrs ...
+    'data-action', 'data-code', 'data-lang', // Custom data attributes
+    'd', 'viewBox', 'fill', 'stroke', // SVG attributes
+  ],
+});
+```
+
+### 2. CSS `:global()` Selectors May Not Reach Dynamic Content
+
+**Problem:** Svelte's `:global()` selectors and even `!important` declarations may not reliably style content injected via `innerHTML` or rendered markdown.
+
+**Symptoms:**
+- Styles work in dev tools when manually added but not in the app
+- `!important` doesn't help
+- Flexbox layouts appear as block/stacked elements
+
+**Why it happens:**
+- CSS specificity conflicts with other stylesheets
+- Component CSS may not be loaded in the rendering context
+- Scoped styles may not penetrate dynamic content boundaries
+
+**Solution:** Use inline styles on the HTML output as a reliable fallback:
+
+```typescript
+const headerStyle = 'display:flex;justify-content:space-between;align-items:center;';
+return `<div style="${headerStyle}">...</div>`;
+```
+
+### 3. highlight.js Theme Colors Must Match
+
+**Problem:** Code blocks use highlight.js for syntax highlighting, which has its own background color from its theme CSS (e.g., `github-dark`). Wrapper elements need to match this color exactly.
+
+**Symptoms:**
+- Header bar appears lighter/darker than code block
+- Visual "seam" between header and code
+
+**Solution:** Use the exact theme background color in inline styles:
+
+```typescript
+// github-dark theme uses #0d1117
+const wrapperStyle = 'background:#0d1117;';
+```
+
+### 4. Debugging Checklist
+
+When styling dynamic markdown content:
+
+1. ✅ Check DOMPurify `ALLOWED_TAGS` includes your elements
+2. ✅ Check DOMPurify `ALLOWED_ATTR` includes your attributes (especially `style`)
+3. ✅ Inspect the actual DOM to verify structure matches expected HTML
+4. ✅ Try inline styles to rule out CSS specificity issues
+5. ✅ Match colors to the highlight.js theme being used
+
+---
+
 ## Summary
 
 The message rendering modes feature provides:
