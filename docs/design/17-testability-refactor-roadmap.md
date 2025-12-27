@@ -22,8 +22,8 @@ This document consolidates the refactor proposals and remaining integration-only
 - ✅ Platform-scoped shortcut chords (e.g., mac-only meta+[) are validated through the pure matcher to prevent cross-platform collisions before Electron binding.【F:tests/shared/keyboard-shortcuts.test.ts†L23-L79】
 - ✅ Persistence filters are asserted against mixed eligible/ineligible tabs to ensure only persistable entries survive save cycles.【F:tests/main/session-persistence-service.test.ts†L20-L96】
 - ✅ BrowserWindow/WebContentsView are wrapped in `WindowHandle`/`ViewHandle` adapters, letting TabManager attach/detach/resize/close views in tests without Electron while keeping the multi-window registry contract intact.【F:src/main/tab-manager/window-view-handles.ts†L4-L81】【F:tests/main/window-view-handles.test.ts†L63-L96】
-- ⬜️ Add a reusable, headless “bootstrap and assert” helper that scripts startup → operate → save → restart → restore across multiple windows (currently covered piecemeal in tests); exportable for other suites to reuse.
-- ⬜️ Add regression fixtures for session restore involving mixed tab types (LLM response + upload + bookmark reopen) to guarantee the mapper + IO shell stay aligned.
+- ✅ Add a reusable, headless “bootstrap and assert” helper that scripts startup → operate → save → restart → restore across multiple windows (currently covered piecemeal in tests); exportable for other suites to reuse.【F:tests/main/helpers/headless-session-harness.ts†L1-L157】【F:tests/main/headless-session-harness.test.ts†L1-L86】
+- ✅ Add regression fixtures for session restore involving mixed tab types (LLM response + upload + bookmark reopen) to guarantee the mapper + IO shell stay aligned.【F:tests/main/headless-session-harness.test.ts†L34-L86】
 
 ## Integration-only gaps (must be covered with Electron/Playwright; use as checklist)
 
