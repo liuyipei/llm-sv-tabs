@@ -223,7 +223,7 @@
   /**
    * Handle code block action button clicks (copy, open-as-note)
    */
-  async function handleCodeBlockAction(event: MouseEvent): Promise<void> {
+  async function handleCodeBlockAction(event: Event): Promise<void> {
     const target = event.target as HTMLElement;
     const button = target.closest('.code-action-btn') as HTMLElement | null;
     if (!button) return;
@@ -262,7 +262,23 @@
     }
   }
 
+  function handleCodeBlockKeydown(event: KeyboardEvent): void {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+
+    const target = event.target as HTMLElement;
+    const button = target.closest('.code-action-btn') as HTMLElement | null;
+    if (!button) return;
+
+    event.preventDefault();
+    handleCodeBlockAction(event);
+  }
+
   onMount(() => {
+    if (container) {
+      container.addEventListener('click', handleCodeBlockAction);
+      container.addEventListener('keydown', handleCodeBlockKeydown);
+    }
+
     console.log(`🟡 [MessageStream-${mountId}] mounting`, {
       tabId,
       initialStreaming: metadata?.isStreaming,
@@ -306,6 +322,10 @@
 
   onDestroy(() => {
     console.log(`🟡 [MessageStream-${mountId}] unmounting`, { tabId });
+    if (container) {
+      container.removeEventListener('click', handleCodeBlockAction);
+      container.removeEventListener('keydown', handleCodeBlockKeydown);
+    }
     if (unsubscribe) unsubscribe();
     if (tabsUnsubscribe) tabsUnsubscribe();
     if (domSearch) {
@@ -315,8 +335,12 @@
   });
 </script>
 
-<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-<div class="llm-message-stream" bind:this={container} onclick={handleCodeBlockAction}>
+<div
+  class="llm-message-stream"
+  bind:this={container}
+  role="region"
+  aria-label="Message stream"
+>
   {#if query}
     <QueryHeader {query} {created} {formatTimestamp} />
   {/if}
@@ -353,4 +377,3 @@
     </div>
   {/if}
 </div>
-
