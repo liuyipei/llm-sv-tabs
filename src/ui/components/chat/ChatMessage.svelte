@@ -87,7 +87,10 @@
     } else if (action === 'open-note' && ipc) {
       const lang = button.dataset.lang || 'text';
       const noteId = Date.now();
-      const title = `Code (${lang})`;
+      const normalizedCode = code.replace(/\r\n/g, '\n').trimEnd();
+      const lineCount = normalizedCode === '' ? 0 : normalizedCode.split('\n').length;
+      const tabSlug = 'chat';
+      const title = `Code (${lang}) – ${tabSlug} – ${lineCount} line${lineCount === 1 ? '' : 's'}`;
       // Open in background (autoSelect = false)
       await ipc.openNoteTab(noteId, title, code, 'text', undefined, false);
       toastStore.show('Code opened in new note', 'success', 2000);
