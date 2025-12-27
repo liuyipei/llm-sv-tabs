@@ -36,7 +36,7 @@ export interface IPCBridgeAPI {
   previousTab(): Promise<IPCResponse<{ tabId: string }> | { success: boolean; tabId?: string }>;
   updateTabTitle(tabId: string, title: string): Promise<IPCResponse | { success: boolean }>;
   copyTabUrl(tabId: string): Promise<IPCResponse<{ url?: string }> | { success: boolean; url?: string }>;
-  openNoteTab(noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image', filePath?: string): Promise<IPCResponse<{ tabId: string; tab: TabData }> | { tabId: string; tab: Tab }>;
+  openNoteTab(noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image', filePath?: string, autoSelect?: boolean): Promise<IPCResponse<{ tabId: string; tab: TabData }> | { tabId: string; tab: Tab }>;
   updateNoteContent(tabId: string, content: string): Promise<IPCResponse | { success: boolean }>;
   openLLMResponseTab(query: string, response?: string, error?: string): Promise<IPCResponse<{ tabId: string; tab: TabData }> | { tabId: string; tab: Tab }>;
   updateLLMResponseTab(tabId: string, response: string, metadata?: any): Promise<IPCResponse | { success: boolean }>;
@@ -152,7 +152,7 @@ export function initializeIPC(): IPCBridgeAPI {
     previousTab: () => window.electronAPI.previousTab(),
     updateTabTitle: (tabId: string, title: string) => window.electronAPI.updateTabTitle(tabId, title),
     copyTabUrl: (tabId: string) => window.electronAPI.copyTabUrl(tabId),
-    openNoteTab: (noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image', filePath?: string) => window.electronAPI.openNoteTab(noteId, title, content, fileType, filePath),
+    openNoteTab: (noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image', filePath?: string, autoSelect?: boolean) => window.electronAPI.openNoteTab(noteId, title, content, fileType, filePath, autoSelect),
     updateNoteContent: (tabId: string, content: string) => window.electronAPI.updateNoteContent(tabId, content),
     openLLMResponseTab: (query: string, response?: string, error?: string) => window.electronAPI.openLLMResponseTab(query, response, error),
     updateLLMResponseTab: (tabId: string, response: string, metadata?: any) => window.electronAPI.updateLLMResponseTab(tabId, response, metadata),
@@ -317,8 +317,8 @@ function createMockAPI(): IPCBridgeAPI {
       const tab = tabs.get(tabId);
       return { success: true, url: tab?.url };
     },
-    openNoteTab: async (noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image', filePath?: string) => {
-      console.log('Mock: openNoteTab', noteId, title, content, fileType, filePath);
+    openNoteTab: async (noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image', filePath?: string, autoSelect: boolean = true) => {
+      console.log('Mock: openNoteTab', noteId, title, content, fileType, filePath, autoSelect);
       const url = fileType === 'text'
         ? (content.trim().substring(0, 30) + (content.length > 30 ? '...' : '')) || 'note://empty'
         : `note://${noteId}`;
@@ -337,7 +337,9 @@ function createMockAPI(): IPCBridgeAPI {
         },
       };
       addTab(tab);
-      activeTabId.set(tab.id);
+      if (autoSelect) {
+        activeTabId.set(tab.id);
+      }
       return { tabId: tab.id, tab };
     },
     updateNoteContent: async (tabId: string, content: string) => {

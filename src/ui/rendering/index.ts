@@ -82,14 +82,32 @@ function ensureMarkedConfigured(): void {
 
   const renderer = new marked.Renderer();
 
-  // Override code block rendering with syntax highlighting
+  // Override code block rendering with syntax highlighting and action buttons
   renderer.code = function (token: { text: string; lang?: string } | string, language?: string): string {
     const code = typeof token === 'string' ? token : token.text;
     const lang = typeof token === 'string' ? language : token.lang;
 
     const validLanguage = lang && hljs.getLanguage(lang) ? lang : 'plaintext';
     const highlighted = hljs.highlight(code, { language: validLanguage }).value;
-    return `<pre><code class="hljs language-${validLanguage}">${highlighted}</code></pre>`;
+
+    // Encode the code content for the data attribute (base64 to handle special chars)
+    const encodedCode = btoa(unescape(encodeURIComponent(code)));
+    const displayLang = lang || 'text';
+
+    // Header-based design: header above pre, visually seamless
+    // SVG icons: clipboard for copy, external-link for note
+    const copyIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>';
+    const noteIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"></path><path d="M10 14 21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg>';
+
+    // Inline styles to guarantee layout and appearance
+    // Wrapper background matches github-dark hljs theme (#0d1117)
+    const wrapperStyle = 'background:#0d1117;border-radius:8px;overflow:hidden;margin-bottom:16px;border:1px solid rgba(255,255,255,0.1);';
+    const headerStyle = 'display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.1);';
+    const langStyle = 'font-family:ui-sans-serif,system-ui,-apple-system,sans-serif;font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.5px;color:rgba(255,255,255,0.5);';
+    const actionsStyle = 'display:flex;align-items:center;gap:8px;';
+    const btnStyle = 'background:transparent;border:none;cursor:pointer;padding:4px;display:flex;align-items:center;color:inherit;opacity:0.5;';
+
+    return `<div class="code-block-wrapper" style="${wrapperStyle}"><div class="code-block-header" style="${headerStyle}"><span class="code-lang-label" style="${langStyle}">${displayLang}</span><div class="code-block-actions" style="${actionsStyle}"><button class="code-action-btn" style="${btnStyle}" data-action="copy" data-code="${encodedCode}" title="Copy code">${copyIcon}</button><button class="code-action-btn" style="${btnStyle}" data-action="open-note" data-code="${encodedCode}" data-lang="${displayLang}" title="Open in new note">${noteIcon}</button></div></div><pre><code class="hljs language-${validLanguage}">${highlighted}</code></pre></div>`;
   };
 
   // Override inline code rendering
@@ -164,15 +182,23 @@ function renderMarkdownToHtml(text: string, isStreaming = false): string {
       'a', 'img',
       'table', 'thead', 'tbody', 'tr', 'th', 'td',
       'span', 'div',
+      'button', // For code block action buttons
+      // SVG elements for icons
+      'svg', 'path', 'rect', 'circle', 'line', 'polyline', 'polygon', 'g',
       // KaTeX elements
       'annotation', 'semantics', 'math', 'mrow', 'mi', 'mo', 'mn', 'msup', 'msub',
       'mfrac', 'mtext', 'mspace', 'menclose', 'mstyle', 'mtable', 'mtr', 'mtd',
     ],
     ALLOWED_ATTR: [
       'href', 'src', 'alt', 'title', 'class', 'style',
+      // Code block action button attributes
+      'data-action', 'data-code', 'data-lang',
+      // SVG attributes
+      'xmlns', 'width', 'height', 'viewBox', 'fill', 'stroke', 'stroke-width',
+      'stroke-linecap', 'stroke-linejoin', 'd', 'x', 'y', 'rx', 'ry', 'r', 'cx', 'cy',
+      'x1', 'y1', 'x2', 'y2', 'points', 'transform',
       // KaTeX attributes
-      'aria-hidden', 'xmlns', 'width', 'height', 'viewBox',
-      'preserveAspectRatio', 'stroke-width', 'stroke', 'fill',
+      'aria-hidden', 'preserveAspectRatio',
     ],
   });
 

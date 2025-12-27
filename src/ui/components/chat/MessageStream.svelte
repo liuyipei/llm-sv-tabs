@@ -1,18 +1,24 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, getContext } from 'svelte';
   import { activeTabs } from '$stores/tabs';
   import { defaultRenderMode } from '$stores/config';
+  import { toastStore } from '$stores/toast';
   import type { ContextTabInfo, Tab } from '../../../types';
   import type { RenderMode } from '../../rendering';
   import { renderMessage, escapeHtml } from '../../rendering';
+  import { copyToClipboard } from '../../utils/markdown';
   import { searchState, updateSearchResults } from '$stores/search';
   import { createDOMSearch, type DOMSearchInstance } from '$lib/dom-search';
+  import type { IPCBridgeAPI } from '$lib/ipc-bridge';
   import '../../styles/message-stream.css';
   import QueryHeader from './message-stream/QueryHeader.svelte';
   import IdentifiersSection from './message-stream/IdentifiersSection.svelte';
   import ContextTabsSection from './message-stream/ContextTabsSection.svelte';
   import ResponseMetadata from './message-stream/ResponseMetadata.svelte';
   import RenderModeToggle from './message-stream/RenderModeToggle.svelte';
+
+  // Get IPC bridge from context
+  const ipc = getContext<IPCBridgeAPI>('ipc');
 
   declare global {
     interface Window {
@@ -214,6 +220,48 @@
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
+  /**
+   * Handle code block action button clicks (copy, open-as-note)
+   */
+  async function handleCodeBlockAction(event: MouseEvent): Promise<void> {
+    const target = event.target as HTMLElement;
+    const button = target.closest('.code-action-btn') as HTMLElement | null;
+    if (!button) return;
+
+    const action = button.dataset.action;
+    const encodedCode = button.dataset.code;
+    if (!encodedCode) return;
+
+    // Decode the base64 encoded code
+    const code = decodeURIComponent(escape(atob(encodedCode)));
+
+    if (action === 'copy') {
+      const success = await copyToClipboard(code);
+      if (success) {
+        // Show copied feedback on button
+        const copyIcon = button.querySelector('.copy-icon') as HTMLElement;
+        const copiedIcon = button.querySelector('.copied-icon') as HTMLElement;
+        if (copyIcon && copiedIcon) {
+          copyIcon.style.display = 'none';
+          copiedIcon.style.display = 'inline';
+          setTimeout(() => {
+            copyIcon.style.display = 'inline';
+            copiedIcon.style.display = 'none';
+          }, 2000);
+        }
+        // Show toast
+        toastStore.show('Code copied to clipboard', 'success', 2000);
+      }
+    } else if (action === 'open-note' && ipc) {
+      const lang = button.dataset.lang || 'text';
+      const noteId = Date.now();
+      const title = `Code (${lang})`;
+      // Open in background (autoSelect = false)
+      await ipc.openNoteTab(noteId, title, code, 'text', undefined, false);
+      toastStore.show('Code opened in new note', 'success', 2000);
+    }
+  }
+
   onMount(() => {
     console.log(`🟡 [MessageStream-${mountId}] mounting`, {
       tabId,
@@ -267,7 +315,8 @@
   });
 </script>
 
-<div class="llm-message-stream" bind:this={container}>
+<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+<div class="llm-message-stream" bind:this={container} onclick={handleCodeBlockAction}>
   {#if query}
     <QueryHeader {query} {created} {formatTimestamp} />
   {/if}

@@ -302,3 +302,119 @@ describe('edge cases', () => {
     expect(result.html).toContain('\u00ae');
   });
 });
+
+describe('code block action buttons', () => {
+  it('should wrap fenced code blocks with action button container', () => {
+    const text = '```javascript\nconst x = 1;\n```';
+    const result = renderMessage(text, { mode: 'markdown' });
+
+    expect(result.html).toContain('class="code-block-wrapper"');
+    expect(result.html).toContain('class="code-block-header"');
+    expect(result.html).toContain('class="code-block-actions"');
+  });
+
+  it('should display the language label', () => {
+    const text = '```typescript\nconst x: number = 1;\n```';
+    const result = renderMessage(text, { mode: 'markdown' });
+
+    expect(result.html).toContain('class="code-lang-label"');
+    expect(result.html).toContain('>typescript<');
+  });
+
+  it('should show "text" for code blocks without language', () => {
+    const text = '```\nplain text\n```';
+    const result = renderMessage(text, { mode: 'markdown' });
+
+    expect(result.html).toContain('>text<');
+  });
+
+  it('should include copy button with data-action="copy"', () => {
+    const text = '```js\ncode\n```';
+    const result = renderMessage(text, { mode: 'markdown' });
+
+    expect(result.html).toContain('data-action="copy"');
+    expect(result.html).toContain('<svg'); // SVG icon instead of text
+  });
+
+  it('should include open-note button with data-action="open-note"', () => {
+    const text = '```python\nprint("hello")\n```';
+    const result = renderMessage(text, { mode: 'markdown' });
+
+    expect(result.html).toContain('data-action="open-note"');
+    expect(result.html).toContain('data-lang="python"');
+  });
+
+  it('should base64 encode the code content in data-code attribute', () => {
+    const code = 'const x = 1;';
+    const text = '```js\n' + code + '\n```';
+    const result = renderMessage(text, { mode: 'markdown' });
+
+    // Extract the data-code value and verify it decodes correctly
+    const match = result.html.match(/data-code="([^"]+)"/);
+    expect(match).not.toBeNull();
+
+    const encodedCode = match![1];
+    const decodedCode = decodeURIComponent(escape(atob(encodedCode)));
+    expect(decodedCode).toBe(code);
+  });
+
+  it('should handle special characters in code via base64 encoding', () => {
+    const code = '<script>alert("xss")</script>\nconst x = "test & value";';
+    const text = '```html\n' + code + '\n```';
+    const result = renderMessage(text, { mode: 'markdown' });
+
+    const match = result.html.match(/data-code="([^"]+)"/);
+    expect(match).not.toBeNull();
+
+    const encodedCode = match![1];
+    const decodedCode = decodeURIComponent(escape(atob(encodedCode)));
+    expect(decodedCode).toBe(code);
+  });
+
+  it('should handle unicode in code via base64 encoding', () => {
+    const code = 'const emoji = "🚀";\nconst chinese = "你好";';
+    const text = '```js\n' + code + '\n```';
+    const result = renderMessage(text, { mode: 'markdown' });
+
+    const match = result.html.match(/data-code="([^"]+)"/);
+    expect(match).not.toBeNull();
+
+    const encodedCode = match![1];
+    const decodedCode = decodeURIComponent(escape(atob(encodedCode)));
+    expect(decodedCode).toBe(code);
+  });
+
+  it('should render multiple code blocks with separate buttons', () => {
+    const text = '```js\nconst a = 1;\n```\n\n```python\nx = 2\n```';
+    const result = renderMessage(text, { mode: 'markdown' });
+
+    // Count occurrences of code-block-wrapper
+    const wrapperMatches = result.html.match(/code-block-wrapper/g);
+    expect(wrapperMatches).toHaveLength(2);
+
+    // Each block should have its own buttons
+    const copyMatches = result.html.match(/data-action="copy"/g);
+    expect(copyMatches).toHaveLength(2);
+
+    const openNoteMatches = result.html.match(/data-action="open-note"/g);
+    expect(openNoteMatches).toHaveLength(2);
+  });
+
+  it('should not add buttons to inline code', () => {
+    const text = 'Use `const` for constants';
+    const result = renderMessage(text, { mode: 'markdown' });
+
+    expect(result.html).not.toContain('code-block-wrapper');
+    expect(result.html).not.toContain('data-action="copy"');
+    expect(result.html).toContain('class="inline-code"');
+  });
+
+  it('should not add buttons in raw mode', () => {
+    const text = '```js\nconst x = 1;\n```';
+    const result = renderMessage(text, { mode: 'raw' });
+
+    expect(result.html).not.toContain('code-block-wrapper');
+    expect(result.html).not.toContain('data-action');
+    expect(result.html).toContain('```js');
+  });
+});

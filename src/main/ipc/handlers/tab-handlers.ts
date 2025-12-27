@@ -95,10 +95,10 @@ export function registerTabHandlers(
 
   ipcMain.handle(
     'open-note-tab',
-    async (event, noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image', filePath?: string) =>
+    async (event, noteId: number, title: string, content: string, fileType?: 'text' | 'pdf' | 'image', filePath?: string, autoSelect: boolean = true) =>
       handleSafely(() => ({
         success: true,
-        data: getTabManager().openNoteTab(noteId, title, content, fileType, true, filePath, resolveWindowId(event)),
+        data: getTabManager().openNoteTab(noteId, title, content, fileType, autoSelect, filePath, resolveWindowId(event)),
       }))
   );
 
