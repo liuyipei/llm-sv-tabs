@@ -225,3 +225,182 @@ export interface ParsedAnchor {
   /** Raw location string (e.g., "p=12", "sec=H2.3") */
   raw_location?: string;
 }
+
+// ============================================================================
+// Context Envelope Types (Phase 2)
+// ============================================================================
+
+/**
+ * The complete, provider-agnostic context package ready for rendering.
+ */
+export interface ContextEnvelope {
+  /** Version for format evolution */
+  version: '1.0';
+
+  /** When this envelope was created (Unix timestamp) */
+  created_at: number;
+
+  /** All sources in this context */
+  sources: Source[];
+
+  /** The Context Index (always survives truncation) */
+  index: ContextIndex;
+
+  /** Ranked, formatted chunks ready for inclusion */
+  chunks: ContextChunk[];
+
+  /** Manifest of binary attachments */
+  attachments: AttachmentManifest[];
+
+  /** Token budget state */
+  budget: TokenBudgetState;
+
+  /** The user's task/query */
+  task: string;
+}
+
+/**
+ * Index of all sources - always survives truncation.
+ * The model always knows what context exists, even if it can't see all of it.
+ */
+export interface ContextIndex {
+  /** One entry per source */
+  entries: ContextIndexEntry[];
+}
+
+/**
+ * Single entry in the context index
+ */
+export interface ContextIndexEntry {
+  /** Source reference */
+  source_id: SourceId;
+  /** Human-readable title */
+  title: string;
+  /** Origin URL */
+  url?: string;
+  /** Type of source */
+  source_type: SourceKind;
+  /** For PDFs: which pages are attached */
+  pages_attached?: number[];
+  /** Brief summary (1-2 lines) - used in truncated views */
+  summary?: string;
+  /** Whether full content is included in chunks */
+  content_included: boolean;
+}
+
+/**
+ * A formatted chunk of content ready for inclusion in context.
+ */
+export interface ContextChunk {
+  /** Anchor for this chunk */
+  anchor: Anchor;
+
+  /** Source reference */
+  source_id: SourceId;
+
+  /** Source type (for rendering decisions) */
+  source_type: SourceKind;
+
+  /** Title context */
+  title: string;
+
+  /** URL context */
+  url?: string;
+
+  /** How this content was extracted */
+  extraction_method: string;
+
+  /** Quality hint */
+  quality?: QualityHint;
+
+  /** The actual text content */
+  content: string;
+
+  /** Token count for this chunk */
+  token_count: number;
+
+  /** Relevance score (for ranking) */
+  relevance_score?: number;
+
+  /** Whether this chunk was truncated */
+  truncated?: boolean;
+}
+
+/**
+ * Manifest entry for a binary attachment (image, PDF, etc.)
+ */
+export interface AttachmentManifest {
+  /** Anchor for this attachment */
+  anchor: Anchor;
+  /** Source reference */
+  source_id: SourceId;
+  /** Type of artifact */
+  artifact_type: ArtifactType;
+  /** MIME type */
+  mime_type: string;
+  /** Size in bytes */
+  byte_size: number;
+  /** Image dimensions (if applicable) */
+  dimensions?: { width: number; height: number };
+  /** Transformation applied (e.g., "resize_512px") */
+  transform?: string;
+  /** Whether this attachment is included in the current budget */
+  included: boolean;
+}
+
+/**
+ * Artifact types for binary content
+ */
+export type ArtifactType =
+  | 'text' // Extracted text (markdown)
+  | 'page_image' // Rendered PDF page as PNG
+  | 'screenshot' // Full page screenshot
+  | 'thumbnail' // Resized preview image
+  | 'raw_image' // Original uploaded image
+  | 'raw_pdf' // Original PDF bytes
+  | 'table_json'; // Structured table data
+
+/**
+ * Token budget state tracking
+ */
+export interface TokenBudgetState {
+  /** Maximum tokens allowed */
+  max_tokens: number;
+  /** Current token usage */
+  used_tokens: number;
+  /** Current degrade stage (0-5) */
+  degrade_stage: DegradeStage;
+  /** What was cut */
+  cuts: TokenBudgetCut[];
+}
+
+/**
+ * Degrade stages for token budgeting (Phase 3 will implement full ladder)
+ */
+export type DegradeStage = 0 | 1 | 2 | 3 | 4 | 5;
+
+/**
+ * Record of what was cut during token budgeting
+ */
+export interface TokenBudgetCut {
+  /** Type of cut */
+  type: 'chunk_removed' | 'chunk_truncated' | 'attachment_removed' | 'summarized';
+  /** Anchor of the affected content */
+  anchor: Anchor;
+  /** Original token count before cut */
+  original_tokens: number;
+  /** Reason for the cut */
+  reason: string;
+}
+
+/**
+ * Options for building a context envelope
+ */
+export interface ContextEnvelopeOptions {
+  /** Maximum tokens for the entire context */
+  maxTokens?: number;
+  /** Whether to include binary attachments */
+  includeAttachments?: boolean;
+  /** Specific page numbers to include for PDFs (if not set, include all) */
+  pdfPages?: Map<SourceId, number[]>;
+}

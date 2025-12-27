@@ -1,6 +1,6 @@
 # Context IR and Multimodal Protocol
 
-**Status:** 🚧 In Progress (Phase 1 Complete)
+**Status:** 🚧 In Progress (Phase 2 Complete)
 **Location:** `src/main/services/context/`, `src/types/context-ir.ts`
 
 ---
@@ -1038,11 +1038,18 @@ const FIXTURES = {
 - `src/main/services/context/index.ts` - Public exports
 - `tests/context-ir/*.test.ts` - Tests covering Phase 1 functionality
 
-#### Phase 2: Context Envelope and Rendering
+#### Phase 2: Context Envelope and Rendering ✅
 - Implement `context-ir-builder.ts` (Source[] → ContextEnvelope)
 - Text rendering format (Context Index + Chunks + Attachments)
 - Integration with existing `query-handlers.ts`
 - Tests for envelope building
+
+**Implemented files:**
+- `src/types/context-ir.ts` - Added ContextEnvelope, ContextChunk, AttachmentManifest, TokenBudgetState types
+- `src/main/services/context/context-ir-builder.ts` - Envelope building and text rendering
+- `src/main/services/context/query-context-builder.ts` - Integration with query-handlers
+- `tests/context-ir/context-ir-builder.test.ts` - 44 tests for envelope building
+- `tests/context-ir/query-context-builder.test.ts` - 22 tests for query integration
 
 #### Phase 3: Token Budgeting
 - Implement 5-stage degrade ladder in `token-budget.ts`
