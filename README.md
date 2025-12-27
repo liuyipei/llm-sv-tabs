@@ -54,6 +54,7 @@ For a deep dive into the architecture and design philosophy:
 - [Keyboard Shortcuts](./docs/design/08-keyboard-shortcuts.md) - Global shortcuts and focus management with WebContentsView
 - [PDF Content Extraction](./docs/design/11-pdf-content-extraction.md) - Robust PDF text and image extraction for LLM consumption
 - [Model Capability Probing](./docs/design/12-model-capability-probing.md) - Active runtime discovery of vision, PDF, and multimodal support
+- [Context IR & Multimodal Protocol](./docs/design/18-context-ir-and-multimodal-protocol.md) - Provider-agnostic context representation with anchors, provenance, and token budgeting
 - [Provider Duplication Notes](./docs/design/15-provider-duplication-notes.md) - Code duplication analysis and refactoring opportunities in provider implementations
 - [Message Rendering Modes](./docs/design/17-message-rendering-modes.md) - Per-message Markdown/Raw toggle with extensible rendering pipeline
 
