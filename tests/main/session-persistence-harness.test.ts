@@ -20,6 +20,8 @@ import { SessionPersistenceService } from '../../src/main/tab-manager/session-pe
 import { SessionPersistenceMapper } from '../../src/main/tab-manager/session-persistence-mapper.js';
 import type { SessionPersistenceIO } from '../../src/main/tab-manager/session-persistence-service.js';
 import type { TabData, TabWithView, ViewHandle } from '../../src/types.js';
+import type { WindowHandle } from '../../src/main/tab-manager/window-view-handles.js';
+import TabManager from '../../src/main/tab-manager.js';
 
 const createStubView = () => {
   const view: ViewHandle = {
@@ -37,6 +39,49 @@ const createStubView = () => {
   };
   return view;
 };
+
+class StubWindowHandle implements WindowHandle {
+  constructor(private readonly width = 1200, private readonly height = 800) {}
+
+  public resizeHandler?: () => void;
+  public closeHandler?: () => void;
+  public addedViews: ViewHandle[] = [];
+  public removedViews: ViewHandle[] = [];
+
+  on(event: 'resize' | 'close', listener: () => void): void {
+    if (event === 'resize') this.resizeHandler = listener;
+    if (event === 'close') this.closeHandler = listener;
+  }
+
+  getContentBounds(): { width: number; height: number } {
+    return { width: this.width, height: this.height };
+  }
+
+  addChildView(view: ViewHandle): void {
+    this.addedViews.push(view);
+  }
+
+  removeChildView(view: ViewHandle): void {
+    this.removedViews.push(view);
+  }
+
+  show(): void {
+    // no-op for tests
+  }
+
+  focus(): void {
+    // no-op for tests
+  }
+
+  webContents = {
+    focus: vi.fn(),
+    send: vi.fn(),
+  };
+
+  getNativeWindow(): undefined {
+    return undefined;
+  }
+}
 
 function createService({
   existingTabs = new Map<string, TabWithView>(),
@@ -114,5 +159,83 @@ describe('Session persistence lifecycle harness', () => {
     expect(io.readBinary).toHaveBeenCalledWith('/tmp/photo.png');
     expect(io.writeTempFile).toHaveBeenCalled();
     expect(restoredTabs.size).toBe(2);
+  });
+
+  it('round-trips active tabs and tab ownership across multiple windows headlessly', async () => {
+    class StubSessionManager {
+      saved:
+        | {
+            tabs: TabData[];
+            windows: Array<{ id: string; activeTabId: string | null; tabIds: string[] }>;
+          }
+        | undefined;
+
+      async saveSession(
+        tabs: TabData[],
+        windows: Array<{ id: string; activeTabId: string | null; tabIds: string[] }>
+      ): Promise<void> {
+        this.saved = { tabs, windows };
+      }
+
+      async loadSession(): Promise<{
+        tabs: TabData[];
+        activeTabId: string | null;
+        windows: Array<{ id: string; activeTabId: string | null; tabIds: string[] }>;
+        lastSaved: number;
+      } | null> {
+        if (!this.saved) return null;
+        return {
+          tabs: this.saved.tabs,
+          windows: this.saved.windows,
+          activeTabId: this.saved.windows[0]?.activeTabId ?? null,
+          lastSaved: Date.now(),
+        };
+      }
+    }
+
+    const sessionManager = new StubSessionManager();
+    const primaryWindow = new StubWindowHandle();
+    const secondaryWindow = new StubWindowHandle();
+
+    const createManager = () =>
+      new TabManager(primaryWindow as any, {
+        createSessionManager: () => sessionManager as any,
+        viewFactory: () => createStubView(),
+      });
+
+    // Create a manager with two windows and persist session state
+    const manager = createManager();
+    const secondWindowId = manager.registerNewWindow(secondaryWindow as any);
+    const { tabId: primaryTabId } = manager.openUrl('https://primary.example');
+    const { tabId: secondaryTabId } = manager.openUrl('https://secondary.example', true, secondWindowId);
+
+    manager.setActiveTab(primaryTabId); // primary window
+    manager.setActiveTab(secondaryTabId, secondWindowId); // secondary window
+
+    await (manager as any).saveSession();
+
+    expect(sessionManager.saved?.windows).toEqual([
+      { id: 'window-1', activeTabId: primaryTabId, tabIds: [primaryTabId] },
+      { id: 'window-2', activeTabId: secondaryTabId, tabIds: [secondaryTabId] },
+    ]);
+
+    // Restore into a fresh manager instance
+    const restoredManager = createManager();
+    const restoredSecondWindowId = restoredManager.registerNewWindow(secondaryWindow as any);
+    expect(restoredSecondWindowId).toBe('window-2');
+
+    const restored = await restoredManager.restoreSession();
+    expect(restored).toBe(true);
+
+    const restoredRegistry = (restoredManager as any).windowRegistry;
+    const snapshots = restoredRegistry.getWindowSnapshots();
+
+    const primarySnapshot = snapshots.find((w: any) => w.id === 'window-1');
+    const secondarySnapshot = snapshots.find((w: any) => w.id === 'window-2');
+
+    expect(primarySnapshot?.activeTabId).toBeDefined();
+    expect(secondarySnapshot?.activeTabId).toBeDefined();
+    expect(restoredRegistry.getTabIdsForWindow('window-1')).toHaveLength(1);
+    expect(restoredRegistry.getTabIdsForWindow('window-2')).toHaveLength(1);
   });
 });
