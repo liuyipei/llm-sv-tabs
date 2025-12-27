@@ -1,5 +1,5 @@
 /**
- * Context IR System - Phases 1 & 2
+ * Context IR System - Phases 1-3
  *
  * Provider-agnostic intermediate representation for multimodal context.
  *
@@ -9,6 +9,7 @@
  * - Anchor utilities (stable content identifiers)
  * - Context envelope building (Source[] → ContextEnvelope)
  * - Text rendering (ContextEnvelope → formatted text)
+ * - Token budgeting with 5-stage degrade ladder
  *
  * See docs/design/18-context-ir-and-multimodal-protocol.md
  */
@@ -89,3 +90,12 @@ export {
   type QueryContextResult,
   type QueryContextOptions,
 } from './query-context-builder.js';
+
+// Token budgeting (Phase 3)
+export {
+  applyTokenBudget,
+  extractiveSummary,
+  findSemanticBoundaries,
+  truncateAtBoundary,
+  type TokenBudgetOptions,
+} from './token-budget.js';

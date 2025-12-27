@@ -1,6 +1,6 @@
 # Context IR and Multimodal Protocol
 
-**Status:** 🚧 In Progress (Phase 2 Complete)
+**Status:** 🚧 In Progress (Phase 3 Complete)
 **Location:** `src/main/services/context/`, `src/types/context-ir.ts`
 
 ---
@@ -1051,11 +1051,15 @@ const FIXTURES = {
 - `tests/context-ir/context-ir-builder.test.ts` - 44 tests for envelope building
 - `tests/context-ir/query-context-builder.test.ts` - 22 tests for query integration
 
-#### Phase 3: Token Budgeting
+#### Phase 3: Token Budgeting ✅
 - Implement 5-stage degrade ladder in `token-budget.ts`
 - Extractive summarization (no LLM calls)
 - Semantic boundary detection (headings, paragraphs, page breaks)
 - Tests for all degrade stages
+
+**Implemented files:**
+- `src/main/services/context/token-budget.ts` - 5-stage degrade ladder, extractive summarization, semantic boundaries
+- `tests/context-ir/token-budget.test.ts` - 27 tests covering all stages and utilities
 
 #### Phase 4: Provider Adapters
 - OpenAI adapter (text + base64 images)
