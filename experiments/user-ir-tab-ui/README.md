@@ -166,6 +166,7 @@ npm run electron:dev
 - **Branch to Tab**: One-click actions to open normalized markdown, per-source summaries, or provider payload preview in a new tab. Preserve provenance (parent tab, step reference).
 - **Controls**: Per-source toggles (include/exclude, priority), attachment requests, and a “no-heuristics” mode that bypasses ranking/summarization (with overflow warnings).
 - **Logs**: Inline structured log plus export-to-tab. Each log entry links to the corresponding EncodingStep and source anchors. Offer JSON download.
+- **Custom notes from steps**: Generate user-authored notes from any intermediate step so users can pin observations, edits, or reminders as new tabs with provenance back to the originating EncodingStep.
 - **Revert/Replay**: Buttons to rewind to a prior stage and replay with modified knobs; show diff of envelopes between runs. Replay should surface deltas in token counts and degrade stages.
 - **Comparisons**: Side-by-side envelope comparison between two runs or branches, highlighting changed chunks, summaries, and attachments.
 - **Capability warnings**: Upfront warnings when a selected capability path conflicts with available artifacts (e.g., images ignored in text-only).
@@ -179,6 +180,11 @@ npm run electron:dev
 - Provide an export format (e.g., `run-{timestamp}.json`) containing envelope, steps, and logs for regression comparison.
 - Offer a small fixture pack (2–3 markdown articles, 1 PDF with images, 2 screenshots) with known token counts to standardize tests.
 - Include README-style quickstart for the prototype repo (npm install; npm test; npm run preview) and describe the minimal project layout (e.g., `src/core` for pure functions, `src/ui` for inspector, `fixtures/` for inputs, `snapshots/` for expected outputs).
+
+### How to run this experiment in this repo
+- Install dependencies (`npm install`), then launch `npm run dev` and open `http://localhost:5173/?experiment=user-ir-tab-ui` to load the transparent inspector instead of the main app shell.
+- The fixture pack lives in `src/ui/experiments/user-ir-tab-ui/fixtures` and includes deterministic markdown captures. Screenshots and the tiny PDF are generated at runtime (see `fixtures/generators.ts`) so no binary assets are checked in.
+- Export buttons in the UI write the envelope and logs to JSON so runs can be diffed locally or attached to PRs.
 
 ---
 

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { setContext, onMount } from 'svelte';
   import { initializeIPC, type IPCBridgeAPI } from '$lib/ipc-bridge';
+  import ExperimentApp from './experiments/user-ir-tab-ui/ExperimentApp.svelte';
   import TabsSection from '$components/tabs/TabsSection.svelte';
   import BookmarksSection from '$components/bookmarks/BookmarksSection.svelte';
   import ChatView from '$components/chat/ChatView.svelte';
@@ -35,9 +36,15 @@
   $: showNoteEditor = activeTab?.component === 'note';
   $: showAggregateTabs = activeTab?.component === 'aggregate-tabs';
 
+  const experimentSlug =
+    typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('experiment') : null;
+  const showExperiment = experimentSlug === 'user-ir-tab-ui';
+
   // Initialize IPC and make it available to all child components
-  const ipc: IPCBridgeAPI = initializeIPC();
-  setContext('ipc', ipc);
+  const ipc: IPCBridgeAPI | null = showExperiment ? null : initializeIPC();
+  if (ipc) {
+    setContext('ipc', ipc);
+  }
 
   // Input focus callbacks (will be set by child components)
   let focusUrlInputCallback: (() => void) | null = null;
@@ -55,8 +62,10 @@
     focusLLMInputCallback = callback;
   }
 
-  setContext('setFocusUrlInputCallback', setFocusUrlInputCallback);
-  setContext('setFocusLLMInputCallback', setFocusLLMInputCallback);
+  if (!showExperiment) {
+    setContext('setFocusUrlInputCallback', setFocusUrlInputCallback);
+    setContext('setFocusLLMInputCallback', setFocusLLMInputCallback);
+  }
 
   function setView(view: 'chat' | 'settings' | 'bookmarks' | 'notes' | 'shortcuts'): void {
     activeSidebarView.set(view);
@@ -254,6 +263,7 @@
   }
 
   function handleGlobalKeydown(event: KeyboardEvent): void {
+    if (showExperiment) return;
     const isCtrlOrMeta = event.ctrlKey || event.metaKey;
 
     if (isCtrlOrMeta && event.key.toLowerCase() === 'f') {
@@ -272,6 +282,9 @@
 
   // Initialize keyboard shortcuts and IPC listeners on mount
   onMount(() => {
+    if (showExperiment) {
+      return;
+    }
     // Load capabilities when window gains focus
     const handleFocus = () => {
       void loadCapabilitiesFromCache();
@@ -313,103 +326,107 @@
   });
 </script>
 
-<svelte:window on:keydown={handleGlobalKeydown} />
+{#if showExperiment}
+  <ExperimentApp />
+{:else}
+  <svelte:window on:keydown={handleGlobalKeydown} />
 
-<main class="app-container" ondragover={handleDragOver} ondrop={(e) => handleDrop(e, ipc)}>
-  <div class="app-content">
-    <aside class="sidebar">
-      <div class="sidebar-nav">
-        <button
-          class="nav-btn"
-          class:active={$activeSidebarView === 'chat'}
-          onclick={() => setView('chat')}
-          title="LLM Conversation (Ctrl+. to focus input)"
-        >
-          💬
-        </button>
-        <button
-          class="nav-btn"
-          class:active={$activeSidebarView === 'settings'}
-          onclick={() => setView('settings')}
-          title="LLM Settings"
-        >
-          ⚙️
-        </button>
-        <button
-          class="nav-btn"
-          class:active={$activeSidebarView === 'bookmarks'}
-          onclick={() => setView('bookmarks')}
-          title="Bookmarks (Ctrl+D to bookmark current tab)"
-        >
-          ⭐
-        </button>
-        <button
-          class="nav-btn"
-          class:active={$activeSidebarView === 'notes'}
-          onclick={() => setView('notes')}
-          title="Notes & Files (Ctrl+Alt+S for screenshot)"
-        >
-          📝
-        </button>
-        <button
-          class="nav-btn"
-          class:active={$activeSidebarView === 'shortcuts'}
-          onclick={() => setView('shortcuts')}
-          title="Keyboard shortcuts"
-        >
-          ⌨️
-        </button>
-      </div>
+  <main class="app-container" ondragover={handleDragOver} ondrop={(e) => handleDrop(e, ipc)}>
+    <div class="app-content">
+      <aside class="sidebar">
+        <div class="sidebar-nav">
+          <button
+            class="nav-btn"
+            class:active={$activeSidebarView === 'chat'}
+            onclick={() => setView('chat')}
+            title="LLM Conversation (Ctrl+. to focus input)"
+          >
+            💬
+          </button>
+          <button
+            class="nav-btn"
+            class:active={$activeSidebarView === 'settings'}
+            onclick={() => setView('settings')}
+            title="LLM Settings"
+          >
+            ⚙️
+          </button>
+          <button
+            class="nav-btn"
+            class:active={$activeSidebarView === 'bookmarks'}
+            onclick={() => setView('bookmarks')}
+            title="Bookmarks (Ctrl+D to bookmark current tab)"
+          >
+            ⭐
+          </button>
+          <button
+            class="nav-btn"
+            class:active={$activeSidebarView === 'notes'}
+            onclick={() => setView('notes')}
+            title="Notes & Files (Ctrl+Alt+S for screenshot)"
+          >
+            📝
+          </button>
+          <button
+            class="nav-btn"
+            class:active={$activeSidebarView === 'shortcuts'}
+            onclick={() => setView('shortcuts')}
+            title="Keyboard shortcuts"
+          >
+            ⌨️
+          </button>
+        </div>
 
-      <div class="sidebar-content" style="flex: {100 - $sidebarTabsHeightPercent}">
-        {#if $activeSidebarView === 'chat'}
-          <ChatView />
-        {:else if $activeSidebarView === 'settings'}
-          <LLMControls />
-        {:else if $activeSidebarView === 'bookmarks'}
-          <BookmarksSection />
-        {:else if $activeSidebarView === 'notes'}
-          <NotesSection />
-        {:else if $activeSidebarView === 'shortcuts'}
-          <KeyboardShortcutsPanel />
-        {/if}
-      </div>
+        <div class="sidebar-content" style="flex: {100 - $sidebarTabsHeightPercent}">
+          {#if $activeSidebarView === 'chat'}
+            <ChatView />
+          {:else if $activeSidebarView === 'settings'}
+            <LLMControls />
+          {:else if $activeSidebarView === 'bookmarks'}
+            <BookmarksSection />
+          {:else if $activeSidebarView === 'notes'}
+            <NotesSection />
+          {:else if $activeSidebarView === 'shortcuts'}
+            <KeyboardShortcutsPanel />
+          {/if}
+        </div>
 
-      <ResizableDivider onResize={handleSidebarResize} orientation="horizontal" />
+        <ResizableDivider onResize={handleSidebarResize} orientation="horizontal" />
 
-      <div class="sidebar-tabs" style="flex: {$sidebarTabsHeightPercent}">
-        <TabsSection />
-      </div>
-    </aside>
+        <div class="sidebar-tabs" style="flex: {$sidebarTabsHeightPercent}">
+          <TabsSection />
+        </div>
+      </aside>
 
-    <section class="main-content">
-      <UrlBar />
-      <SearchBar
-        bind:this={searchBarComponent}
-        visible={searchBarVisible}
-        onClose={hideSearchBar}
-      />
-      <div class="browser-view">
-        {#if showApiKeyInstructions && activeTab}
-          <ApiKeyInstructionsView />
-        {:else if showNoteEditor && activeTab}
-          <NoteEditor tabId={activeTab.id} />
-        {:else if showAggregateTabs}
-          <AggregateTabs />
-        {:else if showSvelteContent && activeTab}
-          <MessageStream tabId={activeTab.id} />
-        {:else}
-          <div class="browser-placeholder">
-            <p>Browser content will appear here</p>
-            <p class="hint">Enter a URL above to open a new tab</p>
-          </div>
-        {/if}
-      </div>
-    </section>
-  </div>
-</main>
+      <section class="main-content">
+        <UrlBar />
+        <SearchBar
+          bind:this={searchBarComponent}
+          visible={searchBarVisible}
+          onClose={hideSearchBar}
+        />
+        <div class="browser-view">
+          {#if showApiKeyInstructions && activeTab}
+            <ApiKeyInstructionsView />
+          {:else if showNoteEditor && activeTab}
+            <NoteEditor tabId={activeTab.id} />
+          {:else if showAggregateTabs}
+            <AggregateTabs />
+          {:else if showSvelteContent && activeTab}
+            <MessageStream tabId={activeTab.id} />
+          {:else}
+            <div class="browser-placeholder">
+              <p>Browser content will appear here</p>
+              <p class="hint">Enter a URL above to open a new tab</p>
+            </div>
+          {/if}
+        </div>
+      </section>
+    </div>
+  </main>
 
-<Toast />
+  <Toast />
+{/if}
 
 <style>
   :global(body) {
