@@ -326,11 +326,11 @@
   });
 </script>
 
+<svelte:window on:keydown={handleGlobalKeydown} />
+
 {#if showExperiment}
   <ExperimentApp />
 {:else}
-  <svelte:window on:keydown={handleGlobalKeydown} />
-
   <main class="app-container" ondragover={handleDragOver} ondrop={(e) => handleDrop(e, ipc)}>
     <div class="app-content">
       <aside class="sidebar">
