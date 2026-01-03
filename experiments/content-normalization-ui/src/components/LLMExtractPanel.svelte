@@ -62,8 +62,8 @@ This is a simulated extraction result. In the real implementation:
   {:else}
     <div class="extraction-form">
       <!-- Provider -->
-      <div class="form-group">
-        <label class="form-label">Provider</label>
+      <div class="form-group" role="group" aria-labelledby="provider-label">
+        <span id="provider-label" class="form-label">Provider</span>
         <div class="provider-tabs">
           {#each ['openai', 'anthropic', 'ollama'] as p}
             <button
@@ -79,8 +79,8 @@ This is a simulated extraction result. In the real implementation:
 
       <!-- Model -->
       <div class="form-group">
-        <label class="form-label">Model</label>
-        <select class="select-input" bind:value={model}>
+        <label class="form-label" for="model-select">Model</label>
+        <select id="model-select" class="select-input" bind:value={model}>
           {#each models[provider] as m}
             <option value={m}>{m}</option>
           {/each}
@@ -90,8 +90,9 @@ This is a simulated extraction result. In the real implementation:
       <!-- API Key -->
       {#if provider !== 'ollama'}
         <div class="form-group">
-          <label class="form-label">API Key</label>
+          <label class="form-label" for="api-key-input">API Key</label>
           <input
+            id="api-key-input"
             type="password"
             class="text-input"
             placeholder={provider === 'openai' ? 'sk-...' : 'sk-ant-...'}
@@ -102,7 +103,7 @@ This is a simulated extraction result. In the real implementation:
 
       <!-- Prompt -->
       <div class="form-group">
-        <label class="form-label">Extraction Prompt</label>
+        <label class="form-label" for="prompt-textarea">Extraction Prompt</label>
         <div class="prompt-presets">
           {#each prompts as p}
             <button
@@ -115,6 +116,7 @@ This is a simulated extraction result. In the real implementation:
           {/each}
         </div>
         <textarea
+          id="prompt-textarea"
           class="textarea-input"
           bind:value={prompt}
           rows="3"

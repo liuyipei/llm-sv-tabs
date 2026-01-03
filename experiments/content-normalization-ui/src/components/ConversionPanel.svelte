@@ -30,8 +30,8 @@
   {:else}
     <div class="conversion-form">
       <!-- Conversion Type -->
-      <div class="form-group">
-        <label class="form-label">Conversion Type</label>
+      <div class="form-group" role="radiogroup" aria-labelledby="conversion-type-label">
+        <span id="conversion-type-label" class="form-label">Conversion Type</span>
         <div class="conversion-options">
           {#each conversions as conv}
             <label class="radio-option" class:selected={selectedConversion === conv.id}>
@@ -50,8 +50,8 @@
       <!-- Options -->
       <div class="options-grid">
         <div class="form-group">
-          <label class="form-label">DPI (for rasterization)</label>
-          <select class="select-input" bind:value={dpi}>
+          <label class="form-label" for="dpi-select">DPI (for rasterization)</label>
+          <select id="dpi-select" class="select-input" bind:value={dpi}>
             <option value={72}>72 (screen)</option>
             <option value={150}>150 (standard)</option>
             <option value={300}>300 (high quality)</option>
@@ -59,8 +59,8 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label">Output Format</label>
-          <select class="select-input" bind:value={format}>
+          <label class="form-label" for="format-select">Output Format</label>
+          <select id="format-select" class="select-input" bind:value={format}>
             <option value="png">PNG</option>
             <option value="jpeg">JPEG</option>
             <option value="webp">WebP</option>
