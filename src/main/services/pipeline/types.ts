@@ -9,13 +9,11 @@ import type {
   PipelineArtifact,
   CaptureArtifact,
   RenderArtifact,
-  ExtractArtifact,
   CaptureOptions,
   RenderOptions,
   ExtractOptions,
   RenderConfig,
   CaptureType,
-  RenderType,
   ExtractType,
 } from '../../../types/pipeline';
 import type { SourceId } from '../../../types/context-ir';

@@ -135,7 +135,7 @@ with proper markdown formatting, headings, paragraphs, and links.`;
    */
   private async extractWithDomWalker(
     parent: RenderArtifact | CaptureArtifact,
-    config: ExtractConfig,
+    _config: ExtractConfig,
     sourceAnchor: Anchor,
     startTime: number
   ): Promise<ExtractArtifact> {
@@ -186,7 +186,7 @@ Copyright 2025`;
    */
   private async extractTextLayer(
     parent: RenderArtifact | CaptureArtifact,
-    config: ExtractConfig,
+    _config: ExtractConfig,
     sourceAnchor: Anchor,
     startTime: number
   ): Promise<ExtractArtifact> {

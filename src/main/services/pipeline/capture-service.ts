@@ -9,7 +9,7 @@
  */
 
 import type { BinaryBlob, Anchor } from '../../../types/context-ir';
-import type { CaptureArtifact, CaptureType } from '../../../types/pipeline';
+import type { CaptureArtifact } from '../../../types/pipeline';
 import { createArtifactId } from '../../../types/pipeline';
 import type { CaptureConfig, CaptureInput, StageResult } from './types';
 
@@ -76,9 +76,9 @@ export class CaptureService {
    * Capture a screenshot from a tab
    */
   private async captureScreenshot(
-    tabId: string,
+    _tabId: string,
     url: string,
-    title: string,
+    _title: string,
     sourceAnchor: Anchor,
     config: CaptureConfig,
     startTime: number
@@ -129,7 +129,7 @@ export class CaptureService {
    * Capture DOM snapshot from a tab
    */
   private async captureDomSnapshot(
-    tabId: string,
+    _tabId: string,
     url: string,
     title: string,
     sourceAnchor: Anchor,
@@ -171,11 +171,11 @@ export class CaptureService {
    * Capture text content from a tab
    */
   private async captureText(
-    tabId: string,
+    _tabId: string,
     url: string,
     title: string,
     sourceAnchor: Anchor,
-    config: CaptureConfig,
+    _config: CaptureConfig,
     startTime: number
   ): Promise<CaptureArtifact> {
     // Placeholder: In real implementation, this would:

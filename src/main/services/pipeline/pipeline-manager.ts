@@ -17,7 +17,6 @@ import type {
   RenderArtifact,
   ExtractArtifact,
   SourceInfo,
-  ArtifactProvenance,
 } from '../../../types/pipeline';
 import {
   createEmptyPipeline,
@@ -142,8 +141,6 @@ export class PipelineManager {
     };
     this.pipelines.set(pipeline.source_id, pipeline);
 
-    const startTime = Date.now();
-
     // Run the appropriate stage
     let result: StageResult;
     switch (stage) {
@@ -181,7 +178,7 @@ export class PipelineManager {
    * Regenerate a specific stage
    */
   async regenerateStage(request: RegenerationRequest): Promise<PipelineArtifact[]> {
-    const { sourceId, stage, config } = request;
+    const { sourceId, stage } = request;
 
     const pipeline = this.pipelines.get(sourceId);
     if (!pipeline) {
@@ -189,7 +186,6 @@ export class PipelineManager {
     }
 
     const context: PipelineContext = { sourceId };
-    const startTime = Date.now();
 
     // Run the stage with custom config
     let result: StageResult;
@@ -283,7 +279,7 @@ export class PipelineManager {
    */
   private async runCaptureStage(
     pipeline: SourcePipeline,
-    context: PipelineContext
+    _context: PipelineContext
   ): Promise<StageResult<CaptureArtifact>> {
     const startTime = Date.now();
 
@@ -324,7 +320,7 @@ export class PipelineManager {
    */
   private async runRenderStage(
     pipeline: SourcePipeline,
-    context: PipelineContext
+    _context: PipelineContext
   ): Promise<StageResult<RenderArtifact>> {
     const startTime = Date.now();
 
@@ -381,7 +377,7 @@ export class PipelineManager {
    */
   private async runExtractStage(
     pipeline: SourcePipeline,
-    context: PipelineContext
+    _context: PipelineContext
   ): Promise<StageResult<ExtractArtifact>> {
     const startTime = Date.now();
 
