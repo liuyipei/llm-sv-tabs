@@ -6,8 +6,10 @@
 
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Set up the worker (using CDN for simplicity in experiment)
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs';
+// Set up the worker - use unpkg to match the installed package version
+// @ts-expect-error - version exists on pdfjsLib
+const version = pdfjsLib.version || '4.10.38';
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${version}/build/pdf.worker.min.mjs`;
 
 export interface PdfPage {
   pageNumber: number;
