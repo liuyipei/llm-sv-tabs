@@ -48,7 +48,9 @@
         const cap = artifact as CaptureArtifact;
         if (cap.capture_type === 'screenshot' || cap.capture_type === 'image_bytes') {
           const blob = cap.data as BinaryBlob;
-          return { type: 'image', data: `data:${blob.mime_type};base64,${blob.data}` };
+          // Handle both raw base64 and data URLs
+          const imageData = blob.data.startsWith('data:') ? blob.data : `data:${blob.mime_type};base64,${blob.data}`;
+          return { type: 'image', data: imageData };
         }
         if (cap.capture_type === 'text' || cap.capture_type === 'dom_snapshot') {
           return { type: 'text', data: (cap.data as string).slice(0, 300) };
@@ -59,7 +61,9 @@
         const ren = artifact as RenderArtifact;
         if (ren.pages.length > 0) {
           const page = ren.pages[0];
-          return { type: 'image', data: `data:${page.image.mime_type};base64,${page.image.data}` };
+          // Handle both raw base64 and data URLs
+          const imageData = page.image.data.startsWith('data:') ? page.image.data : `data:${page.image.mime_type};base64,${page.image.data}`;
+          return { type: 'image', data: imageData };
         }
         return { type: 'none' };
       }

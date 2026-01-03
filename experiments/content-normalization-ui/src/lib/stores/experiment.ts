@@ -4,7 +4,7 @@
  * Manages state for the content normalization experiment.
  */
 
-import { writable, derived, type Writable, type Readable } from 'svelte/store';
+import { writable, derived, get, type Writable, type Readable } from 'svelte/store';
 import type {
   SourcePipeline,
   SourceId,
@@ -13,6 +13,10 @@ import type {
   ExperimentConfig,
   ExperimentTab,
   SourceInput,
+  RenderArtifact,
+  ExtractArtifact,
+  CaptureArtifact,
+  Anchor,
 } from '../types';
 import { createEmptyPipeline, createArtifactId, PIPELINE_STAGES } from '../types';
 
@@ -62,6 +66,9 @@ export const logMessages: Writable<Array<{ time: Date; level: string; message: s
 /** All pipelines in the experiment */
 export const pipelines: Writable<Map<SourceId, SourcePipeline>> = writable(new Map());
 
+/** Source file data (File objects, ArrayBuffers, or strings) */
+export const sourceFiles: Writable<Map<SourceId, File | ArrayBuffer | string>> = writable(new Map());
+
 /** Counter for generating source IDs */
 let sourceCounter = 0;
 
@@ -105,6 +112,13 @@ export function createPipelineFromInput(input: SourceInput): SourceId {
     return newMap;
   });
 
+  // Store the source file data for later conversion
+  sourceFiles.update((map) => {
+    const newMap = new Map(map);
+    newMap.set(sourceId, input.data);
+    return newMap;
+  });
+
   log('info', `Created pipeline for "${input.name}" (${sourceId})`);
 
   // Auto-select the new pipeline
@@ -112,6 +126,13 @@ export function createPipelineFromInput(input: SourceInput): SourceId {
   activeTab.set('pipeline');
 
   return sourceId;
+}
+
+/**
+ * Get source file for a pipeline
+ */
+export function getSourceFile(sourceId: SourceId): File | ArrayBuffer | string | undefined {
+  return get(sourceFiles).get(sourceId);
 }
 
 /**

@@ -1,10 +1,13 @@
 <script lang="ts">
-  import { currentPipeline, log } from '$lib/stores/experiment';
-  import type { PipelineStage } from '$lib/types';
+  import { currentPipeline, log, getSourceFile, addArtifact, selectedPipelineId, selectedStage } from '$lib/stores/experiment';
+  import { convertPdfToImages, extractPdfText } from '$lib/services/pdf-converter';
+  import { createArtifactId, type RenderArtifact, type ExtractArtifact, type Anchor, type SourceId } from '$lib/types';
+  import { get } from 'svelte/store';
 
   let selectedConversion = $state('pdf-to-image');
   let dpi = $state(150);
   let format = $state<'png' | 'jpeg' | 'webp'>('png');
+  let isRunning = $state(false);
 
   const conversions = [
     { id: 'pdf-to-image', label: 'PDF → Images', from: 'capture', to: 'render' },
@@ -14,9 +17,120 @@
     { id: 'text-layer', label: 'PDF Text Layer', from: 'capture', to: 'extract' },
   ];
 
-  function handleRunConversion(): void {
+  async function handleRunConversion(): Promise<void> {
+    const pipeline = get(currentPipeline);
+    const sourceId = get(selectedPipelineId);
+    if (!pipeline || !sourceId) {
+      log('error', 'No pipeline selected');
+      return;
+    }
+
+    const sourceFile = getSourceFile(sourceId);
+    if (!sourceFile) {
+      log('error', 'No source file found for pipeline');
+      return;
+    }
+
+    isRunning = true;
     log('info', `Running conversion: ${selectedConversion} (DPI: ${dpi}, Format: ${format})`);
-    // TODO: Implement actual conversion
+
+    try {
+      if (selectedConversion === 'pdf-to-image') {
+        await runPdfToImage(sourceId, sourceFile, pipeline.source_id as Anchor);
+      } else if (selectedConversion === 'text-layer') {
+        await runTextLayerExtraction(sourceId, sourceFile, pipeline.source_id as Anchor);
+      } else {
+        log('warn', `Conversion "${selectedConversion}" not yet implemented`);
+      }
+    } catch (error) {
+      log('error', `Conversion failed: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      isRunning = false;
+    }
+  }
+
+  async function runPdfToImage(sourceId: SourceId, sourceFile: File | ArrayBuffer | string, anchor: Anchor): Promise<void> {
+    if (!(sourceFile instanceof File) && !(sourceFile instanceof ArrayBuffer)) {
+      log('error', 'PDF to image requires a File or ArrayBuffer');
+      return;
+    }
+
+    const result = await convertPdfToImages(sourceFile, { dpi, format });
+    log('info', `Converted ${result.pageCount} pages in ${result.duration}ms`);
+
+    // Create a render artifact for the converted pages
+    const artifact: RenderArtifact = {
+      artifact_id: createArtifactId(),
+      stage: 'render',
+      source_anchor: anchor,
+      created_at: Date.now(),
+      provenance: {
+        method: 'pdf_rasterize',
+        version: '1.0.0',
+        parent_ids: [],
+        config: { dpi, format },
+        duration_ms: result.duration,
+      },
+      selected: false,
+      render_type: 'rasterized_pages',
+      pages: result.pages.map((page) => ({
+        page_number: page.pageNumber,
+        image: {
+          data: page.imageDataUrl,
+          mime_type: `image/${format}`,
+          byte_size: Math.round(page.imageDataUrl.length * 0.75), // Approximate
+        },
+        dimensions: { width: page.width, height: page.height },
+        anchor: `${anchor}#p=${page.pageNumber}` as Anchor,
+      })),
+      render_config: { dpi, format },
+      page_count: result.pageCount,
+    };
+
+    addArtifact(sourceId, artifact);
+    selectedStage.set('render');
+    log('info', `Created render artifact with ${result.pageCount} pages`);
+  }
+
+  async function runTextLayerExtraction(sourceId: SourceId, sourceFile: File | ArrayBuffer | string, anchor: Anchor): Promise<void> {
+    if (!(sourceFile instanceof File) && !(sourceFile instanceof ArrayBuffer)) {
+      log('error', 'Text layer extraction requires a File or ArrayBuffer');
+      return;
+    }
+
+    const result = await extractPdfText(sourceFile);
+    log('info', `Extracted text from ${result.pages.length} pages in ${result.duration}ms`);
+
+    // Create an extract artifact
+    const artifact: ExtractArtifact = {
+      artifact_id: createArtifactId(),
+      stage: 'extract',
+      source_anchor: anchor,
+      created_at: Date.now(),
+      provenance: {
+        method: 'pdf_text_layer',
+        version: '1.0.0',
+        parent_ids: [],
+        duration_ms: result.duration,
+      },
+      selected: false,
+      extract_type: 'text_layer',
+      text: result.text,
+      quality: result.text.length > 100 ? 'good' : 'low',
+      token_estimate: Math.ceil(result.text.length / 4),
+      char_count: result.text.length,
+      page_texts: result.pages.map((text, i) => ({
+        page_number: i + 1,
+        text,
+        quality: text.length > 50 ? 'good' as const : 'low' as const,
+        anchor: `${anchor}#p=${i + 1}` as Anchor,
+        char_count: text.length,
+      })),
+    };
+
+    addArtifact(sourceId, artifact);
+    selectedStage.set('extract');
+    log('info', `Created extract artifact with ${result.text.length} characters`);
   }
 </script>
 
@@ -69,8 +183,8 @@
       </div>
 
       <!-- Run Button -->
-      <button class="run-btn" onclick={handleRunConversion}>
-        Run Conversion
+      <button class="run-btn" onclick={handleRunConversion} disabled={isRunning}>
+        {isRunning ? 'Converting...' : 'Run Conversion'}
       </button>
     </div>
 
